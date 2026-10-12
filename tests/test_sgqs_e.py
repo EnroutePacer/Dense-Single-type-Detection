@@ -2,12 +2,14 @@
 
 from pathlib import Path
 from contextlib import redirect_stdout
+import hashlib
 import io
 import unittest
 import warnings
 
 import torch
 import torch.nn as nn
+import yaml
 
 import engine  # noqa: F401
 from engine.core.yaml_config import YAMLConfig
@@ -125,6 +127,23 @@ class EdgeGeometryTest(unittest.TestCase):
             torch.testing.assert_close(actual, iou[:, None].expand(-1, 4), rtol=0, atol=0)
         self.assertEqual(context(epoch=36)['graphs'], [])
 
+    def test_resume_curriculum_uses_an_explicit_absolute_start(self):
+        config = EFGLConfig(
+            enabled=True,
+            compensation_start_epoch=28.0,
+            compensation_duration_epochs=2.0,
+        )
+        before = build_edge_context(targets(), (100, 200), config, 27, 0, 10, 35)
+        start = build_edge_context(targets(), (100, 200), config, 28, 0, 10, 35)
+        middle = build_edge_context(targets(), (100, 200), config, 29, 0, 10, 35)
+        end = build_edge_context(targets(), (100, 200), config, 30, 0, 10, 35)
+        self.assertEqual(before['ramp'], 0.0)
+        self.assertEqual(before['graphs'], [])
+        self.assertEqual(start['ramp'], 1.0)
+        self.assertAlmostEqual(middle['ramp'], 0.5)
+        self.assertEqual(end['ramp'], 0.0)
+        self.assertEqual(end['graphs'], [])
+
     def test_pixel_size_comes_from_input_not_original_image(self):
         gt = targets()
         first = context(gt)
@@ -153,7 +172,9 @@ class EdgeGeometryTest(unittest.TestCase):
 
     def test_invalid_configuration_fails_instead_of_silent_clamping(self):
         for options in ({'strength': 1.1}, {'pixel_floor': 0}, {'neighbors': -1},
-                        {'neighbor_strength': float('nan')}, {'compensation_fraction': 0}):
+                        {'neighbor_strength': float('nan')}, {'compensation_fraction': 0},
+                        {'compensation_start_epoch': -1},
+                        {'compensation_duration_epochs': 0}):
             with self.assertRaises(ValueError):
                 EFGLConfig(**options)
         with self.assertRaises(ValueError):
@@ -339,6 +360,65 @@ class SGQSEIntegrationTest(unittest.TestCase):
             decoder = create('DFINETransformer', config.global_cfg)
             self.assertEqual(decoder.num_queries, 640)
             self.assertEqual(decoder.sgqs_supervisor is not None, i in (1, 3))
+
+    def test_e35_r7_matrix_resolves_fixed_budget_and_resume_curricula(self):
+        root = Path(__file__).resolve().parents[1]
+        matrix = root / 'configs/e35_r7'
+        fresh = YAMLConfig(str(matrix / 'deim_core_e35.yml'))
+        self.assertEqual(fresh.yaml_cfg['epoches'], 35)
+        self.assertEqual(fresh.yaml_cfg['eval_spatial_size'], [640, 640])
+        self.assertEqual(fresh.yaml_cfg['DFINETransformer']['num_queries'], 640)
+        self.assertEqual(fresh.yaml_cfg['PostProcessor']['num_top_queries'], 640)
+        self.assertEqual(fresh.yaml_cfg['DEIMCriterion']['losses'], ['mal', 'boxes', 'local'])
+        self.assertEqual(
+            fresh.yaml_cfg['train_dataloader']['dataset']['transforms']['policy']['epoch'],
+            [1, 17, 31],
+        )
+        collate = fresh.yaml_cfg['train_dataloader']['collate_fn']
+        self.assertIsNone(collate['scales'])
+        self.assertEqual(collate['base_size'], 640)
+        self.assertEqual(collate['stop_epoch'], 35)
+
+        names = (
+            'resume_b0_baseline',
+            'resume_b1_sgqs',
+            'resume_b2_efgl',
+            'resume_b3_sgqs_e',
+        )
+        for i, name in enumerate(names):
+            config = YAMLConfig(str(matrix / f'{name}.yml'))
+            self.assertEqual(config.yaml_cfg['epoches'], 35)
+            self.assertEqual(config.yaml_cfg['eval_spatial_size'], [640, 640])
+            self.assertEqual(config.yaml_cfg['DFINETransformer']['num_queries'], 640)
+            self.assertEqual(config.yaml_cfg['PostProcessor']['num_top_queries'], 640)
+            self.assertEqual(config.yaml_cfg['DEIMCriterion']['losses'], ['vfl', 'boxes', 'local'])
+            criterion = config.criterion
+            is_sgqs = isinstance(criterion, SGQSCriterion)
+            self.assertEqual(is_sgqs, i in (1, 3))
+            base = criterion.base_criterion if is_sgqs else criterion
+            self.assertEqual(base.efgl.enabled, i in (2, 3))
+            if is_sgqs:
+                self.assertEqual(criterion.survival_start_epoch, 28.0)
+                self.assertEqual(criterion.survival_ramp_epochs, 1.0)
+            if base.efgl.enabled:
+                self.assertEqual(base.efgl.compensation_start_epoch, 28.0)
+                self.assertEqual(base.efgl.compensation_duration_epochs, 2.1)
+
+    def test_e35_r7_method_provenance_allows_only_resume_time_adapter(self):
+        root = Path(__file__).resolve().parents[1]
+        provenance = yaml.safe_load(
+            (root / 'configs/e35_r7/method_provenance.yml').read_text(encoding='utf-8'))
+        self.assertEqual(
+            provenance['reference']['commit'],
+            '6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a',
+        )
+        delta = provenance['allowed_runtime_delta']
+        self.assertEqual(delta['path'], 'engine/sgqs/edge_localization.py')
+        for relative, reference_hash in provenance['reference_files'].items():
+            data = (root / relative).read_bytes().replace(b'\r\n', b'\n').replace(b'\r', b'\n')
+            actual_hash = hashlib.sha256(data).hexdigest()
+            expected_hash = delta['runtime_sha256'] if relative == delta['path'] else reference_hash
+            self.assertEqual(actual_hash, expected_hash, relative)
 
     def test_loading_joint_config_does_not_contaminate_a_later_legacy_config(self):
         root = Path(__file__).resolve().parents[1]

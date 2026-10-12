@@ -15,8 +15,9 @@
 
 ## 当前顺序
 
-1. [EXP-TRAIN-004](EXP-TRAIN-004_sgqs-e-b0-b3/README.md)：固定数据、初始化与预算，运行已实现的 SGQS-E 四组对照；
-2. 对有正信号的部分补做机制消融和至少三个 seed；
-3. 在完整 DEIM/MAL + Dense O2O 配方上复验，记录真实训练与部署成本。
+1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：完成已启动的 B0 与同 checkpoint 的 B1/B2/B3 七 epoch 续训屏选；
+2. [EXP-TRAIN-002](EXP-TRAIN-002_clean-deim-mal/README.md)：运行 fixed-640/query-640/global-batch-64 的 controlled DEIM-core 35e 基线；
+3. 只有短续训出现值得复验的正信号时，才启动 [EXP-TRAIN-004](EXP-TRAIN-004_sgqs-e-b0-b3/README.md) 正式从头、多 seed 四组对照；
+4. 对有正信号的部分补做机制消融，并在 MAL + Dense O2O 基座上复验。
 
-[ADR-003](../docs/research/decisions/ADR-003_training-first-sgqs-e.md) 已替代旧的训练暂停要求。`EXP-DIAG-003` 与 `EXP-ABL-001` 仍可辅助解释结果，但不再是配对训练的前置条件。既有 EXP-TRAIN-001/002/003 保留原登记和历史上下文；当前四组只使用同提交配置，不把旧 probe 当作已完成的 B0/B1。
+[ADR-003](../docs/research/decisions/ADR-003_training-first-sgqs-e.md) 已替代旧的“先完成全部归因再训练”门禁。`EXP-DIAG-003` 与 `EXP-ABL-001` 仍可辅助解释结果，但不再是配对训练的前置条件。EXP-TRAIN-005 是明确降格的 checkpoint-continuation screen；它不把旧 probe 当作正式 B0/B1，也不把短续训结果当作 EXP-TRAIN-004 的替代。

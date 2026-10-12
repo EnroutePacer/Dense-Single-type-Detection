@@ -6,7 +6,7 @@
 
 | 位置（相对仓库根） | 改动 |
 |---|---|
-| `engine/sgqs/edge_localization.py` | 一次构建增强后像素近邻图；固定 kappa=1/2；逐边有界补偿 |
+| `engine/sgqs/edge_localization.py` | 一次构建增强后像素近邻图；固定 kappa=1/2；逐边有界补偿；支持显式续训课程起点/持续时间 |
 | `engine/deim/deim_criterion.py` | 在原 loss_fgl 中替换权重，沿用真实 GO/DN 对应；暴露实际 Encoder 监督索引 |
 | `engine/sgqs/criterion.py` | 可选非 owner 预算门槛、原 Encoder 监督保护、合并 EFGL 日志 |
 | `engine/sgqs/candidate_supervision.py` | 提供真实 mask 后的选择分数，并校验有效候选数量 |
@@ -40,6 +40,47 @@ bash tools/table_cells/train_dfine_m_table_cell_multigpu.sh
 ```
 
 四组必须使用不同输出目录、相同初始化/seed/global batch/步数。`-r` 恢复时课程跟随恢复后的真实 epoch；`-t` 微调从新训练的 epoch 0 开始。EFGL 结束时间为 `epoches * compensation_fraction`，默认 120×.30=36 epoch，不能悄悄把恢复训练当作新的课程起点。自定义训练循环必须向 criterion 传 `epoch`、`step`、`epoch_step` 和真实 `input_size=(H,W)`，缺必需信息会报错。
+
+## Epoch-27 continuation screen
+
+`configs/e35_r7/` 另外预注册了一组明确标记为 screen 的短续训：
+四臂都从 `last_epoch=27` 的同一 checkpoint 恢复，把绝对结束
+epoch 设为 35，因此只执行 epoch 28--34。B0 已在外部运行，新入口
+默认只启动 B1/B2/B3。
+
+该 screen 不会隐式重置课程，而是在叶子配置显式声明：
+
+```yaml
+SGQSCriterion:
+  survival_start_epoch: 28.0
+  survival_ramp_epochs: 1.0
+efgl:
+  compensation_start_epoch: 28.0
+  compensation_duration_epochs: 2.1
+```
+
+`2.1 = 7 × 0.30`，使 EFGL 在短续训的前 30% 线性退火。新字段的
+默认值仍为从 epoch 0 开始、持续 `epoches×compensation_fraction`，
+所以不改变正式从头训练配置。如果不显式加这个 offset，epoch 28 时
+EFGL 已经归零，B2 会数值退化成 B0，B3 会退化成 B1。
+
+这组结果只能作为 checkpoint continuation 的低成本打靶，不能替代
+EXP-TRAIN-004 的同初始化、从头训练、多 seed 正式消融。
+
+本屏选的规范数学与实现基准固定为
+`6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a`。除
+`engine/sgqs/edge_localization.py` 增加的课程时间原点/持续时间参数外，
+方法关键文件与该提交按 canonical-LF SHA-256 完全一致。该唯一差异只实现
+
+\[
+c_{r7}(e)=\max\left(0,1-\frac{e-28}{7\times0.30}\right),\quad e\ge 28,
+\]
+
+而逐边权重、owner、SGQS 四项损失及系数、Matcher、GO/DDF、DN 均不变。
+默认 `start=0,duration=null` 时仍严格回到提交中的
+`c(e)=max(0,1-e/(T*0.30))`。机器可核验记录见
+`configs/e35_r7/method_provenance.yml`；启动器在训练前校验方法快照和最终
+解析配置，不能仅凭叶子 YAML 文件名宣称实验身份。
 
 正式四组计划登记为 [EXP-TRAIN-004](../../experiments/EXP-TRAIN-004_sgqs-e-b0-b3/README.md)，当前 runs 为空。EXP-TRAIN-003 是历史 M-001 计划，不作为本版 B1 的已完成对照。
 

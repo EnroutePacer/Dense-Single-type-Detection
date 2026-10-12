@@ -41,6 +41,7 @@ BATCH_SIZE_PER_GPU="${BATCH_SIZE_PER_GPU:-1}"
 NUM_WORKERS="${NUM_WORKERS:-4}"
 SEED="${SEED:-0}"
 NUM_QUERIES="${NUM_QUERIES:-640}"
+SAVE_RESOLVED_CONFIG="${SAVE_RESOLVED_CONFIG:-1}"
 
 die() { echo "错误: $*" >&2; exit 2; }
 if [[ -n "${RUNTIME_ENV}" ]]; then
@@ -88,6 +89,43 @@ if (( QUICK_STEPS > 0 )); then
 fi
 
 cd "${PROJECT_ROOT}"
+mkdir -p "${OUTPUT_DIR}"
+
+CONFIG_UPDATES=(
+  "num_classes=1"
+  "epoches=${EPOCHS}"
+  "HGNetv2.pretrained=False"
+  "DFINETransformer.num_queries=${NUM_QUERIES}"
+  "PostProcessor.num_top_queries=${NUM_QUERIES}"
+  "train_dataloader.dataset.img_folder=${TRAIN_IMAGES}"
+  "train_dataloader.dataset.ann_file=${TRAIN_ANN}"
+  "val_dataloader.dataset.img_folder=${VAL_IMAGES}"
+  "val_dataloader.dataset.ann_file=${VAL_ANN}"
+  "train_dataloader.total_batch_size=${TOTAL_BATCH_SIZE}"
+  "val_dataloader.total_batch_size=${TOTAL_BATCH_SIZE}"
+  "train_dataloader.num_workers=${NUM_WORKERS}"
+  "val_dataloader.num_workers=${NUM_WORKERS}"
+  "${EXTRA_UPDATES[@]}"
+)
+
+if [[ "${SAVE_RESOLVED_CONFIG}" == "1" ]]; then
+  SNAPSHOT_UPDATES=(
+    "output_dir=${OUTPUT_DIR}"
+    "use_amp=True"
+    "seed=${SEED}"
+    "${CONFIG_UPDATES[@]}"
+  )
+  if [[ -n "${RESUME}" ]]; then
+    SNAPSHOT_UPDATES+=("resume=${RESUME}")
+  else
+    SNAPSHOT_UPDATES+=("tuning=${PRETRAINED}")
+  fi
+  python tools/table_cells/dump_resolved_training_config.py \
+    -c "${CONFIG_FILE}" \
+    -o "${OUTPUT_DIR}/resolved_config.yml" \
+    -u "${SNAPSHOT_UPDATES[@]}"
+fi
+
 echo "启动 D-FINE-M 表格单元格训练: GPUs=${GPUS}, global_batch=${TOTAL_BATCH_SIZE}, epochs=${EPOCHS}, quick_steps=${QUICK_STEPS}, config=${CONFIG_FILE}, output=${OUTPUT_DIR}, checkpoint=${CHECKPOINT_MODE}"
 
 CUDA_VISIBLE_DEVICES="${GPUS}" torchrun \
@@ -95,17 +133,4 @@ CUDA_VISIBLE_DEVICES="${GPUS}" torchrun \
   --nproc_per_node="${NPROC_PER_NODE}" \
   train.py -c "${CONFIG_FILE}" \
   --use-amp --seed="${SEED}" --output-dir "${OUTPUT_DIR}" "${CHECKPOINT_ARGS[@]}" \
-  -u \
-  "num_classes=1" \
-  "epoches=${EPOCHS}" \
-  "DFINETransformer.num_queries=${NUM_QUERIES}" \
-  "PostProcessor.num_top_queries=${NUM_QUERIES}" \
-  "train_dataloader.dataset.img_folder=${TRAIN_IMAGES}" \
-  "train_dataloader.dataset.ann_file=${TRAIN_ANN}" \
-  "val_dataloader.dataset.img_folder=${VAL_IMAGES}" \
-  "val_dataloader.dataset.ann_file=${VAL_ANN}" \
-  "train_dataloader.total_batch_size=${TOTAL_BATCH_SIZE}" \
-  "val_dataloader.total_batch_size=${TOTAL_BATCH_SIZE}" \
-  "train_dataloader.num_workers=${NUM_WORKERS}" \
-  "val_dataloader.num_workers=${NUM_WORKERS}" \
-  "${EXTRA_UPDATES[@]}"
+  -u "${CONFIG_UPDATES[@]}"

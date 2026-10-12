@@ -22,6 +22,8 @@ class EFGLConfig:
     neighbors: int = 4
     neighbor_radius: float = 4.0
     compensation_fraction: float = 0.3
+    compensation_start_epoch: float = 0.0
+    compensation_duration_epochs: float | None = None
     normal_branch: bool = True
     dn_branch: bool = True
 
@@ -38,6 +40,13 @@ class EFGLConfig:
                 raise ValueError(f'EFGL {key} must be finite and positive')
         if not 0 < self.compensation_fraction <= 1:
             raise ValueError('EFGL compensation_fraction must be in (0, 1]')
+        if (not math.isfinite(self.compensation_start_epoch)
+                or self.compensation_start_epoch < 0):
+            raise ValueError('EFGL compensation_start_epoch must be finite and non-negative')
+        if (self.compensation_duration_epochs is not None
+                and (not math.isfinite(self.compensation_duration_epochs)
+                     or self.compensation_duration_epochs <= 0)):
+            raise ValueError('EFGL compensation_duration_epochs must be finite and positive')
         if isinstance(self.neighbors, bool) or not isinstance(self.neighbors, int) or self.neighbors < 0:
             raise ValueError('EFGL neighbors must be a non-negative integer')
 
@@ -52,7 +61,13 @@ def build_edge_context(targets, input_size, config, epoch, step, epoch_step, tot
     progress = float(epoch) + float(step) / float(epoch_step)
     if not math.isfinite(progress) or progress < 0:
         raise ValueError('EFGL requires finite, non-negative training progress')
-    ramp = max(0.0, 1.0 - progress / (total_epochs * config.compensation_fraction))
+    duration = config.compensation_duration_epochs
+    if duration is None:
+        duration = total_epochs * config.compensation_fraction
+    if progress < config.compensation_start_epoch:
+        ramp = 0.0
+    else:
+        ramp = max(0.0, 1.0 - (progress - config.compensation_start_epoch) / duration)
     context = dict(config=config, ramp=ramp, graphs=[])
     if ramp == 0 or config.strength == 0:
         return context  # Exact original FGL; no neighbor construction after annealing.

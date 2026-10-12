@@ -1,0 +1,4 @@
+__include__: ['../sgqs_e/b0_baseline.yml']
+
+output_dir: ./output/e35_r7_sgqse/resume_b0_baseline_seed0
+epoches: 35

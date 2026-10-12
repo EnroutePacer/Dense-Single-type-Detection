@@ -1,5 +1,6 @@
 # Large experiment artifacts are versioned through Git LFS. Text logs,
 # metrics, summaries and resolved configs remain ordinary Git objects.
+*.sh text eol=lf
 output/**/*.log text eol=lf
 outputs/**/*.log text eol=lf
 output/**/*.txt text eol=lf

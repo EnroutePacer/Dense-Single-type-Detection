@@ -1,0 +1,51 @@
+schema_version: 1
+experiment_id: EXP-TRAIN-005
+slug: epoch27_sgqs_e_resume_screen
+title: "Epoch-27 checkpoint 的 SGQS-E 七 epoch 续训屏选"
+type: train
+status: planned
+validity: not_run
+paper_role: screening
+question: "在不重跑前 28 epoch 的条件下，SGQS、EFGL 及其组合是否产生值得正式从头训练验证的正信号？"
+hypothesis_ids: []
+protocol_ids: [P-001, P-003, P-006]
+method_ids: [M-002]
+control_experiment_id: null
+legacy_ids: []
+invariants:
+  code_base: "Normative SGQS-E commit 6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a plus the single allow-listed resume curriculum time adapter"
+  method_provenance: "configs/e35_r7/method_provenance.yml; fail-closed contract preflight required"
+  dataset: "Frozen train/val annotation hashes in configs/e35_r7/frozen_inputs.yml"
+  initialization: "checkpoint0027.pth, last_epoch=27, sha256=3eba494ac31b049d266af7fc837f72ad79c91830fc47b27f7e611af552094ede"
+  input_size: [640, 640]
+  num_queries: 640
+  absolute_end_epoch: 35
+  continuation_epochs: 7
+  global_batch_size: 64
+  optimizer_steps: null
+  evaluator_max_dets: 300
+  seed: 0
+  optimizer_and_augmentation: "Inherited fixed640 VFL control, identical across B0/B1/B2/B3"
+arms:
+  B0: configs/e35_r7/resume_b0_baseline.yml
+  B1: configs/e35_r7/resume_b1_sgqs.yml
+  B2: configs/e35_r7/resume_b2_efgl.yml
+  B3: configs/e35_r7/resume_b3_sgqs_e.yml
+execution_state:
+  B0: "User reports matching baseline is already running; run metadata not yet ingested"
+  B1: not_started
+  B2: not_started
+  B3: not_started
+planned_seeds: [0]
+planned_metrics:
+  primary: [mAP, AP75, AP90, AP-small, AR-small]
+  secondary: [medium_AP, large_AP, wall_clock, GPU_hours]
+  diagnostics: [owner_survival, unique_GT_coverage, edge_relative_error, conflicting_owner_fraction]
+acceptance_criteria:
+  supports_formal_followup: "B1/B2/B3 show a positive paired signal versus B0 with the expected mechanism diagnostics"
+  rejects_formal_followup: "No arm improves the paired endpoint, or diagnostics contradict the claimed mechanism"
+  invalidates_experiment: "Any mismatch in checkpoint/data/batch/seed/end epoch/evaluator, inactive method switches, or missing provenance"
+runs: []
+created_at: 2026-10-12
+updated_at: 2026-10-12
+notes: "This is a low-cost checkpoint-continuation screen, not evidence equivalent to the formal from-start multi-seed EXP-TRAIN-004. The time adapter changes only the curriculum origin/duration, not the 6fd2c30 loss equations."

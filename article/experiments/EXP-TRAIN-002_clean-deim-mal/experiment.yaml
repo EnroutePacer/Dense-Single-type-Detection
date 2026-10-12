@@ -14,5 +14,18 @@ control_experiment_id: EXP-TRAIN-001
 legacy_ids: [T013]
 runs: []
 created_at: 2026-10-10
-updated_at: 2026-10-10
-notes: "训练暂停，等待诊断 Gate。"
+updated_at: 2026-10-12
+invariants:
+  config: configs/e35_r7/deim_core_e35.yml
+  launcher: tools/table_cells/train_e35_r7_sgqse_8gpu.sh
+  initialization_sha256: 2b6cd0582a4aa711f583982057b7fb0f3daebdd98e4dc168824714014c3219bc
+  train_annotation_sha256: 816859c555565c1baed0fa4b99e2f7d502ec3bc9582f34601770101dab6d0e4e
+  val_annotation_sha256: a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b
+  input_size: [640, 640]
+  num_queries: 640
+  epochs: 35
+  global_batch_size: 64
+  evaluator_max_dets: 300
+  seed: 0
+  controlled_changes: [MAL, Dense_O2O]
+notes: "35-epoch controlled DEIM-core run is configured but not yet run; it preserves the table baseline optimizer/activation and is not the full upstream COCO recipe."

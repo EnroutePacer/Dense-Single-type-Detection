@@ -1,5 +1,22 @@
 # 科研进展日志
 
+## 2026-10-12 — 将 e35/r7 数学基准钉死到 6fd2c30
+
+- 将提交 `6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a` 定为 M-002/SGQS-E 的唯一规范数学与实现基准；逐文件 canonical-LF SHA-256 已登记。
+- 审计确认 owner、SGQS 四项损失与系数、non-owner survival、监督保护、EFGL 逐边公式、Matcher、GO/DDF、DN 和推理路径没有漂移。
+- 唯一 allow-list 差异是在 EFGL 中增加 resume 课程起点与持续时间；默认值严格恢复原公式，r7 仅把同一时间坐标平移到 epoch 28，并用 `7×0.30=2.1` epoch 退火。
+- 新增 fail-closed preflight：完整解析 include/CLI 后检查方法哈希、消融开关、损失、课程、fixed-640、query 640、global batch 64、checkpoint last_epoch=27、数据/权重哈希和 maxDets=300；只检模式不创建输出、不启动 torchrun。
+- 五份配置契约全部通过；根方法测试 32 项、article 镜像与仓库契约 38 项通过。仍未启动 B1/B2/B3，没有新增 AP 结论。
+
+## 2026-10-12 — 冻结 e35/r7 打靶矩阵
+
+- 确认根目录 `configs/table_cells/` 只保留 M fixed-640 与 S 两份任务基配置是有意精简；新一次性计划集中到 `configs/e35_r7/`，不恢复历史 probe 屎山。
+- 预注册 controlled DEIM-core 35e：保留 fixed-640、query 640、表格 optimizer/ReLU，只切换 MAL + Dense O2O；它不是照搬官方 COCO 全部超参。
+- 预注册 EXP-TRAIN-005：同一 epoch-27 checkpoint 续训到绝对 epoch 35，B0/B1/B2/B3 分别为 control、SGQS、EFGL、SGQS+EFGL；B0 据报已运行，新入口默认拒绝重启。
+- 修复短续训的 EFGL 课程退化：新增显式 `compensation_start_epoch=28` 和 `compensation_duration_epochs=2.1`，默认从头训练语义保持不变。否则 epoch 28 时 EFGL 已归零，B2/B3 会数值退化。
+- 冻结共享服务器输入身份：train annotation `816859c5...d0e4e`、val annotation `a6d10732...d72b`、checkpoint0027 `3eba494a...4ede`、DEIM tuning checkpoint `2b6cd058...19bc`。启动脚本默认校验完整 SHA-256。
+- 本条只记录配置、课程和复现入口；未启动新 run，没有新 AP 结论。
+
 ## 2026-10-12 — 恢复并持久化实验输出
 
 - 撤销“整体忽略 `output/`、`outputs/`”的清理策略；正式实验输出是开发证据，不得因目录整理而删除。
