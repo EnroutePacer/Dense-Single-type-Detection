@@ -400,6 +400,7 @@ class TransformerDecoder(nn.Module):
 @register()
 class DFINETransformer(nn.Module):
     __share__ = ['num_classes', 'eval_spatial_size']
+    __inject__ = ['sgqs_supervisor']
 
     def __init__(self,
                  num_classes=80,
@@ -428,6 +429,7 @@ class DFINETransformer(nn.Module):
                  reg_scale=4.,
                  layer_scale=1,
                  mlp_act='relu',
+                  sgqs_supervisor=None,
                  ):
         super().__init__()
         assert len(feat_channels) <= num_levels
@@ -448,6 +450,7 @@ class DFINETransformer(nn.Module):
         self.eval_spatial_size = eval_spatial_size
         self.aux_loss = aux_loss
         self.reg_max = reg_max
+        self.sgqs_supervisor = sgqs_supervisor
 
         assert query_select_method in ('default', 'one2many', 'agnostic'), ''
         assert cross_attn_method in ('default', 'discrete'), ''
@@ -633,7 +636,8 @@ class DFINETransformer(nn.Module):
                            memory: torch.Tensor,
                            spatial_shapes,
                            denoising_logits=None,
-                           denoising_bbox_unact=None):
+                           denoising_bbox_unact=None,
+                           targets=None):
 
         # prepare input for decoder
         if self.training or self.eval_spatial_size is None:
@@ -650,10 +654,30 @@ class DFINETransformer(nn.Module):
 
         output_memory :torch.Tensor = self.enc_output(memory)
         enc_outputs_logits :torch.Tensor = self.enc_score_head(output_memory)
+        # Invalid boundary anchors have infinite box logits and must never
+        # consume the finite global query budget.  Apply this correctness mask
+        # to every training/evaluation mode, not only to SGQS experiments.
+        selection_logits = enc_outputs_logits.masked_fill(~valid_mask, -torch.inf)
+
+        sgqs_aux_outputs = None
+        if self.training and self.sgqs_supervisor is not None:
+            sgqs_aux_outputs = self.sgqs_supervisor(
+                output_memory=output_memory,
+                dense_logits=enc_outputs_logits,
+                selection_logits=selection_logits,
+                anchors_unact=anchors,
+                valid_mask=valid_mask,
+                spatial_shapes=spatial_shapes,
+                targets=targets,
+                bbox_head=self.enc_bbox_head,
+                feat_strides=self.feat_strides,
+                num_queries=self.num_queries,
+                query_select_method=self.query_select_method,
+            )
 
         enc_topk_bboxes_list, enc_topk_logits_list = [], []
         enc_topk_memory, enc_topk_logits, enc_topk_anchors = \
-            self._select_topk(output_memory, enc_outputs_logits, anchors, self.num_queries)
+            self._select_topk(output_memory, selection_logits, anchors, self.num_queries)
 
         enc_topk_bbox_unact :torch.Tensor = self.enc_bbox_head(enc_topk_memory) + enc_topk_anchors
 
@@ -676,7 +700,7 @@ class DFINETransformer(nn.Module):
             enc_topk_bbox_unact = torch.concat([denoising_bbox_unact, enc_topk_bbox_unact], dim=1)
             content = torch.concat([denoising_logits, content], dim=1)
 
-        return content, enc_topk_bbox_unact, enc_topk_bboxes_list, enc_topk_logits_list
+        return content, enc_topk_bbox_unact, enc_topk_bboxes_list, enc_topk_logits_list, sgqs_aux_outputs
 
     def _select_topk(self, memory: torch.Tensor, outputs_logits: torch.Tensor, outputs_anchors_unact: torch.Tensor, topk: int):
         if self.query_select_method == 'default':
@@ -720,8 +744,8 @@ class DFINETransformer(nn.Module):
         else:
             denoising_logits, denoising_bbox_unact, attn_mask, dn_meta = None, None, None, None
 
-        init_ref_contents, init_ref_points_unact, enc_topk_bboxes_list, enc_topk_logits_list = \
-            self._get_decoder_input(memory, spatial_shapes, denoising_logits, denoising_bbox_unact)
+        init_ref_contents, init_ref_points_unact, enc_topk_bboxes_list, enc_topk_logits_list, sgqs_aux_outputs = \
+            self._get_decoder_input(memory, spatial_shapes, denoising_logits, denoising_bbox_unact, targets)
 
         # decoder
         out_bboxes, out_logits, out_corners, out_refs, pre_bboxes, pre_logits = self.decoder(
@@ -756,6 +780,9 @@ class DFINETransformer(nn.Module):
                    'ref_points': out_refs[-1], 'up': self.up, 'reg_scale': self.reg_scale}
         else:
             out = {'pred_logits': out_logits[-1], 'pred_boxes': out_bboxes[-1]}
+
+        if sgqs_aux_outputs is not None:
+            out['sgqs_aux_outputs'] = sgqs_aux_outputs
 
         if self.training and self.aux_loss:
             out['aux_outputs'] = self._set_aux_loss2(out_logits[:-1], out_bboxes[:-1], out_corners[:-1], out_refs[:-1],

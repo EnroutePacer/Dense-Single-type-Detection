@@ -13,7 +13,9 @@
 ```text
 train.py                         DEIM 风格的训练入口
 engine/                          当前实际运行的模型、损失与数据链路
+engine/sgqs/                     我们的训练期候选监督与损失实现
 configs/                         当前实际运行的训练和评估配置
+configs/sgqs/                    SGQS 正式配置与 checkpoint probe 配置
 tools/                           训练、推理、部署及表格任务脚本
 figures/                         DEIM 上游说明图
 article/

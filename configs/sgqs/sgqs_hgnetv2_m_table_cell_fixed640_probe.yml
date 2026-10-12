@@ -1,0 +1,10 @@
+__include__: [
+  './sgqs_hgnetv2_m_table_cell_fixed640.yml',
+]
+
+# Use only when resuming checkpoint0027.pth; the next epoch is 28.
+output_dir: ./output/probe_sgqs_hgnetv2_m_table_cell_fixed640
+
+SGQSCriterion:
+  survival_start_epoch: 28.0
+  survival_ramp_epochs: 1.0
