@@ -1,5 +1,16 @@
 # 科研进展日志
 
+## 2026-10-12 — SGQS v1 代码实现
+
+- 将 M-001 从 `candidate` 更新为 `implemented / unvalidated`。
+- 新增训练期 `SGQSQuerySupervisor` 与包装式 `SGQSCriterion`，监督位置位于 Encoder 分类头之后、global Top-K 之前。
+- 实现分层 dense classification、唯一 owner L1/GIoU 和带质量下限的 Top-K survival 三条损失路径；即使 owner IoU 为 0，survival 仍保留受控梯度。完整数学定义见 `methods/M-001_sgqs/losses.md`。
+- 新增 clean fixed-640 正式配置和 epoch-27 continuation probe 配置。
+- 训练日志单独记录 assignment miss、owner coverage、P3/P4/P5 owner 数、owner IoU、cutoff gap、真实 pre-Top-K survival 与预算溢出率；这些指标不参与总损失。
+- 单元测试覆盖尺度分配、碰撞、空 GT、预算溢出、零 IoU 生存梯度、invalid-anchor Top-K、配置注册、state_dict 和同版本 eval 输出等价，共 11 项。
+- 同时修复 invalid boundary anchor 占用 Top-K 的共享问题。该项不是 SGQS 贡献，后续必须在同一提交上重跑 clean control，不能与历史 0.864248 直接做方法归因。
+- 本条只记录实现完成，不代表方法获得指标增益；尚未启动训练。
+
 ## 2026-10-12：GT 可视化先导归因与 SGQS 立项
 
 - 将 `DEIM_2` 初始化为 Git 仓库并推送到 `EnroutePacer/Dense-Single-type-Detection`；补入新到达的 epoch-28 benchmark 配置后，远端 `main` 与提交 `b275a3e` 一致。权重和 TensorBoard 二进制未进入 Git。

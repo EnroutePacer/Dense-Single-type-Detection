@@ -1,18 +1,18 @@
 schema_version: 1
 experiment_id: EXP-TRAIN-003
 slug: method_training_tbd
-title: "诊断后确定的方法训练"
+title: "SGQS 等步数方法训练"
 type: train
 status: planned
 validity: not_run
 paper_role: main
-question: "被诊断证据支持的方法能否在相同 epoch/steps 下提高最终 AP/AR？"
+question: "SGQS 能否在相同初始化与 steps 下提高 pre-Top-K 生存率，并最终提高 AP/AR？"
 hypothesis_ids: []
 protocol_ids: [P-001, P-003, P-006]
-method_ids: []
+method_ids: [M-001]
 control_experiment_id: EXP-TRAIN-001
 legacy_ids: []
 runs: []
 created_at: 2026-10-12
 updated_at: 2026-10-12
-notes: "Gate 3 后才能定义和运行。"
+notes: "实现与配置已完成；Gate 3 后才能运行，并须用 source commit fd0c110 的 clean control。"

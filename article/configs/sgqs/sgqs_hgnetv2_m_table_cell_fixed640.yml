@@ -1,0 +1,40 @@
+__include__: [
+  '../table_cells/dfine_hgnetv2_m_table_cell_fixed640.yml',
+]
+
+# SGQS v1: pre-Top-K candidate supervision on the clean fixed-640 VFL control.
+output_dir: ./output/sgqs_hgnetv2_m_table_cell_fixed640
+criterion: SGQSCriterion
+
+DFINETransformer:
+  sgqs_supervisor:
+    type: SGQSQuerySupervisor
+    scale_priors: [32.0, 64.0, 128.0]
+    initial_radius: 1
+    max_radius: 4
+    ignore_radius: 1
+
+SGQSCriterion:
+  base_criterion: DEIMCriterion
+  # lambda_dense=1, lambda_reg=0.5 applied to the usual 5/2 box terms,
+  # and lambda_survival=0.25.
+  weight_dict:
+    loss_sgqs_dense: 1.0
+    loss_sgqs_bbox: 2.5
+    loss_sgqs_giou: 1.0
+    loss_sgqs_survival: 0.25
+  q_min: 0.25
+  dense_alpha: 0.75
+  dense_gamma: 2.0
+  negative_weight: 1.0
+  survival_margin: 0.2
+  survival_temperature: 0.1
+  survival_quality_power: 1.0
+  survival_start_epoch: 0.0
+  survival_ramp_epochs: 1.0
+
+# Isolate SGQS: keep every historical small-object reweighting disabled.
+DEIMCriterion:
+  small_object_weight: 1.0
+  small_object_box_weight: 1.0
+  small_object_local_weight: 1.0

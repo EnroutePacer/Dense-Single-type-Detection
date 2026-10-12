@@ -5,7 +5,7 @@ updated_at: 2026-10-12
 source_alias: "${WORKSPACE}/DEIM_2"
 source_git_repository: true
 source_remote_url: https://github.com/EnroutePacer/Dense-Single-type-Detection.git
-source_commit: b275a3e1674c9c246ac34cad3de2a3ddcef05b65
+source_commit: fd0c1108ec0289237c27156edbda36aa90940b97
 upstream_url: null
 upstream_commit: null
 license_file: LICENSE
@@ -22,21 +22,23 @@ post_import_changes:
   - "Active benchmark/diagnostic copies resolve BASELINE_ROOT or _local/baseline instead of a machine path."
   - "Synced the 28-epoch benchmark matrix and vfl_small_reg configuration from source commit b275a3e while preserving the five portability deltas above."
   - "Removed the server-specific DATA_ROOT default from the 28-epoch benchmark launcher; callers must set it explicitly."
+  - "Added SGQS as an independent engine/sgqs training mode with configs, mechanism metrics, and unit tests in source commit fd0c110."
+  - "Masked invalid boundary anchors before global Top-K for both control and SGQS; this shared correctness fix must be evaluated separately from SGQS."
 manifest:
   file: docs/reproducibility/source_snapshot.sha256
-  entries: 141
-  sha256: 60973904FBB0DB8A018AF70A0D72D0650DDD322CDBBA2ED87333372DA223ED7C
+  entries: 147
+  sha256: D6DC6B0BC4616AFEF302A1609A1EAC3615191F38F0913D7A91CAB03C263366E5
 import_delta:
   file: docs/reproducibility/source_import_delta.csv
   modified_files: 6
-  purpose: "Open-source portability only; no query-selection method has been implemented."
+  purpose: "Open-source portability deltas retained from the initial import; SGQS changes are tracked separately by source commit and method record."
 research_scripts:
   file: docs/reproducibility/research_scripts.sha256
-  entries: 16
-  sha256: 1D8C2835DEDEE7D44B9131075A2311A85D6E69D40F90F3A52F6DB56172F8D98F
+  entries: 17
+  sha256: 79C35AFC75D6F2E08FEE3F9E7C5D270853C92DA468E3F54AFEF6867820C5E880
 key_files:
   train.py: 8843947296710E6DDC43A10C088032E8B985DEE5BB80ECDF7195A81EA0EC2FC4
-  engine/deim/dfine_decoder.py: 38EEDB184975E6CE544B80273F8873909EAB66EE9BCC6AB7005D353C9A9745B2
+  engine/deim/dfine_decoder.py: CD7E2B4802733F74D6B2E7CE5C289B2FBD5AA7367A22E594637516408ABAF578
   engine/deim/deim_criterion.py: 8BF61552B0A8124B08DF993D80B4976D15B34B135971D70049CFFDE2A65F8C5D
   engine/data/dataset/coco_eval.py: 3F6336CC3A9DF5BD6F698E6CE284F987F4D69E1F741A71C28399310B4E65F002
   configs/table_cells/dfine_hgnetv2_m_table_cell_fixed640.yml: FCF6E5A5EFB1EC37CFE932F5763EC0FB98B4E69EB09FD6C6DAC899EE357F5515
@@ -47,6 +49,10 @@ key_files:
   tools/table_cells/train_dfine_s_table_cell_multigpu.sh: 0264641A088E6E6149FFDA25DE60997C5E418A18084E4079092D7354D3BDCBAA
   tools/table_cells/train_e28_benchmark_8gpu.sh: E7533A283A0F4B137869B026C98FBF1B34504E52790130FB84C5BE23AD967B05
   configs/table_cells/benchmark_e28/vfl_small_reg.yml: 6E4278CE01C838C5027BE23269F4E998E06D7C4EB35A61BA65955115FC249FBB
+  engine/sgqs/candidate_supervision.py: 26BF1BFCF58E503BE0F11942942B4AB34A8E49BEBBE570116C42D893060F0193
+  engine/sgqs/criterion.py: 76A6637F7AA55F5E49CA049043FA5963A6BF793055491025F5A202A9379D8FA5
+  configs/sgqs/sgqs_hgnetv2_m_table_cell_fixed640.yml: 555407A0BE5735C21E08004FC6A8DC22EA7A47614AC78AA48FFAFD7C905770EB
+  tests/test_sgqs.py: 3DE525EB4A39143CA9D8CDF8ED658F13074309CF6F4B45D3E0A6743B4089A363
 release_blockers:
   - "Resolve upstream URL and exact commit."
   - "Record the local patch against upstream."

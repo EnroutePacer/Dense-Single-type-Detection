@@ -11,7 +11,7 @@
 - 历史服务器快照、模型、原始日志、诊断 CSV 和未确认授权的图片仍保留在旧编号目录中，并由 `.gitignore` 隔离；本轮没有移动、删除或改写它们。
 - 旧 small-loss probes 已确认没有加载其声称的配置，属于“运行完成但目标消融无效”，不会被包装成论文结果。
 - 三个新 12,800-step 摘要已归档：small-reg 没有改善 AP-small/AR-small，MAL+Dense O2O 摘要结果明显退化；由于缺少 console/resolved config，目前只记录数值，不做方法归因。
-- 已建立候选方法 [M-001 SGQS](methods/M-001_sgqs/README.md)，在训练期直接监督 Top-K 前的 encoder 候选与生存排名；当前状态为 candidate/unvalidated。
+- 已实现候选方法 [M-001 SGQS](methods/M-001_sgqs/README.md)，在训练期直接监督 Top-K 前的 encoder 候选、owner 回归与生存排名；当前状态为 implemented/unvalidated，尚无训练效果结论。
 - 正式 COCO 主评估固定使用 `maxDets=[1,10,300]`；机制诊断在 evaluator 截断前进行。
 
 ## 研究入口
@@ -31,6 +31,7 @@
 
 ```text
 train.py, engine/, configs/, tools/   可直接运行的 DEIM 代码
+engine/sgqs/, configs/sgqs/           SGQS 训练模式与独立配置
 scripts/                              训练、评估、诊断、复现与维护入口
 tests/                                配置链和 selector 行为测试
 docs/research/                        状态、事实、假设、协议、分析与决策
