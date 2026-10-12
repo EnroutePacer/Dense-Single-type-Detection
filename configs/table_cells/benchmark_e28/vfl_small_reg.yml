@@ -1,0 +1,16 @@
+__include__: [
+  '../dfine_hgnetv2_m_table_cell_fixed640.yml',
+]
+
+# Formal epoch-length follow-up to the 12,800-step small_reg probe.
+# VFL and the clean fixed-640 recipe are unchanged; only localization losses
+# for small matched targets receive the previously tested mild reweighting.
+output_dir: ./output/benchmark_e28/vfl_small_reg_seed0
+epoches: 28
+checkpoint_freq: 4
+
+DEIMCriterion:
+  small_object_weight: 1.0
+  small_object_area_threshold: 0.0025
+  small_object_box_weight: 1.30
+  small_object_local_weight: 1.15

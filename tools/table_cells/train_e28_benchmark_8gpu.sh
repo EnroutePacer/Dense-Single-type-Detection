@@ -17,10 +17,10 @@ ALLOW_EXISTING="${ALLOW_EXISTING:-0}"
 die() { echo "错误: $*" >&2; exit 2; }
 
 case "${EXPERIMENT}" in
-  vfl_clean|mal_clean|vfl_mosaic_only|vfl_mixup_only|vfl_dense_o2o|mal_dense_o2o|deim_official)
+  vfl_clean|vfl_small_reg|mal_clean|vfl_mosaic_only|vfl_mixup_only|vfl_dense_o2o|mal_dense_o2o|deim_official)
     ;;
   *)
-    die "EXPERIMENT 必须是: vfl_clean, mal_clean, vfl_mosaic_only, vfl_mixup_only, vfl_dense_o2o, mal_dense_o2o, deim_official"
+    die "EXPERIMENT 必须是: vfl_clean, vfl_small_reg, mal_clean, vfl_mosaic_only, vfl_mixup_only, vfl_dense_o2o, mal_dense_o2o, deim_official"
     ;;
 esac
 
@@ -78,4 +78,3 @@ NUM_QUERIES=640 \
 SEED="${SEED}" \
 MASTER_PORT="${MASTER_PORT}" \
 bash "${BASE_LAUNCHER}" 2>&1 | tee "${OUTPUT_DIR}/console.log"
-
