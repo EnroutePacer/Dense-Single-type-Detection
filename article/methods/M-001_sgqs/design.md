@@ -1,7 +1,8 @@
 # SGQS v1：实现设计说明
 
-状态：implemented / unvalidated  
-源码基线：fd0c1108ec0289237c27156edbda36aa90940b97  
+状态：implemented / unvalidated
+
+源码基线：fd0c1108ec0289237c27156edbda36aa90940b97
 适用问题：密集、单类别、细长或低像素短边目标在 Encoder global Top-K 前发生候选饥饿。
 
 本文记录 SGQS v1 的设计动机、数据流、精确算法、梯度边界、配置、日志、实验约束和已知风险。所有损失公式见 [losses.md](losses.md)；本文重点解释代码为什么这样组织以及每一步如何执行。
