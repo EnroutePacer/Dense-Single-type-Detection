@@ -1,10 +1,39 @@
-<h2 align="center">
-  DEIM: DETR with Improved Matching for Fast Convergence
-</h2>
+# Dense Single-type Detection
 
-> **Dense Single-type Detection research:** the self-contained paper workspace,
-> experiment registry, evidence chain, method designs, and reproducibility tools
-> are maintained in [`article/`](article/README.md).
+本仓库是在 [DEIM](https://github.com/ShihuaHuang95/DEIM) 基础上开展的密集单类别目标检测研究。训练入口、Python 包组织和 YAML 配置继承 DEIM 的原生根布局，即 `train.py`、`engine/`、`configs/` 与 `tools/`；这样可以继续使用 DEIM 的训练链路、配置继承和服务器命令，不额外套设会改变 import 或配置路径的源码目录。
+
+## 当前研究方向
+
+我们以表格单元格检测作为验证基座，研究固定 query 预算下的 **query selection–survival gap**：密集、细长、低像素短边目标虽然可能已经产生可用的 Encoder 候选，但会因跨层 global Top-K 排名、重复候选占位或后续 Decoder 生存失败而漏检。
+
+当前工作重点是直接优化 Encoder 候选生成与 Top-K 前的候选生存，包括尺度感知的 GT 归属、候选分类排序、唯一 GT 覆盖和生存约束。目标是在不增加推理 query 数量和额外预测头的前提下，提高相同训练步数下的召回率与 COCO `maxDets=300` 指标。现有结论仍属于先导诊断；未经正式消融验证的方法不会被表述为论文贡献。
+
+研究问题、实验记录、证据链和候选方法集中维护在 [`article/`](article/README.md)。仓库结构如下：
+
+```text
+train.py                         DEIM 风格的训练入口
+engine/                          当前实际运行的模型、损失与数据链路
+configs/                         当前实际运行的训练和评估配置
+tools/                           训练、推理、部署及表格任务脚本
+figures/                         DEIM 上游说明图
+article/
+├── docs/research/               研究问题、事实、假设、协议与进展
+├── docs/evidence/               Artifact 注册和证据索引
+├── docs/reproducibility/        代码来源、哈希与复现规范
+├── experiments/                 EXP/RUN 实验注册及结果审计
+├── methods/                     候选论文方法及状态
+├── scripts/                     诊断、基准测试和仓库维护工具
+├── paper/                       论文提纲、正文、图表和补充材料
+└── data/, models/               数据与模型清单，不保存私有原件
+```
+
+权重、数据集、完整训练输出及本地原始证据不进入普通 Git；公开结果通过配置、指标、文件哈希和 Artifact ID 建立可追溯关系。
+
+---
+
+<h2 align="center">
+  Upstream foundation: DEIM — DETR with Improved Matching for Fast Convergence
+</h2>
 
 <p align="center">
     <a href="https://github.com/ShihuaHuang95/DEIM/blob/master/LICENSE">
