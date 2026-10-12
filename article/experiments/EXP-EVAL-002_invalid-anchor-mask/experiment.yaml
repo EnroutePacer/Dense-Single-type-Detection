@@ -1,0 +1,18 @@
+schema_version: 1
+experiment_id: EXP-EVAL-002
+slug: invalid_anchor_mask
+title: "Invalid-anchor Top-K 修复对照"
+type: eval
+status: planned
+validity: not_run
+paper_role: diagnosis
+question: "屏蔽 invalid boundary anchor 对 Top-K 占位和最终 AP/AR 有何独立影响？"
+hypothesis_ids: []
+protocol_ids: [P-001, P-002, P-003]
+method_ids: []
+control_experiment_id: EXP-EVAL-001
+legacy_ids: []
+runs: []
+created_at: 2026-10-12
+updated_at: 2026-10-12
+notes: "旧 e0a2353 与新 fd0c110 的冻结 checkpoint 配对评估；SGQS 必须关闭。"

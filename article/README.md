@@ -24,7 +24,7 @@
 6. [论文主张—证据矩阵](docs/claims/README.md)
 7. [实验注册表](experiments/registry.csv)
 8. [证据与仓库策略](docs/reproducibility/repository_policy.md)
-9. [SGQS 候选方法](methods/M-001_sgqs/README.md)
+9. [SGQS 候选方法](methods/M-001_sgqs/README.md)：[完整公式](methods/M-001_sgqs/losses.md)与[实现设计](methods/M-001_sgqs/design.md)
 10. [12,800-step 结果审计](experiments/EXP-AUDIT-002_12800-probe-results/README.md)
 
 ## 仓库结构
