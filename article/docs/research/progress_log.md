@@ -7,6 +7,9 @@
 - 唯一 allow-list 差异是在 EFGL 中增加 resume 课程起点与持续时间；默认值严格恢复原公式，r7 仅把同一时间坐标平移到 epoch 28，并用 `7×0.30=2.1` epoch 退火。
 - 新增 fail-closed preflight：完整解析 include/CLI 后检查方法哈希、消融开关、损失、课程、fixed-640、query 640、global batch 64、checkpoint last_epoch=27、数据/权重哈希和 maxDets=300；只检模式不创建输出、不启动 torchrun。
 - 五份配置契约全部通过；根方法测试 32 项、article 镜像与仓库契约 38 项通过。仍未启动 B1/B2/B3，没有新增 AP 结论。
+- 提交 `014d37e` 已推送；服务器以 runtime manifest 定向覆盖 38 个文件，覆盖前备份 13 个既有文件（备份 tar SHA-256 `893dc6ade9af52fe10d74c240b92dd6b6af7ebef126396e054da284f9887ad76`），未触碰 output、checkpoint、权重或数据。
+- 服务器活动树 38 项哈希、Bash 语法和 32 项方法测试通过；DEIM-core、B0、B1、B2、B3 五个真实输入 preflight 全通过，五个预期新输出目录均不存在，确认没有误启动训练。
+- B0 完整日志随后到达并归档：epoch 27 原始 mAP `0.864310288258`，epoch 34 为 `0.866667088526`（`+0.002356800268`），最终 AP-small `0.685633491224`。B0 仅作为负对照；B1/B2/B3 仍未启动。
 
 ## 2026-10-12 — 冻结 e35/r7 打靶矩阵
 

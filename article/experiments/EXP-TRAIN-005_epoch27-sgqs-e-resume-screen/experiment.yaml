@@ -4,7 +4,7 @@ slug: epoch27_sgqs_e_resume_screen
 title: "Epoch-27 checkpoint 的 SGQS-E 七 epoch 续训屏选"
 type: train
 status: planned
-validity: not_run
+validity: partial
 paper_role: screening
 question: "在不重跑前 28 epoch 的条件下，SGQS、EFGL 及其组合是否产生值得正式从头训练验证的正信号？"
 hypothesis_ids: []
@@ -32,7 +32,9 @@ arms:
   B2: configs/e35_r7/resume_b2_efgl.yml
   B3: configs/e35_r7/resume_b3_sgqs_e.yml
 execution_state:
-  B0: "User reports matching baseline is already running; run metadata not yet ingested"
+  deployment: "Runtime overlay from repository commit 014d37e deployed and checksum-verified; 32 server method tests passed"
+  preflight: "deim_core_e35 and B0/B1/B2/B3 all passed against frozen real data/checkpoint hashes; no run was started"
+  B0: "completed; epoch-34 mAP=0.866667088526, AP-small=0.685633491224; raw logs ingested but no at-start run_manifest"
   B1: not_started
   B2: not_started
   B3: not_started
@@ -48,4 +50,4 @@ acceptance_criteria:
 runs: []
 created_at: 2026-10-12
 updated_at: 2026-10-12
-notes: "This is a low-cost checkpoint-continuation screen, not evidence equivalent to the formal from-start multi-seed EXP-TRAIN-004. The time adapter changes only the curriculum origin/duration, not the 6fd2c30 loss equations."
+notes: "This is a low-cost checkpoint-continuation screen, not evidence equivalent to the formal from-start multi-seed EXP-TRAIN-004. B0 is complete; B1/B2/B3 remain unstarted. The time adapter changes only the curriculum origin/duration, not the 6fd2c30 loss equations."

@@ -1,7 +1,8 @@
 # EXP-TRAIN-005：Epoch-27 SGQS-E 七 epoch 续训屏选
 
-状态：planned / not_run。用户报告 B0 已在外部运行，但尚未将该 run 的
-manifest、resolved config 和日志纳入本记录，因此不将它伪装成已注册结果。
+状态：planned / partial。B0 已完成并归档原始 console/JSON/job log；B1/B2/B3
+仍未启动。B0 运行早于新 launcher，没有 at-start manifest，因此保留这一证据
+边界，不把后续 preflight 伪装成它的历史 manifest。
 
 ## 设计
 
@@ -43,6 +44,21 @@ bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b3_sgqs_e
 每个输出目录必须是新目录。运行结束后把 `run_manifest.txt`、
 `config_source.yml`、`resolved_config.yml`、`console.log`、`log.txt`、指标与必需
 checkpoint 纳入 `output/` 的 Git/LFS 记录。
+
+## 已完成的 B0 负对照
+
+B0 的 console 明确记录：8 卡、每卡 batch 8、global batch 64、seed 0、
+fixed-640、query 640、VFL、无 Mosaic/MixUp/多尺度、从
+`checkpoint0027.pth` resume 到 epoch 34，并按 `maxDets=300` 评估。
+
+| 时点 | mAP@50:95 | AP50 | AP-small | AR@300 |
+|---|---:|---:|---:|---:|
+| 恢复前 epoch 27 | 0.864310288258 | 0.880（console 三位数） | 0.678（三位数） | 0.870（三位数） |
+| epoch 34 | 0.866667088526 | 0.880899235273 | 0.685633491224 | 0.871900060019 |
+
+最终 mAP 相对恢复点增加 `+0.002356800268`。这只是 B1/B2/B3 的负对照
+终点，不构成 SGQS/EFGL 的收益证据。原始材料见
+`outputs/resume_control_e28_to_e34_gb64/`，ART-000024--ART-000027。
 
 ## 证据边界
 

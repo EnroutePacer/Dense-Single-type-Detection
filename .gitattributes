@@ -3,6 +3,10 @@
 *.sh text eol=lf
 output/**/*.log text eol=lf
 outputs/**/*.log text eol=lf
+# Preserve the two raw B0 logs byte-for-byte and keep whitespace diagnostics
+# from treating immutable evidence as source text.
+outputs/resume_control_e28_to_e34_gb64/console.log -text -diff
+outputs/resume_control_e28_to_e34_gb64/resume_control_e28_to_e34_gb64.log -text -diff
 output/**/*.txt text eol=lf
 outputs/**/*.txt text eol=lf
 output/**/*.md text eol=lf
