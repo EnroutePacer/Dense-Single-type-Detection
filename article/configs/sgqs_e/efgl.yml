@@ -1,0 +1,12 @@
+# Shared loss-only settings for B2 and B3; include a model configuration too.
+efgl:
+  enabled: True
+  strength: 0.5
+  neighbor_strength: 0.5
+  short_side_scale: 16.0
+  pixel_floor: 2.0
+  neighbors: 4
+  neighbor_radius: 4.0
+  compensation_fraction: 0.30
+  normal_branch: True
+  dn_branch: True

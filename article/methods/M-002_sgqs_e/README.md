@@ -1,7 +1,7 @@
 # M-002 — SGQS-E：候选生存与逐边定位
 
-**状态：** `designed / unimplemented / unvalidated`  
-**目标：** 在固定输入、固定 query 数和固定推理图下，同时解决两个训练层问题：
+**状态：** `implemented / unvalidated`
+**目标：** 在固定输入、固定 query 数和固定推理图下，优化密集单类型小框的两个训练环节：
 
 1. 小框 Encoder 候选分数偏低，经 global Top-K 后缺少进入 Decoder 的种子；
 2. 密集同类目标只用整框 IoU 给四条边共享权重，无法按边表达短边尺度、相对误差和邻域歧义。
@@ -17,6 +17,8 @@ SGQS-E 只保留两个与问题一一对应的模块：
 ```
 
 首版不修改 DN 采样、Matcher、query 数、预测头或后处理，也不增加新的推理分支。附件总结中的“邻居约束 DN”保留为后续候选；它不并入首版，以免同时改变 Top-K、FGL 和 DN 三条链而无法归因。
+
+2026-10-12 数学评审修订：保留有用设计，不以与已有论文重叠为删除理由；修复生存门槛的自追逐问题，保护原 Encoder 的监督一致性，并移除重复的邻域 margin 退火。评审依据、反例和保留理由见 [math_review.md](math_review.md)，配置与验证说明见 [implementation.md](implementation.md)。这里描述的是修订后实现；旧门槛仍可通过 M-001 配置复现。
 
 ## 1. 记号与在线 GT owner
 
@@ -42,6 +44,12 @@ q_g=q_{\min}+(1-q_{\min})u_g,
 \]
 
 ## 2. SGQS：Top-K 前候选生存监督
+
+### 2.0 与原 Encoder 监督兼容
+
+在线分配仍产生一个 GT 对应一个 owner。随后复用原 criterion 已经计算的 Encoder 分类匹配与回归匹配，形成有效监督集合：原 Encoder 的正样本不进入 SGQS 负样本集合；若已入选 owner 的 SGQS GT 与原分类监督（含背景）或原回归 GT 冲突，则跳过该 owner 的新增 SGQS 监督。原 Matcher 与全部基础损失不变。
+
+以下 \(\mathcal A_b\) 指经过此保护后的 owner–GT 集合，\(\mathcal O_b\) 为其位置集合，\(A_b=|\mathcal A_b|\)。被跳过的位置也不作为 SGQS 负样本。记录 `sgqs_conflicting_owner_fraction`，区分原始分配失败与监督冲突；不能把被跳过的 GT 宣称为已获得 SGQS 覆盖。
 
 ### 2.1 分层 dense 分类
 
@@ -81,9 +89,9 @@ L_{\mathrm{owner}}
 
 这条梯度直接进入原 `enc_bbox_head`、Encoder memory、HybridEncoder 和 backbone，不等待候选先进入 Top-K。
 
-### 2.3 相对 Top-K 截止线的生存损失
+### 2.3 有限预算下的非 owner 竞争门槛
 
-令 \(\mathcal V_b\subseteq\mathcal C_b\) 为 invalid-anchor mask 后的有效元素，\(M_b=|\mathcal C_b|\)，\(K_b=\min(K,M_b)\)。真实 selector 分数记为
+令 \(\mathcal V_b\subseteq\mathcal C_b\) 为 invalid-anchor mask 后的有效元素，\(M_b=|\mathcal V_b|\)，\(K_b=K\)。真实 selector 分数记为
 
 \[
 s_{b,i}=
@@ -93,17 +101,29 @@ z_{b,i}, & i\in\mathcal V_b,\\
 \end{cases}
 \]
 
-dense 分类使用原始有效 logit \(z\)；生存门槛必须使用与真实 selector 完全相同的 mask 后分数 \(s\)。实现必须断言 \(K_b\le|\mathcal V_b|\)，防止无效位置以 \(-\infty\) 占用预算：
+dense 分类使用原始有效 logit \(z\)；竞争门槛使用与真实 selector 完全相同的 mask 后分数 \(s\)。实现断言 \(K_b\le M_b\)。真实第 K 名保留为诊断指标：
 
 \[
-\theta_b=\operatorname{sg}
+\theta_b^{\mathrm{topK}}=\operatorname{sg}
 \left[\operatorname{kthlargest}_{i\in\mathcal C_b}(s_{b,i},K_b)\right].
 \]
 
-令
+直接要求每个 owner 超过 \(\theta_b^{\mathrm{topK}}+m\) 会把 owner 自身包含在竞争门槛中。当 \(A_b=K_b\) 且全部 owner 已入选时，最低分 owner 永远无法超过自身加正 margin。因此，训练使用剩余预算对应的**非 owner** 门槛：
 
 \[
-\chi_b=\mathbf 1[0<G_b\le K_b<M_b].
+\mathcal R_b=\mathcal V_b\setminus\mathcal O_b,\qquad
+j_b=K_b-A_b+1,
+\]
+
+\[
+\boxed{\theta_b^{\mathrm{comp}}=\operatorname{sg}\left[
+\operatorname{kthlargest}_{i\in\mathcal R_b}(s_{b,i},j_b)\right]}.
+\]
+
+如果全部 \(A_b\) 个 owner 严格超过此门槛，那么最多 \(K_b-A_b\) 个非 owner 位于最低分 owner 之前，因此所有这些 owner 都能进入原 Top-K。这个门槛不会随 owner 整体抬分而抬升；真实 selector 本身完全不变。只对以下有效图计算：
+
+\[
+\chi_b=\mathbf 1[0<G_b\le K_b<M_b,\ A_b>0].
 \]
 
 对成功分配的 owner 集合 \(\mathcal A_b\)，令
@@ -118,14 +138,14 @@ L_{\mathrm{survive}}
 \begin{cases}
 \dfrac{
 \sum_b\sum_{g\in\mathcal A_b}\chi_bq_g^\eta\,
-\tau\log\!\left(1+\exp\dfrac{\theta_b+m-z_{o_g}}{\tau}\right)
+\tau\log\!\left(1+\exp\dfrac{\theta_b^{\mathrm{comp}}+m-z_{o_g}}{\tau}\right)
 }{W},
 &W>0,\\[12pt]
 0,&W=0.
 \end{cases}
 \]
 
-其中 \(m=0.2,\tau=0.1,\eta=1\)。它要求 owner 相对**本图当前**第 \(K_b\) 名取得 margin，而不是设置不可迁移的绝对置信度阈值。若 \(G_b>K_b\)，该图只计算 dense 与 owner 回归，不计算 survival。
+其中 \(m=0.2,\tau=0.1,\eta=1\)。若 \(G_b>K_b\)、没有有效 owner，或全部有效候选已被选中，则 survival 为 0。该充分条件只针对有效 owner 集合，不等于整图 GT 的召回保证；softplus 也不是精确的 Top-K 约束求解器。
 
 ## 3. EFGL：邻域与短边感知的逐边 FGL
 
@@ -196,13 +216,11 @@ D_g(u,v)=
 当预测落在自身 GT 上时 \(\Delta_{gj}=\delta_{gj}\)；接近两个实例的几何分界时 \(\Delta_{gj}\approx0\)。定义有界歧义：
 
 \[
-U_{gj}=
-\operatorname{clip}_{[0,1]}
-\left(
-\frac{\kappa(t)\delta_{gj}-\Delta_{gj}(\hat{\tilde b}_g)}
-{\kappa(t)\delta_{gj}+\epsilon_0}
-\right).
+\rho_{gj}=\frac{\Delta_{gj}(\hat{\tilde b}_g)}{\delta_{gj}},\qquad
+U_{gj}=\operatorname{clip}_{[0,1]}(1-2\rho_{gj}).
 \]
+
+这里固定 \(\kappa=1/2\)，移除第二套 margin 退火。由三角不等式有 \(-1\le\rho_{gj}\le1\)；正确 GT 上 \(\rho=1,U=0\)，等距处 \(\rho=0,U=1\)。只对 \(\delta_{gj}>\epsilon_0\) 的配对计算，不向有效距离额外加 epsilon。
 
 再把歧义分配给真正负责区分两个实例的边：
 
@@ -210,7 +228,7 @@ U_{gj}=
 v_{gj,e}=
 \frac{
 |\tilde b_{g,e}-\tilde b_{j,e}|/\max(d_{g,e},\epsilon_{\mathrm{pix}})
-}{\delta_{gj}+\epsilon_0},
+}{\delta_{gj}},
 \qquad
 U_{g,e}=\max_{j\in\mathcal N(g)}v_{gj,e}U_{gj}.
 \]
@@ -249,7 +267,7 @@ L_{\mathrm{EFGL}}
 I_g\le\omega_{g,e}\le1.
 \]
 
-所以 EFGL 只在训练早期补回低 IoU 小框的逐边分布监督，不会产生无上限的 \(1/\text{area}\) 放大。权重整体停止梯度，模型不能通过操纵权重本身降低损失。
+所以 EFGL 只在训练早期补回低 IoU 小框的逐边分布监督。权重有界，且本次反向传播不经过权重因子求导；这限制的是 CE 系数与该项 logits 梯度，不是对全网络梯度、Hessian 或训练收敛性的保证。相比原 IoU 权重的相对倍率仍可能很大，尤其在 IoU 接近零时。
 
 EFGL 替换普通匹配与正 DN 分支中的直接 FGL 权重，但不改变 DN 样本构造；DDF/教师 KL 保持原样。普通分支与 DN 分支分别开关是机制消融，不是首版新增模块。
 
@@ -291,9 +309,7 @@ r_s(t)=\operatorname{clip}\!\left(\frac{t}{T_{1\mathrm{ep}}},0,1\right),
 \]
 
 \[
-c(p)=\max\left(0,1-\frac{p}{0.30}\right),
-\qquad
-\kappa(p)=0.5-0.4\min\left(\frac{p}{0.30},1\right).
+c(p)=\max\left(0,1-\frac{p}{0.30}\right),\qquad \kappa=1/2.
 \]
 
 - dense 与 owner 回归从 step 0 完整启用；
@@ -317,7 +333,7 @@ c(p)=\max\left(0,1-\frac{p}{0.30}\right),
 - EFGL 只改变原 FGL 每条边 CE 的系数，目标 bin、FDR、L1、GIoU、MAL/VFL、GO-LSD 与 Matcher 不变；
 - 实现时只在原 `loss_fgl` 内替换 `weight_targets`，保留原外层 loss 系数和 `num_boxes` 归一化；禁止先计算原 FGL 再额外相加 EFGL，survival ramp 也只能乘一次；
 - 不新增参数、head、query 或推理后处理；所谓“推理零新增计算”仍须导出与固定 CPU latency 实测；
-- 当前 M-001 代码保持原样。M-002 是新设计，尚未实现训练代码，不能把 M-001 的单测或任何历史 AP 当作 M-002 证据。
+- M-001 的默认配置保留旧损失语义；M-002 通过 `survival_threshold: non_owner_budget` 和 `protect_encoder_supervision: True` 启用修订。EFGL 默认关闭。M-002 有自己的数学与完整训练链路测试，不能用任何历史 AP 当作方法收益证据。
 
 ## 7. 最小实验矩阵
 
@@ -326,9 +342,9 @@ c(p)=\max\left(0,1-\frac{p}{0.30}\right),
 | ID | 训练改动 | 回答的问题 |
 |---|---|---|
 | B0 | clean baseline | 同提交基线 |
-| B1 | 仅 SGQS | Top-K 前监督是否有效 |
+| B1 | 仅修订后 SGQS（竞争门槛 + 监督保护） | Top-K 前监督是否有效 |
 | B2 | 仅 EFGL | 逐边邻域补偿是否有效 |
-| B3 | SGQS + EFGL | 两个阶段是否互补 |
+| B3 | 与 B1 相同的 SGQS + 与 B2 相同的 EFGL | 两个模块是否互补 |
 
 若 B2 有正信号，再做：统一 IoU 下限、四边共享权重、\(\beta=0\)、\(c(t)=1\) 和历史面积 small-reg。若 B1 有正信号，再去掉 survival，判断收益来自 dense/owner 还是 cutoff margin。
 

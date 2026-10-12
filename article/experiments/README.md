@@ -15,7 +15,8 @@
 
 ## 当前顺序
 
-1. `EXP-DIAG-003`：带 GT 的分阶段归因；
-2. `EXP-ABL-001`：同 K、冻结模型的 selector 对照；
-3. 根据诊断结果决定方法；
-4. `EXP-TRAIN-001/002` 暂不运行。
+1. [EXP-TRAIN-004](EXP-TRAIN-004_sgqs-e-b0-b3/README.md)：固定数据、初始化与预算，运行已实现的 SGQS-E 四组对照；
+2. 对有正信号的部分补做机制消融和至少三个 seed；
+3. 在完整 DEIM/MAL + Dense O2O 配方上复验，记录真实训练与部署成本。
+
+[ADR-003](../docs/research/decisions/ADR-003_training-first-sgqs-e.md) 已替代旧的训练暂停要求。`EXP-DIAG-003` 与 `EXP-ABL-001` 仍可辅助解释结果，但不再是配对训练的前置条件。既有 EXP-TRAIN-001/002/003 保留原登记和历史上下文；当前四组只使用同提交配置，不把旧 probe 当作已完成的 B0/B1。

@@ -19,13 +19,14 @@ from .box_ops import box_cxcywh_to_xyxy
 from ..misc.box_ops import elementwise_box_iou, elementwise_generalized_box_iou
 from ..misc.dist_utils import get_world_size, is_dist_available_and_initialized
 from ..core import register
+from ..sgqs.edge_localization import EFGLConfig, build_edge_context, edge_weights
 
 
 @register()
 class DEIMCriterion(nn.Module):
     """ This class computes the loss for DEIM.
     """
-    __share__ = ['num_classes', ]
+    __share__ = ['num_classes', 'efgl', 'epoches']
     __inject__ = ['matcher', ]
 
     def __init__(self, \
@@ -44,6 +45,8 @@ class DEIMCriterion(nn.Module):
         small_object_area_threshold=0.0025,
         small_object_box_weight=1.0,
         small_object_local_weight=1.0,
+        efgl=None,
+        epoches=120,
         ):
         """Create the criterion.
         Parameters:
@@ -73,6 +76,16 @@ class DEIMCriterion(nn.Module):
         self.small_object_area_threshold = float(small_object_area_threshold)
         self.small_object_box_weight = float(small_object_box_weight)
         self.small_object_local_weight = float(small_object_local_weight)
+        self.efgl = EFGLConfig(**(efgl or {}))
+        self.total_epochs = int(epoches)
+        self._edge_context = None
+        self._edge_statistics = None
+        self._logging_device = torch.device('cpu')
+        self._encoder_supervision = []
+        if self.efgl.enabled and self.small_object_local_weight != 1.0:
+            raise ValueError('EFGL replaces FGL weights; disable small_object_local_weight')
+        if self.efgl.enabled and self.total_epochs <= 0:
+            raise ValueError('EFGL requires positive epoches')
         if self.small_object_weight < 1.0:
             raise ValueError('small_object_weight must be >= 1.0')
         if self.small_object_area_threshold <= 0:
@@ -239,6 +252,14 @@ class DEIMCriterion(nn.Module):
                 box_cxcywh_to_xyxy(target_boxes))
             weight_targets = ious.unsqueeze(-1).repeat(1, 1, 4).reshape(-1).detach()
 
+            if self._edge_context is not None:
+                weights = edge_weights(self._edge_context, outputs['pred_boxes'], indices,
+                                       ious, is_dn='is_dn' in outputs)
+                weight_targets = weights.reshape(-1)
+                if self._edge_statistics is None and 'is_dn' not in outputs:
+                    bonus = weights.float() - ious.detach().float()[:, None]
+                    self._edge_statistics = torch.stack((bonus.sum(), bonus.new_tensor(bonus.numel())))
+
             # FGL is a localization loss; apply a milder area-aware weight
             # than the box regression terms, while keeping its scale stable.
             local_weights = self._small_object_weights(
@@ -329,6 +350,16 @@ class DEIMCriterion(nn.Module):
              targets: list of dicts, such that len(targets) == batch_size.
                       The expected keys in each dict depends on the losses applied, see each loss' doc
         """
+        self._edge_context = None
+        self._edge_statistics = None
+        self._logging_device = outputs['pred_boxes'].device
+        self._encoder_supervision = []
+        if self.efgl.enabled:
+            if 'epoch' not in kwargs:
+                raise ValueError('EFGL requires epoch metadata; do not silently restart its curriculum')
+            self._edge_context = build_edge_context(
+                targets, kwargs.get('input_size'), self.efgl, kwargs['epoch'],
+                kwargs.get('step', 0), kwargs.get('epoch_step', 1), self.total_epochs)
         outputs_without_aux = {k: v for k, v in outputs.items() if 'aux' not in k}
 
         # Retrieve the matching between the outputs of the last layer and the targets
@@ -424,6 +455,12 @@ class DEIMCriterion(nn.Module):
                 enc_targets = targets
 
             for i, aux_outputs in enumerate(outputs['enc_aux_outputs']):
+                # Expose the actual base assignments to the optional SGQS-E guard.
+                # Reuse them rather than running a second, potentially different matcher.
+                self._encoder_supervision.append({
+                    'classification': cached_indices_enc[i],
+                    'boxes': indices_go if self.use_uni_set else cached_indices_enc[i],
+                })
                 for loss in self.losses:
                     # TODO, indices and num_box are different from RT-DETRv2
                     use_uni_set = self.use_uni_set and (loss == 'boxes')
@@ -468,6 +505,23 @@ class DEIMCriterion(nn.Module):
         # For debugging Objects365 pre-train.
         losses = {k:torch.nan_to_num(v, nan=0.0) for k, v in losses.items()}
         return losses
+
+    def get_encoder_supervision(self):
+        return self._encoder_supervision
+
+    def get_logging_metrics(self):
+        if self._edge_context is None:
+            return {}
+        if self._edge_statistics is None:
+            stats = torch.zeros(2, device=self._logging_device)
+        else:
+            stats = self._edge_statistics.detach().clone()
+        if is_dist_available_and_initialized():
+            torch.distributed.all_reduce(stats)
+        return {
+            'efgl_weight_bonus_mean': stats[0] / stats[1].clamp_min(1),
+            'efgl_compensation_ramp': stats.new_tensor(self._edge_context['ramp']),
+        }
 
     def get_loss_meta_info(self, loss, outputs, targets, indices):
         if self.boxes_weight_format is None:

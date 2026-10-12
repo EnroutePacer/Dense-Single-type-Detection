@@ -1,5 +1,7 @@
 # 研究路线图
 
+当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，下一步固定数据、初始化和预算后运行 B0/B1/B2/B3；根据结果开展针对性消融与多 seed 复验。以下 Gate 0–4 保留为历史诊断路线，其中“必须先完整归因”和“训练暂停”不再是当前门禁。
+
 ## Gate 0：资产与口径
 
 - 取得验证 GT、split、checkpoint，保存 SHA-256 与许可状态。

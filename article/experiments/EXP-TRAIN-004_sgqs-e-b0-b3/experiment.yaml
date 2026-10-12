@@ -1,0 +1,43 @@
+schema_version: 1
+experiment_id: EXP-TRAIN-004
+slug: sgqs_e_b0_b3
+title: "SGQS-E 同预算四组训练消融"
+type: train
+status: planned
+validity: not_run
+paper_role: main
+question: "SGQS 与 EFGL 能否分别改善密集单类型小框训练，并在同预算下互补？"
+hypothesis_ids: []
+protocol_ids: [P-001, P-003, P-006]
+method_ids: [M-002]
+control_experiment_id: null
+legacy_ids: []
+invariants:
+  code_base: "Four arms from one commit, including the shared invalid-anchor fix"
+  dataset: "Same split and annotation hashes; record before execution"
+  initialization: "Same checkpoint hash; record before execution"
+  input_size: [640, 640]
+  num_queries: 640
+  epochs: 120
+  global_batch_size: null
+  optimizer_steps: null
+  evaluator_max_dets: 300
+  optimizer_and_augmentation: "Inherited clean fixed640 recipe, identical across arms"
+arms:
+  B0: configs/sgqs_e/b0_baseline.yml
+  B1: configs/sgqs_e/b1_sgqs.yml
+  B2: configs/sgqs_e/b2_efgl.yml
+  B3: configs/sgqs_e/b3_sgqs_e.yml
+planned_seeds: [0, 1, 2]
+planned_metrics:
+  primary: [mAP, AP75, AP90, AP-small, AR-small]
+  secondary: [short_side_by_density_groups, medium_large_AP, wall_clock, GPU_hours]
+  diagnostics: [owner_survival, unique_GT_coverage, edge_relative_error, conflicting_owner_fraction]
+acceptance_criteria:
+  supports_hypothesis: "B3 consistently exceeds B0/B1/B2 across paired seeds; both candidate and localization metrics improve"
+  rejects_hypothesis: "No stable B3 improvement, or one component can be removed without loss"
+  invalidates_experiment: "Mismatched data/initialization/budget/evaluator, inactive switches, or missing run provenance"
+runs: []
+created_at: 2026-10-12
+updated_at: 2026-10-12
+notes: "B0 is the internal control. Freeze global batch and steps before any run. CPU correctness tests are not dataset results."

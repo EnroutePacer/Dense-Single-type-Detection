@@ -1,0 +1,8 @@
+__include__: ['../table_cells/dfine_hgnetv2_m_table_cell_fixed640.yml']
+
+# All four arms inherit the same model, augmentation, optimizer and schedule.
+output_dir: ./output/sgqs_e_b0_baseline
+efgl:
+  enabled: False
+DFINETransformer:
+  sgqs_supervisor: null

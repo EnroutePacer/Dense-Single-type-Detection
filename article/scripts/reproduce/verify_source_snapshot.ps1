@@ -1,11 +1,13 @@
 [CmdletBinding()]
 param(
-    [string]$RepositoryRoot
+    [string]$RepositoryRoot,
+    [string]$ManifestPath = 'docs\reproducibility\source_snapshot.sha256',
+    [switch]$CanonicalLF
 )
 
 $ErrorActionPreference = 'Stop'
 $RepositoryRoot = if ($RepositoryRoot) { $RepositoryRoot } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
-$manifest = Join-Path $RepositoryRoot 'docs\reproducibility\source_snapshot.sha256'
+$manifest = Join-Path $RepositoryRoot $ManifestPath
 $failed = 0
 $count = 0
 
@@ -21,7 +23,19 @@ foreach ($line in Get-Content -LiteralPath $manifest) {
         $failed++
         continue
     }
-    $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+    if ($CanonicalLF) {
+        # New text snapshots use UTF-8 / LF independent of Git checkout settings.
+        # Keep the historical byte-for-byte verification as the default.
+        $bytes = [System.IO.File]::ReadAllBytes($path)
+        $content = [System.Text.Encoding]::UTF8.GetString($bytes).Replace("`r`n", "`n")
+        $sha = [System.Security.Cryptography.SHA256]::Create()
+        try {
+            $digest = $sha.ComputeHash([System.Text.Encoding]::UTF8.GetBytes($content))
+            $actual = ([System.BitConverter]::ToString($digest)).Replace('-', '')
+        } finally { $sha.Dispose() }
+    } else {
+        $actual = (Get-FileHash -LiteralPath $path -Algorithm SHA256).Hash
+    }
     if ($actual -ne $expected) {
         Write-Warning "Hash mismatch: $relative"
         $failed++

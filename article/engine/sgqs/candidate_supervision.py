@@ -283,6 +283,8 @@ class SGQSQuerySupervisor(nn.Module):
         if effective_k <= 0:
             raise ValueError('num_queries and the selection pool must be non-empty')
         topk_result = torch.topk(selection_pool, effective_k, dim=1)
+        if not torch.isfinite(topk_result.values).all():
+            raise ValueError('SGQS query budget exceeds the finite valid-anchor selection pool')
         topk_cutoff = topk_result.values[:, -1].detach()
         selected_indices = topk_result.indices
         if query_select_method == 'one2many':
@@ -299,6 +301,8 @@ class SGQSQuerySupervisor(nn.Module):
             'assignment_misses': assignment['assignment_misses'],
             'spatial_shapes': assignment['spatial_shapes'],
             'topk_cutoff': topk_cutoff,
+            'selection_scores': selection_pool.detach(),
+            'query_select_method': query_select_method,
             'selected_indices': selected_indices.detach(),
             'effective_k': effective_k,
             'selection_pool_size': int(selection_pool.shape[1]),

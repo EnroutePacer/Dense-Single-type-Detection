@@ -33,6 +33,8 @@ class SGQSCriterion(nn.Module):
         survival_quality_power=1.0,
         survival_start_epoch=0.0,
         survival_ramp_epochs=1.0,
+        survival_threshold='topk',
+        protect_encoder_supervision=False,
     ):
         super().__init__()
         self.base_criterion = base_criterion
@@ -46,6 +48,8 @@ class SGQSCriterion(nn.Module):
         self.survival_quality_power = float(survival_quality_power)
         self.survival_start_epoch = float(survival_start_epoch)
         self.survival_ramp_epochs = float(survival_ramp_epochs)
+        self.survival_threshold = survival_threshold
+        self.protect_encoder_supervision = bool(protect_encoder_supervision)
         self._logging_metrics: Dict[str, torch.Tensor] = {}
 
         required = {
@@ -69,6 +73,8 @@ class SGQSCriterion(nn.Module):
             raise ValueError('survival_quality_power must be non-negative')
         if self.survival_ramp_epochs < 0.0:
             raise ValueError('survival_ramp_epochs must be non-negative')
+        if self.survival_threshold not in ('topk', 'non_owner_budget'):
+            raise ValueError('survival_threshold must be topk or non_owner_budget')
 
     @staticmethod
     def _distributed_average_denominator(value, device, minimum=1e-12):
@@ -224,7 +230,12 @@ class SGQSCriterion(nn.Module):
             owner_logits = dense_logits[batch_idx, owner_indices, labels]
             quality_weights = self._quality_target(
                 qualities[batch_idx]).pow(self.survival_quality_power).detach()
-            margin_gap = cutoff[batch_idx] + self.survival_margin - owner_logits
+            threshold = cutoff[batch_idx]
+            if self.survival_threshold == 'non_owner_budget':
+                threshold = self._competition_threshold(payload, batch_idx)
+                if threshold is None:
+                    continue
+            margin_gap = threshold + self.survival_margin - owner_logits
             survival = self.survival_temperature * F.softplus(
                 margin_gap / self.survival_temperature)
             weighted_sum = weighted_sum + (quality_weights * survival).sum()
@@ -233,6 +244,81 @@ class SGQSCriterion(nn.Module):
         denominator = self._distributed_average_denominator(
             weight_sum, dense_logits.device, minimum=1e-12)
         return weighted_sum / denominator * self._survival_ramp(metadata)
+
+    @staticmethod
+    @torch.no_grad()
+    def _competition_threshold(payload, batch_idx):
+        """All A owners fit in K if they beat non-owner rank K-A+1.
+
+        Excluding owners removes the self-chasing margin at A=K. Scores are
+        exactly those of the masked selector; the real Top-K cutoff is logged
+        separately. A is the active owner count after the supervision guard.
+        """
+        if payload['dense_logits'].shape[-1] != 1:
+            raise ValueError('non_owner_budget is defined for single-type detection')
+        scores = payload['selection_scores'][batch_idx].float().detach()
+        owners = payload['owner_indices'][batch_idx]
+        valid = torch.isfinite(scores)
+        k = int(payload['effective_k'])
+        if k > int(valid.sum()):
+            raise ValueError('query budget exceeds valid selector scores')
+        if not len(owners) or k >= int(valid.sum()):
+            return None
+        valid = valid.clone()
+        valid[owners] = False
+        rank = k - len(owners) + 1
+        if rank <= 0:
+            return None
+        competitors = scores[valid]
+        if rank > len(competitors):
+            return None
+        return competitors.topk(rank).values[-1]
+
+    def _guard_encoder_supervision(self, payload):
+        """Avoid adding opposite GT/background supervision on selected memory.
+
+        Non-owner encoder positives are not SGQS negatives. A selected owner
+        is omitted from SGQS if the original encoder class/box supervision
+        disagrees with its target (including background class supervision).
+        Original matcher outputs and every base loss remain unchanged.
+        """
+        if payload['dense_logits'].shape[-1] != 1:
+            raise ValueError('encoder supervision protection requires a single class')
+        if not hasattr(self.base_criterion, 'get_encoder_supervision'):
+            raise ValueError('SGQS-E requires the base criterion encoder assignments')
+        records = self.base_criterion.get_encoder_supervision()
+        if len(records) != 1:
+            raise ValueError('SGQS-E expects exactly one encoder candidate output')
+        result = dict(payload)
+        result['ignore_mask'] = payload['ignore_mask'].clone()
+        for key in ('owner_indices', 'target_indices', 'owner_levels', 'owner_boxes'):
+            result[key] = []
+        conflicts = payload['dense_logits'].new_zeros(())
+        for batch, owners in enumerate(payload['owner_indices']):
+            targets = payload['target_indices'][batch]
+            selected = payload['selected_indices'][batch]
+            size = payload['dense_logits'].shape[1]
+            class_target = torch.full((size,), -2, dtype=torch.long, device=owners.device)
+            class_target[selected] = -1  # selected but unmatched = base background
+            cls_queries, cls_targets = records[0]['classification'][batch]
+            # SciPy Hungarian matching returns CPU indices, even for CUDA models.
+            class_target[selected[cls_queries]] = cls_targets.to(device=owners.device)
+            box_target = torch.full_like(class_target, -2)
+            box_queries, box_targets = records[0]['boxes'][batch]
+            box_target[selected[box_queries]] = box_targets.to(device=owners.device)
+            conflict = ((class_target[owners] != -2) & (class_target[owners] != targets))
+            conflict |= ((box_target[owners] >= 0) & (box_target[owners] != targets))
+            keep = ~conflict
+            # Preserve base positives and suppress contradictory SGQS positives,
+            # while leaving safe background negatives supervised.
+            result['ignore_mask'][batch, selected[cls_queries]] = True
+            result['ignore_mask'][batch, selected[box_queries]] = True
+            result['ignore_mask'][batch, owners[conflict]] = True
+            for key in ('owner_indices', 'target_indices', 'owner_levels', 'owner_boxes'):
+                result[key].append(payload[key][batch][keep])
+            conflicts += conflict.sum()
+        result['supervision_conflicts'] = conflicts
+        return result
 
     @torch.no_grad()
     def _update_logging_metrics(self, payload, targets, qualities, metadata):
@@ -311,13 +397,19 @@ class SGQSCriterion(nn.Module):
             'sgqs_survival_ramp': torch.tensor(
                 self._survival_ramp(metadata), dtype=torch.float32, device=device),
         }
+        if 'supervision_conflicts' in payload:
+            conflicts = self._distributed_sum(payload['supervision_conflicts'])
+            self._logging_metrics['sgqs_conflicting_owner_fraction'] = (
+                conflicts / (owners + conflicts).clamp_min(1.0))
         for level, count in enumerate(mechanism_totals[4:]):
             self._logging_metrics[f'sgqs_owner_p{level + 3}_count'] = (
                 count / images.clamp_min(1.0))
 
     def get_logging_metrics(self) -> Dict[str, torch.Tensor]:
         """Return synchronized, detached diagnostics that are not losses."""
-        return dict(self._logging_metrics)
+        metrics = (self.base_criterion.get_logging_metrics()
+                   if hasattr(self.base_criterion, 'get_logging_metrics') else {})
+        return {**metrics, **self._logging_metrics}
 
     def loss_sgqs(self, payload, targets, **metadata) -> Dict[str, torch.Tensor]:
         qualities, loss_bbox, loss_giou = self._owner_quality_and_regression(payload, targets)
@@ -339,6 +431,9 @@ class SGQSCriterion(nn.Module):
         payload = outputs.get('sgqs_aux_outputs')
         if payload is None:
             return losses
+
+        if self.protect_encoder_supervision:
+            payload = self._guard_encoder_supervision(payload)
 
         sgqs_losses = self.loss_sgqs(payload, targets, **metadata)
         losses.update({name: value * self.weight_dict[name] for name, value in sgqs_losses.items()})

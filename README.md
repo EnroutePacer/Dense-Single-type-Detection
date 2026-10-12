@@ -6,7 +6,9 @@
 
 我们以表格单元格检测作为验证基座，研究两个训练层问题：固定 query 预算下的 **query selection–survival gap**，以及整框 IoU 共享权重无法按边表达短边尺度与同类邻域歧义。
 
-当前已实现但尚未验证的 M-001 SGQS 负责 Top-K 前候选监督；最新 M-002 SGQS-E 只完成数学设计，在 SGQS 之外加入逐边 EFGL，尚未实现训练代码。目标是在不增加推理 query 数量和额外预测头的前提下，提高相同训练步数下的召回率与 COCO `maxDets=300` 指标。未经正式消融验证的方法不会被表述为论文贡献。
+当前 M-002 SGQS-E 已完成数学评审与代码实现：保留 SGQS 的候选监督，修正生存门槛与监督冲突，并加入邻域感知的逐边 EFGL。目标是在不增加推理 query 数量和预测头的前提下，提高密集单类型小框的收敛效率与定位精度。当前状态为 implemented/unvalidated，CPU 检查不代表数据集 AP 已改善；M-001 和既有训练设计继续保留。
+
+直接入口：[数学评审](article/methods/M-002_sgqs_e/math_review.md)、[修订公式](article/methods/M-002_sgqs_e/README.md)、[配置与验证](article/methods/M-002_sgqs_e/implementation.md)。四组配置位于 `configs/sgqs_e/`。
 
 研究问题、实验记录、证据链和候选方法集中维护在 [`article/`](article/README.md)。仓库结构如下：
 
@@ -16,6 +18,7 @@ engine/                          当前实际运行的模型、损失与数据�
 engine/sgqs/                     我们的训练期候选监督与损失实现
 configs/                         当前实际运行的训练和评估配置
 configs/sgqs/                    SGQS 正式配置与 checkpoint probe 配置
+configs/sgqs_e/                  B0/B1/B2/B3 配对消融配置
 tools/                           训练、推理、部署及表格任务脚本
 figures/                         DEIM 上游说明图
 article/

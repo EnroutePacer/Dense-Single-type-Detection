@@ -12,7 +12,7 @@
 - 旧 small-loss probes 已确认没有加载其声称的配置，属于“运行完成但目标消融无效”，不会被包装成论文结果。
 - 三个新 12,800-step 摘要已归档：small-reg 没有改善 AP-small/AR-small，MAL+Dense O2O 摘要结果明显退化；由于缺少 console/resolved config，目前只记录数值，不做方法归因。
 - 已实现候选方法 [M-001 SGQS](methods/M-001_sgqs/README.md)，在训练期直接监督 Top-K 前的 encoder 候选、owner 回归与生存排名；当前状态为 implemented/unvalidated，尚无训练效果结论。
-- 已设计最新方法 [M-002 SGQS-E](methods/M-002_sgqs_e/README.md)：保留 SGQS，并以短边、逐边误差和同类邻域构造 EFGL；当前状态为 designed/unimplemented/unvalidated。
+- 最新方法 [M-002 SGQS-E](methods/M-002_sgqs_e/README.md) 已完成[数学评审](methods/M-002_sgqs_e/math_review.md)与[代码实现](methods/M-002_sgqs_e/implementation.md)：修正 SGQS 的生存门槛与监督冲突，并以短边、逐边误差和同类邻域构造 EFGL；当前状态为 implemented/unvalidated，尚无真实训练收益结论。
 - 正式 COCO 主评估固定使用 `maxDets=[1,10,300]`；机制诊断在 evaluator 截断前进行。
 
 ## 研究入口

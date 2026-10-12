@@ -1,0 +1,3 @@
+__include__: ['./b0_baseline.yml', './efgl.yml']
+
+output_dir: ./output/sgqs_e_b2_efgl
