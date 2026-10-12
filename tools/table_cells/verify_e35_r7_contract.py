@@ -12,10 +12,19 @@ import yaml
 
 REFERENCE_COMMIT = "6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a"
 RESUME_EXPERIMENTS = {
-    "resume_b0_baseline": (False, False),
-    "resume_b1_sgqs": (True, False),
-    "resume_b2_efgl": (False, True),
-    "resume_b3_sgqs_e": (True, True),
+    "resume_b0_baseline": dict(sgqs=False, efgl=False, loss="vfl", augmentation="clean"),
+    "resume_b1_sgqs": dict(sgqs=True, efgl=False, loss="vfl", augmentation="clean"),
+    "resume_b2_efgl": dict(sgqs=False, efgl=True, loss="vfl", augmentation="clean"),
+    "resume_b3_sgqs_e": dict(sgqs=True, efgl=True, loss="vfl", augmentation="clean"),
+    "resume_c1_small_reg": dict(sgqs=False, efgl=False, loss="small_reg", augmentation="clean"),
+    "resume_c2_mal_only": dict(sgqs=False, efgl=False, loss="mal", augmentation="clean"),
+    "resume_c3_mosaic_only": dict(sgqs=False, efgl=False, loss="vfl", augmentation="mosaic_only"),
+    "resume_c4_deim_core": dict(sgqs=False, efgl=False, loss="mal", augmentation="dense_o2o"),
+}
+
+CONFIG_BASENAMES = {
+    "deim_core_e35": "deim_core_e35.yml",
+    **{name: f"{name}.yml" for name in RESUME_EXPERIMENTS},
 }
 
 
@@ -73,6 +82,7 @@ def verify_common_budget(config: dict[str, Any]) -> None:
     for split in ("train_dataloader", "val_dataloader"):
         loader = config[split]
         require_equal(loader["total_batch_size"], 64, f"{split} global batch")
+        require_equal(loader["num_workers"], 4, f"{split} worker count")
         collate = loader["collate_fn"]
         require_equal(collate["base_size"], 640, f"{split} collate base size")
         require_equal(collate.get("scales"), None, f"{split} multiscale setting")
@@ -86,7 +96,12 @@ def verify_common_budget(config: dict[str, Any]) -> None:
             "full epoch runs must not set max_train_steps")
 
 
-def verify_base_vfl(config: dict[str, Any]) -> None:
+def verify_base_vfl(
+    config: dict[str, Any],
+    *,
+    box_weight: float = 1.0,
+    local_weight: float = 1.0,
+) -> None:
     criterion = config["DEIMCriterion"]
     require_equal(criterion["losses"], ["vfl", "boxes", "local"],
                   "resume base losses")
@@ -101,10 +116,33 @@ def verify_base_vfl(config: dict[str, Any]) -> None:
     require_equal(criterion["gamma"], 2.0, "VFL gamma")
     require_equal(criterion["small_object_weight"], 1.0,
                   "classification small-object weight")
-    require_equal(criterion["small_object_box_weight"], 1.0,
+    require_equal(criterion["small_object_box_weight"], box_weight,
                   "box small-object weight")
-    require_equal(criterion["small_object_local_weight"], 1.0,
+    require_equal(criterion["small_object_local_weight"], local_weight,
                   "local small-object weight")
+
+
+def verify_base_mal(config: dict[str, Any]) -> None:
+    criterion = config["DEIMCriterion"]
+    require_equal(criterion["losses"], ["mal", "boxes", "local"],
+                  "MAL losses")
+    require_equal(criterion["weight_dict"], {
+        # The inactive VFL key remains after the repository's deep YAML merge.
+        "loss_vfl": 1,
+        "loss_mal": 1,
+        "loss_bbox": 5,
+        "loss_giou": 2,
+        "loss_fgl": 0.15,
+        "loss_ddf": 1.5,
+    }, "MAL loss coefficients")
+    require_equal(criterion["alpha"], 0.75, "MAL alpha")
+    require_equal(criterion["gamma"], 1.5, "MAL gamma")
+    require_equal(criterion["small_object_weight"], 1.0,
+                  "MAL classification small-object weight")
+    require_equal(criterion["small_object_box_weight"], 1.0,
+                  "MAL box small-object weight")
+    require_equal(criterion["small_object_local_weight"], 1.0,
+                  "MAL local small-object weight")
 
 
 def verify_sgqs(config: dict[str, Any]) -> None:
@@ -169,18 +207,9 @@ def verify_efgl(config: dict[str, Any], enabled: bool) -> None:
         require_equal(efgl[key], value, f"EFGL {key}")
 
 
-def verify_resume(config: dict[str, Any], experiment: str) -> None:
-    sgqs_enabled, efgl_enabled = RESUME_EXPERIMENTS[experiment]
-    require_equal(Path(config.get("resume", "")).name, "checkpoint0027.pth",
-                  "resume checkpoint basename")
-    require("tuning" not in config, "resume arm unexpectedly contains tuning")
-    require_equal(config["lrsheduler"], "flatcosine", "resume LR scheduler")
-    require_equal(config["lr_gamma"], 1, "resume LR gamma")
-    require_equal(config["flat_epoch"], 4_000_000, "resume flat LR horizon")
-    require_equal(config["no_aug_epoch"], 0, "resume no-augmentation horizon")
-
-    train_ops = [op["type"] for op in
-                 config["train_dataloader"]["dataset"]["transforms"]["ops"]]
+def verify_clean_augmentation(config: dict[str, Any]) -> None:
+    train = config["train_dataloader"]
+    train_ops = [op["type"] for op in train["dataset"]["transforms"]["ops"]]
     require_equal(train_ops, [
         "RandomPhotometricDistort",
         "RandomHorizontalFlip",
@@ -188,42 +217,37 @@ def verify_resume(config: dict[str, Any], experiment: str) -> None:
         "SanitizeBoundingBoxes",
         "ConvertPILImage",
         "ConvertBoxes",
-    ], "resume training transforms")
-    require_equal(config["train_dataloader"]["collate_fn"]["mixup_prob"], 0.0,
-                  "resume MixUp probability")
-
-    verify_base_vfl(config)
-    verify_sgqs(config) if sgqs_enabled else verify_no_sgqs(config)
-    verify_efgl(config, efgl_enabled)
+    ], "clean resume training transforms")
+    require_equal(train["collate_fn"]["mixup_prob"], 0.0,
+                  "clean resume MixUp probability")
 
 
-def verify_deim_core(config: dict[str, Any]) -> None:
-    require("resume" not in config, "fresh DEIM-core arm unexpectedly contains resume")
-    require_equal(Path(config.get("tuning", "")).name,
-                  "deim_dfine_hgnetv2_m_coco_90e.pth",
-                  "DEIM-core tuning checkpoint basename")
-    verify_no_sgqs(config)
-    verify_efgl(config, False)
-
-    criterion = config["DEIMCriterion"]
-    require_equal(criterion["losses"], ["mal", "boxes", "local"],
-                  "DEIM-core losses")
-    require_equal(criterion["weight_dict"], {
-        # Deep YAML merging retains the inherited key, but `losses` is the
-        # authoritative dispatch list, so VFL is not computed in this arm.
-        "loss_vfl": 1,
-        "loss_mal": 1,
-        "loss_bbox": 5,
-        "loss_giou": 2,
-        "loss_fgl": 0.15,
-        "loss_ddf": 1.5,
-    }, "DEIM-core loss coefficients")
-    require_equal(criterion["alpha"], 0.75, "MAL alpha")
-    require_equal(criterion["gamma"], 1.5, "MAL gamma")
-
+def verify_mosaic_only_augmentation(config: dict[str, Any]) -> None:
     train = config["train_dataloader"]
-    ops = [op["type"] for op in train["dataset"]["transforms"]["ops"]]
-    require_equal(ops, [
+    transforms = train["dataset"]["transforms"]
+    require_equal([op["type"] for op in transforms["ops"]], [
+        "Mosaic",
+        "RandomPhotometricDistort",
+        "RandomHorizontalFlip",
+        "Resize",
+        "SanitizeBoundingBoxes",
+        "ConvertPILImage",
+        "ConvertBoxes",
+    ], "Mosaic-only training transforms")
+    require_equal(transforms["policy"], {
+        "name": "stop_epoch",
+        "epoch": [28, 35, 35],
+        "ops": ["Mosaic"],
+    }, "Mosaic-only policy")
+    require_equal(transforms["mosaic_prob"], 0.5, "Mosaic-only probability")
+    require_equal(train["collate_fn"]["mixup_prob"], 0.0,
+                  "Mosaic-only MixUp probability")
+
+
+def verify_dense_o2o_augmentation(config: dict[str, Any], *, fresh: bool) -> None:
+    train = config["train_dataloader"]
+    transforms = train["dataset"]["transforms"]
+    require_equal([op["type"] for op in transforms["ops"]], [
         "Mosaic",
         "RandomPhotometricDistort",
         "RandomZoomOut",
@@ -234,13 +258,65 @@ def verify_deim_core(config: dict[str, Any]) -> None:
         "SanitizeBoundingBoxes",
         "ConvertPILImage",
         "ConvertBoxes",
-    ], "DEIM-core Dense-O2O transforms")
-    require_equal(train["dataset"]["transforms"]["policy"]["epoch"], [1, 17, 31],
-                  "DEIM-core augmentation stages")
-    require_equal(train["collate_fn"]["mixup_epochs"], [1, 17],
-                  "DEIM-core MixUp stages")
+    ], "Dense-O2O transforms")
+    expected_policy = [1, 17, 31] if fresh else [28, 35, 35]
+    expected_mixup = [1, 17] if fresh else [28, 35]
+    require_equal(transforms["policy"]["epoch"], expected_policy,
+                  "Dense-O2O augmentation stages")
+    require_equal(transforms["policy"]["ops"], [
+        "Mosaic", "RandomPhotometricDistort", "RandomZoomOut", "RandomIoUCrop",
+    ], "Dense-O2O scheduled transforms")
+    require_equal(transforms["mosaic_prob"], 0.5, "Dense-O2O Mosaic probability")
+    require_equal(train["collate_fn"]["mixup_prob"], 0.5,
+                  "Dense-O2O MixUp probability")
+    require_equal(train["collate_fn"]["mixup_epochs"], expected_mixup,
+                  "Dense-O2O MixUp stages")
     require_equal(train["collate_fn"]["stop_epoch"], 35,
-                  "DEIM-core stop epoch")
+                  "Dense-O2O stop epoch")
+
+
+def verify_resume(config: dict[str, Any], experiment: str) -> None:
+    profile = RESUME_EXPERIMENTS[experiment]
+    require_equal(Path(config.get("resume", "")).name, "checkpoint0027.pth",
+                  "resume checkpoint basename")
+    require("tuning" not in config, "resume arm unexpectedly contains tuning")
+    require_equal(config["lrsheduler"], "flatcosine", "resume LR scheduler")
+    require_equal(config["lr_gamma"], 1, "resume LR gamma")
+    require_equal(config["flat_epoch"], 4_000_000, "resume flat LR horizon")
+    require_equal(config["no_aug_epoch"], 0, "resume no-augmentation horizon")
+
+    if profile["augmentation"] == "clean":
+        verify_clean_augmentation(config)
+    elif profile["augmentation"] == "mosaic_only":
+        verify_mosaic_only_augmentation(config)
+    elif profile["augmentation"] == "dense_o2o":
+        verify_dense_o2o_augmentation(config, fresh=False)
+    else:
+        raise ContractError(f"unknown augmentation profile: {profile['augmentation']}")
+
+    if profile["loss"] == "vfl":
+        verify_base_vfl(config)
+    elif profile["loss"] == "small_reg":
+        verify_base_vfl(config, box_weight=1.30, local_weight=1.15)
+    elif profile["loss"] == "mal":
+        verify_base_mal(config)
+    else:
+        raise ContractError(f"unknown loss profile: {profile['loss']}")
+
+    verify_sgqs(config) if profile["sgqs"] else verify_no_sgqs(config)
+    verify_efgl(config, profile["efgl"])
+
+
+def verify_deim_core(config: dict[str, Any]) -> None:
+    require("resume" not in config, "fresh DEIM-core arm unexpectedly contains resume")
+    require_equal(Path(config.get("tuning", "")).name,
+                  "deim_dfine_hgnetv2_m_coco_90e.pth",
+                  "DEIM-core tuning checkpoint basename")
+    verify_no_sgqs(config)
+    verify_efgl(config, False)
+
+    verify_base_mal(config)
+    verify_dense_o2o_augmentation(config, fresh=True)
 
 
 def verify_resolved_config(config: dict[str, Any], experiment: str) -> None:
@@ -253,18 +329,86 @@ def verify_resolved_config(config: dict[str, Any], experiment: str) -> None:
         raise ContractError(f"unknown experiment: {experiment}")
 
 
+def verify_frozen_inputs(args: argparse.Namespace, frozen: dict[str, Any]) -> None:
+    require_equal(args.config_source.name, CONFIG_BASENAMES[args.experiment],
+                  "config source basename")
+
+    expected_mode = "tuning" if args.experiment == "deim_core_e35" else "resume"
+    require_equal(args.run_mode, expected_mode, "checkpoint mode")
+    require_equal(args.world_size, 8, "DDP world size")
+    require_equal(args.batch_size_per_gpu, 8, "per-GPU batch size")
+    require_equal(args.num_workers, 4, "DataLoader worker count")
+    require_equal(args.quick_steps, 0, "quick-step override")
+
+    train = frozen["train_annotation"]
+    val = frozen["val_annotation"]
+    checkpoint_key = ("resume_checkpoint" if args.run_mode == "resume"
+                      else "deim_tuning_checkpoint")
+    checkpoint = frozen[checkpoint_key]
+
+    require(args.train_ann.is_file(), f"training annotation missing: {args.train_ann}")
+    require(args.val_ann.is_file(), f"validation annotation missing: {args.val_ann}")
+    require(args.source_checkpoint.is_file(),
+            f"source checkpoint missing: {args.source_checkpoint}")
+    require_equal(args.source_checkpoint.name, checkpoint["basename"],
+                  "source checkpoint basename")
+
+    if args.run_mode == "resume":
+        require_equal(args.source_checkpoint_last_epoch,
+                      str(checkpoint["last_epoch"]), "resume last_epoch")
+    else:
+        require_equal(args.source_checkpoint_last_epoch, "not_applicable",
+                      "tuning checkpoint last_epoch marker")
+
+    if not args.verify_frozen_inputs:
+        return
+
+    require_equal(args.train_ann.stat().st_size, train["bytes"],
+                  "training annotation bytes")
+    require_equal(args.train_ann_sha256, train["sha256"],
+                  "training annotation SHA-256")
+    require_equal(args.val_ann.stat().st_size, val["bytes"],
+                  "validation annotation bytes")
+    require_equal(args.val_ann_sha256, val["sha256"],
+                  "validation annotation SHA-256")
+    require_equal(args.source_checkpoint.stat().st_size, checkpoint["bytes"],
+                  "source checkpoint bytes")
+    require_equal(args.source_checkpoint_sha256, checkpoint["sha256"],
+                  "source checkpoint SHA-256")
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--project-root", type=Path, required=True)
     parser.add_argument("--provenance", type=Path, required=True)
+    parser.add_argument("--frozen-inputs", type=Path, required=True)
     parser.add_argument("--resolved-config", type=Path, required=True)
+    parser.add_argument("--config-source", type=Path, required=True)
     parser.add_argument("--experiment", required=True)
+    parser.add_argument("--run-mode", choices=("resume", "tuning"), required=True)
+    parser.add_argument("--world-size", type=int, required=True)
+    parser.add_argument("--batch-size-per-gpu", type=int, required=True)
+    parser.add_argument("--num-workers", type=int, required=True)
+    parser.add_argument("--quick-steps", type=int, required=True)
+    parser.add_argument("--source-checkpoint", type=Path, required=True)
+    parser.add_argument("--source-checkpoint-sha256", required=True)
+    parser.add_argument("--source-checkpoint-last-epoch", required=True)
+    parser.add_argument("--train-ann", type=Path, required=True)
+    parser.add_argument("--train-ann-sha256", required=True)
+    parser.add_argument("--val-ann", type=Path, required=True)
+    parser.add_argument("--val-ann-sha256", required=True)
+    parser.add_argument("--verify-frozen-inputs", type=int, choices=(0, 1), required=True)
     args = parser.parse_args()
 
     project_root = args.project_root.resolve()
     provenance = yaml.safe_load(args.provenance.read_text(encoding="utf-8"))
+    frozen = yaml.safe_load(args.frozen_inputs.read_text(encoding="utf-8"))
     config = yaml.safe_load(args.resolved_config.read_text(encoding="utf-8"))
+    args.verify_frozen_inputs = bool(args.verify_frozen_inputs)
+    require(args.experiment in CONFIG_BASENAMES,
+            f"unknown experiment: {args.experiment}")
     verify_method_snapshot(project_root, provenance)
+    verify_frozen_inputs(args, frozen)
     verify_resolved_config(config, args.experiment)
     print(
         "e35/r7 contract OK: "

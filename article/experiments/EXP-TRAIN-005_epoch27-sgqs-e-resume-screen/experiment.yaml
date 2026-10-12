@@ -31,6 +31,11 @@ arms:
   B1: configs/e35_r7/resume_b1_sgqs.yml
   B2: configs/e35_r7/resume_b2_efgl.yml
   B3: configs/e35_r7/resume_b3_sgqs_e.yml
+diagnostic_controls:
+  C1_small_reg: configs/e35_r7/resume_c1_small_reg.yml
+  C2_mal_only: configs/e35_r7/resume_c2_mal_only.yml
+  C3_mosaic_only: configs/e35_r7/resume_c3_mosaic_only.yml
+  C4_deim_core_retrofit: configs/e35_r7/resume_c4_deim_core.yml
 execution_state:
   deployment: "Runtime overlay from repository commit 014d37e deployed and checksum-verified; 32 server method tests passed"
   preflight: "deim_core_e35 and B0/B1/B2/B3 all passed against frozen real data/checkpoint hashes; no run was started"
@@ -38,6 +43,10 @@ execution_state:
   B1: not_started
   B2: not_started
   B3: not_started
+  C1_small_reg: not_started
+  C2_mal_only: not_started
+  C3_mosaic_only: not_started
+  C4_deim_core_retrofit: not_started
 planned_seeds: [0]
 planned_metrics:
   primary: [mAP, AP75, AP90, AP-small, AR-small]

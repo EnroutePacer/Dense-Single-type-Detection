@@ -404,6 +404,34 @@ class SGQSEIntegrationTest(unittest.TestCase):
                 self.assertEqual(base.efgl.compensation_start_epoch, 28.0)
                 self.assertEqual(base.efgl.compensation_duration_epochs, 2.1)
 
+        small_reg = YAMLConfig(str(matrix / 'resume_c1_small_reg.yml')).yaml_cfg
+        self.assertEqual(small_reg['DEIMCriterion']['losses'], ['vfl', 'boxes', 'local'])
+        self.assertEqual(small_reg['DEIMCriterion']['small_object_box_weight'], 1.30)
+        self.assertEqual(small_reg['DEIMCriterion']['small_object_local_weight'], 1.15)
+
+        mal_only = YAMLConfig(str(matrix / 'resume_c2_mal_only.yml')).yaml_cfg
+        self.assertEqual(mal_only['DEIMCriterion']['losses'], ['mal', 'boxes', 'local'])
+        self.assertEqual(
+            [op['type'] for op in mal_only['train_dataloader']['dataset']['transforms']['ops']],
+            ['RandomPhotometricDistort', 'RandomHorizontalFlip', 'Resize',
+             'SanitizeBoundingBoxes', 'ConvertPILImage', 'ConvertBoxes'],
+        )
+
+        mosaic_only = YAMLConfig(str(matrix / 'resume_c3_mosaic_only.yml')).yaml_cfg
+        mosaic_transforms = mosaic_only['train_dataloader']['dataset']['transforms']
+        self.assertEqual(mosaic_transforms['policy']['epoch'], [28, 35, 35])
+        self.assertEqual(mosaic_transforms['policy']['ops'], ['Mosaic'])
+        self.assertEqual(mosaic_only['train_dataloader']['collate_fn']['mixup_prob'], 0.0)
+
+        deim_retrofit = YAMLConfig(str(matrix / 'resume_c4_deim_core.yml')).yaml_cfg
+        self.assertEqual(deim_retrofit['DEIMCriterion']['losses'], ['mal', 'boxes', 'local'])
+        self.assertEqual(
+            deim_retrofit['train_dataloader']['dataset']['transforms']['policy']['epoch'],
+            [28, 35, 35],
+        )
+        self.assertEqual(deim_retrofit['train_dataloader']['collate_fn']['mixup_epochs'],
+                         [28, 35])
+
     def test_e35_r7_method_provenance_allows_only_resume_time_adapter(self):
         root = Path(__file__).resolve().parents[1]
         provenance = yaml.safe_load(

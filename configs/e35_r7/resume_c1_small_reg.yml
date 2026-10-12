@@ -1,0 +1,12 @@
+__include__: ['../sgqs_e/b0_baseline.yml']
+
+# Diagnostic comparator C1: the historical area-thresholded regression
+# reweighting, with every other part of the clean VFL continuation unchanged.
+output_dir: ./output/e35_r7_sgqse/resume_c1_small_reg_seed0
+epoches: 35
+
+DEIMCriterion:
+  small_object_weight: 1.0
+  small_object_area_threshold: 0.0025
+  small_object_box_weight: 1.30
+  small_object_local_weight: 1.15

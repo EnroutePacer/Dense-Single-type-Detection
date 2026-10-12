@@ -30,16 +30,12 @@ epoch 0 起算”的课程，到 epoch 28 补偿已经是 0，B2/B3 消融会退
 
 ## 执行
 
-使用 `tools/table_cells/train_e35_r7_sgqse_8gpu.sh`。默认只新启动 B1/B2/B3：
-
-```bash
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b1_sgqs
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b2_efgl
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b3_sgqs_e
-```
-
-正式启动前分别加 `PREFLIGHT_ONLY=1` 运行同一命令。预检成功不会创建
-输出目录或启动 `torchrun`。
+统一使用 `tools/table_cells/run_e35_r7_experiment.sh`。launcher 不按实验名
+选择配置，B1/B2/B3 的命令必须分别显式声明 `CONFIG_FILE`、`RESUME`、
+`GPUS`、batch、绝对终点 epoch、输出目录和其余运行参数。冻结命令见
+`configs/e35_r7/SERVER_COMMANDS.md`。把同一命令中的
+`PREFLIGHT_ONLY=0` 改为 `1` 可做只读预检；成功时不会创建输出目录或启动
+`torchrun`。
 
 每个输出目录必须是新目录。运行结束后把 `run_manifest.txt`、
 `config_source.yml`、`resolved_config.yml`、`console.log`、`log.txt`、指标与必需
@@ -65,3 +61,8 @@ fixed-640、query 640、VFL、无 Mosaic/MixUp/多尺度、从
 这个 screen 使用已经收敛 28 epoch 的共同基座，可用来快速判断新梯度在
 当前状态附近的方向，但无法回答方法是否改变早期表征和候选生成。
 它只用于决定是否值得执行 EXP-TRAIN-004，不能代替正式从头、多 seed 消融。
+
+旧 `targeted_e28_r7_training_bundle.tar.gz` 的 small-reg、MAL-only、
+Mosaic-only 和 MAL+Dense-O2O 四组已重写为 C1--C4 辅助诊断对照。它们与
+B0--B3 共享 checkpoint、预算和评估协议，但不进入 SGQS-E 的主效应/交互
+计算，也不能替代 B1/B2/B3。

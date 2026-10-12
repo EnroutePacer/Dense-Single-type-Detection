@@ -37,47 +37,38 @@ M 脚本默认加载项目根目录下的 `deim_dfine_hgnetv2_m_coco_90e.pth`；
 
 该任务配置固定 640×640 输入，查询数默认为 640，以覆盖合并脚本允许的最大单表单元格数；仅启用轻度光度扰动和水平翻转，Mosaic、RandomIoUCrop、RandomZoomOut、MixUp 及多尺度训练均关闭，以免破坏表格网格和稀疏小单元格。
 
-## 35 epoch DEIM-core 与 epoch-27 续训屏选
+## 35 epoch / epoch-27 resume 实验矩阵
 
-`train_e35_r7_sgqse_8gpu.sh` 固定 8 卡、每卡 batch 8、global batch 64、
-fixed-640、query 640、seed 0 和绝对终点 `epoches=35`。对
-`checkpoint0027.pth` 使用 resume 时，训练循环执行 epoch 28--34，
-正好 7 epoch；不能把 `EPOCHS` 写成 7。配置位于 `configs/e35_r7/`。
-
-启动脚本会检查冻结的数据/权重 SHA-256、resume 文件名和
-`last_epoch=27`，拒绝非空输出目录，并保存 `run_manifest.txt`、
-`config_source.yml` 和包含命令行覆盖的 `resolved_config.yml`。如果有意更换
-数据或初始权重，必须将其视为新实验，并显式设置
-`VERIFY_FROZEN_INPUTS=0`。
+正式入口是 `run_e35_r7_experiment.sh`。它是透明的通用执行器，不按实验名
+选择配置，也不在内部隐藏 GPU、batch、epoch、checkpoint 或输出路径。调用者
+必须显式传入这些参数；脚本只负责解析配置、执行 fail-closed 契约校验、记录
+manifest，然后调用底层多卡训练入口。
 
 方法数学以提交
 `6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a` 为唯一基准。
 `configs/e35_r7/method_provenance.yml` 冻结方法文件哈希；
-`verify_e35_r7_contract.py` 还会检查最终解析配置中的损失系数、消融开关、
-课程、固定尺度、query、global batch 和 checkpoint 模式。先做只读预检：
+`verify_e35_r7_contract.py` 检查最终解析配置中的损失、增强、课程、fixed-640、
+query 640、global batch 64、checkpoint 模式、数据/权重身份和
+`last_epoch=27`。成功后保存 `run_manifest.txt`、`config_source.yml`、
+`resolved_config.yml`、`method_provenance.yml` 与 `frozen_inputs.yml`。
 
-```bash
-PREFLIGHT_ONLY=1 bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b1_sgqs
-PREFLIGHT_ONLY=1 bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b2_efgl
-PREFLIGHT_ONLY=1 bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b3_sgqs_e
-```
+矩阵分为两层：B0--B3 是论文 SGQS-E 主消融；C1--C4 只是机制诊断对照，
+不能替代主消融，也不能把它们的收益归入 SGQS-E。B0 已完成，不重复训练。
+旧压缩包中的 `deim_fresh_e28` 被 35-epoch `deim_core_e35` 取代。
 
-预检会校验 6 GB 训练标注、验证标注和断点哈希，所以不是瞬时完成；成功时
-不会创建输出目录，也不会启动 `torchrun`。B0 可用同样方式预检，但正式
-重跑仍需 `ALLOW_CONTROL_RERUN=1`。
+| ID | 初始化 | 新增变化 | 状态/用途 |
+|---|---|---|---|
+| `deim_core_e35` | COCO tuning checkpoint | MAL + Dense O2O，0--34 | 待跑，受控 DEIM 基线 |
+| `resume_b0_baseline` | epoch 27 | 无 | 已完成，主消融负对照 |
+| `resume_b1_sgqs` | epoch 27 | SGQS | 待跑，论文主消融 |
+| `resume_b2_efgl` | epoch 27 | EFGL | 待跑，论文主消融 |
+| `resume_b3_sgqs_e` | epoch 27 | SGQS + EFGL | 待跑，论文主方法 |
+| `resume_c1_small_reg` | epoch 27 | box 1.30 / local 1.15 | 待跑，历史启发式对照 |
+| `resume_c2_mal_only` | epoch 27 | 只把 VFL 换成 MAL | 待跑，分类损失对照 |
+| `resume_c3_mosaic_only` | epoch 27 | 只加 Mosaic | 待跑，数据增强对照 |
+| `resume_c4_deim_core` | epoch 27 | MAL + Dense O2O | 待跑，晚期 retrofit 诊断 |
 
-在四台独立 8 卡机器上分别执行：
-
-```bash
-cd /aicamera-mlp/zhuyouwei/code/DEIM
-
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh deim_core_e35
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b1_sgqs
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b2_efgl
-bash tools/table_cells/train_e35_r7_sgqse_8gpu.sh resume_b3_sgqs_e
-```
-
-B0 fixed-640 VFL 已在运行，所以默认启动队列不包含
-`resume_b0_baseline`，且脚本会主动拒绝该名称。只有确认原 B0 不可用
-时，才能使用 `ALLOW_CONTROL_RERUN=1`重跑。若在同一机器并发，
-还必须为每个任务设置不同的 `MASTER_PORT`。
+八个待执行实验的完整显式命令见
+`configs/e35_r7/SERVER_COMMANDS.md`。对 resume 实验，`EPOCHS=35` 是绝对
+终点，实际执行 epoch 28--34；不能写成 `EPOCHS=7`。把
+`PREFLIGHT_ONLY=1` 可用于只读预检，成功时不会创建输出目录或启动训练。

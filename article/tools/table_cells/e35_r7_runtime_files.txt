@@ -1,4 +1,5 @@
 configs/e35_r7/README.md
+configs/e35_r7/SERVER_COMMANDS.md
 configs/e35_r7/deim_core_e35.yml
 configs/e35_r7/frozen_inputs.yml
 configs/e35_r7/method_provenance.yml
@@ -6,6 +7,10 @@ configs/e35_r7/resume_b0_baseline.yml
 configs/e35_r7/resume_b1_sgqs.yml
 configs/e35_r7/resume_b2_efgl.yml
 configs/e35_r7/resume_b3_sgqs_e.yml
+configs/e35_r7/resume_c1_small_reg.yml
+configs/e35_r7/resume_c2_mal_only.yml
+configs/e35_r7/resume_c3_mosaic_only.yml
+configs/e35_r7/resume_c4_deim_core.yml
 configs/sgqs/README.md
 configs/sgqs/sgqs_hgnetv2_m_table_cell_fixed640.yml
 configs/sgqs_e/b0_baseline.yml
@@ -34,5 +39,5 @@ tools/table_cells/README.md
 tools/table_cells/dump_resolved_training_config.py
 tools/table_cells/e35_r7_runtime_files.txt
 tools/table_cells/train_dfine_m_table_cell_multigpu.sh
-tools/table_cells/train_e35_r7_sgqse_8gpu.sh
+tools/table_cells/run_e35_r7_experiment.sh
 tools/table_cells/verify_e35_r7_contract.py

@@ -10,6 +10,8 @@
 - 提交 `014d37e` 已推送；服务器以 runtime manifest 定向覆盖 38 个文件，覆盖前备份 13 个既有文件（备份 tar SHA-256 `893dc6ade9af52fe10d74c240b92dd6b6af7ebef126396e054da284f9887ad76`），未触碰 output、checkpoint、权重或数据。
 - 服务器活动树 38 项哈希、Bash 语法和 32 项方法测试通过；DEIM-core、B0、B1、B2、B3 五个真实输入 preflight 全通过，五个预期新输出目录均不存在，确认没有误启动训练。
 - B0 完整日志随后到达并归档：epoch 27 原始 mAP `0.864310288258`，epoch 34 为 `0.866667088526`（`+0.002356800268`），最终 AP-small `0.685633491224`。B0 仅作为负对照；B1/B2/B3 仍未启动。
+- 审计旧 `targeted_e28_r7_training_bundle.tar.gz`：禁止整体覆盖活动树；旧 fresh-e28 被受控 `deim_core_e35` 取代，旧 resume-control 已由 B0 完成。保留并在当前链路上重写 C1 small-reg、C2 MAL-only、C3 Mosaic-only、C4 MAL+Dense-O2O retrofit 四个辅助诊断对照。
+- 用通用 `run_e35_r7_experiment.sh` 取代按实验名内置参数的专用 launcher；配置、权重、GPU、batch、worker、epoch、query、seed、端口和输出目录均由调用命令显式给出，最终解析配置仍由 fail-closed contract 校验。
 
 ## 2026-10-12 — 冻结 e35/r7 打靶矩阵
 
