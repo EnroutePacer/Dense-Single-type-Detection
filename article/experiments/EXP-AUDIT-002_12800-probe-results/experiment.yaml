@@ -1,0 +1,177 @@
+schema_version: 1
+experiment_id: EXP-AUDIT-002
+slug: 12800_probe_results
+title: "三组 12,800-step probe 结果与配置身份审计"
+type: audit
+status: completed
+validity: partial
+paper_role: audit
+question: "三组最新 12,800-step probe 报告了什么结果，其方法配置身份是否有足够原始证据？"
+hypothesis_ids: []
+protocol_ids: [P-001, P-006]
+method_ids: []
+control_experiment_id: null
+legacy_ids: []
+created_at: 2026-10-12
+updated_at: 2026-10-12
+
+evidence_scope:
+  available:
+    - "DEIM_2/output/probe12800_fixed640_vfl_control_correct/metrics.txt"
+    - "DEIM_2/output/probe12800_fixed640_small_reg_correct/metrics.txt"
+    - "DEIM_2/output/probe12800_fixed640_mal_dense_o2o_bs16_memfix/metrics.txt"
+    - "DEIM_2/output/probe12800_fixed640_three_way_summary.csv"
+  missing_for_all_three_runs:
+    - console.log
+    - log.txt
+    - resolved_config.yaml
+    - "train.py 打印的运行时 cfg: 内容"
+    - "可核验的启动命令与环境快照"
+    - "逐步训练 loss 字段"
+  interpretation: >-
+    数值可作为用户提供并落盘的结果摘要记录；由于缺少 console 和运行时
+    resolved config，不能确认目录名所声称的 CONFIG_FILE、loss 或 augmentation
+    实际生效，也不能把方案间差异严格归因于对应方法。
+
+reported_common_conditions:
+  steps: 12800
+  starting_checkpoint: checkpoint0027.pth
+  evaluator_max_dets: 300
+  input_size: [640, 640]
+  num_queries: 640
+  global_batch_size: 16
+  verification_status: "仅摘要声称；除 steps、checkpoint 和 maxDets 外均缺运行时原始日志复核"
+
+reported_start:
+  map_50_95: 0.864247558
+  ap50: 0.880289
+
+runs:
+  - label: fixed640_vfl_control
+    output_directory: "probe12800_fixed640_vfl_control_correct"
+    claimed_or_expected_config: "configs/table_cells/dfine_hgnetv2_m_table_cell_fixed640_probe.yml"
+    method_identity: unverified
+    runtime_config_evidence: absent
+    training_time: "01:37:17"
+    metrics:
+      map_50_95: 0.860067
+      ap50: 0.871090
+      ap75: 0.871
+      ap_small: 0.682
+      ap_medium: 0.857
+      ap_large: 0.913
+      ar_300: 0.866
+      ar_small: 0.688
+      ar_medium: 0.861
+      ar_large: 0.919
+      ar50: 0.880
+      ar75: 0.874
+    delta_vs_start:
+      map_50_95: -0.004180
+      ap50: -0.009198
+    delta_vs_control:
+      map_50_95: 0.0
+      ap50: 0.0
+      ap75: 0.0
+      ap_small: 0.0
+      ap_medium: 0.0
+      ap_large: 0.0
+      ar_300: 0.0
+      ar_small: 0.0
+      ar_medium: 0.0
+      ar_large: 0.0
+      ar50: 0.0
+      ar75: 0.0
+
+  - label: fixed640_small_reg
+    output_directory: "probe12800_fixed640_small_reg_correct"
+    claimed_or_expected_config: "configs/table_cells/dfine_hgnetv2_m_table_cell_fixed640_small_reg_probe.yml"
+    method_identity: unverified
+    runtime_config_evidence: absent
+    training_time: "01:38:15"
+    metrics:
+      map_50_95: 0.860581
+      ap50: 0.876213
+      ap75: 0.871
+      ap_small: 0.680
+      ap_medium: 0.856
+      ap_large: 0.917
+      ar_300: 0.866
+      ar_small: 0.686
+      ar_medium: 0.860
+      ar_large: 0.923
+      ar50: 0.880
+      ar75: 0.875
+    delta_vs_start:
+      map_50_95: -0.003666
+      ap50: -0.004076
+    delta_vs_control:
+      map_50_95: 0.000514
+      ap50: 0.005123
+      ap75: 0.000
+      ap_small: -0.002
+      ap_medium: -0.001
+      ap_large: 0.004
+      ar_300: 0.000
+      ar_small: -0.002
+      ar_medium: -0.001
+      ar_large: 0.004
+      ar50: 0.000
+      ar75: 0.001
+
+  - label: fixed640_mal_dense_o2o
+    output_directory: "probe12800_fixed640_mal_dense_o2o_bs16_memfix"
+    claimed_or_expected_config: "configs/table_cells/deim_hgnetv2_m_table_cell_fixed640_mal_dense_o2o_probe.yml"
+    method_identity: unverified
+    runtime_config_evidence: absent
+    training_time: "03:34:55"
+    metrics:
+      map_50_95: 0.850864
+      ap50: 0.870690
+      ap75: 0.866
+      ap_small: 0.666
+      ap_medium: 0.849
+      ap_large: 0.889
+      ar_300: 0.857
+      ar_small: 0.675
+      ar_medium: 0.854
+      ar_large: 0.897
+      ar50: 0.878
+      ar75: 0.870
+    delta_vs_start:
+      map_50_95: -0.013384
+      ap50: -0.009598
+    delta_vs_control:
+      map_50_95: -0.009203
+      ap50: -0.000400
+      ap75: -0.005
+      ap_small: -0.016
+      ap_medium: -0.008
+      ap_large: -0.024
+      ar_300: -0.009
+      ar_small: -0.013
+      ar_medium: -0.007
+      ar_large: -0.022
+      ar50: -0.002
+      ar75: -0.004
+
+audit_conclusion:
+  numerical_record: >-
+    三个摘要均低于起始 checkpoint。按摘要数值，small_reg 相对 control 的
+    mAP 高 0.000514，但 AP_small 和 AR_small 均低 0.002；MAL + Dense O2O
+    相对 control 的 mAP 低 0.009203，所有分尺度 AP/AR 均下降。
+  allowed_claim: >-
+    可以陈述上述摘要中的数值关系，以及 small_reg 未表现出小框指标收益、
+    MAL + Dense O2O 摘要结果整体更差。
+  prohibited_claim: >-
+    在补齐原始 console、运行时 cfg 和 loss 字段前，不得宣称差异由 small-reg、
+    MAL、Mosaic、MixUp 或其他具体配置改动造成。
+  upgrade_requirements:
+    - "补回每个 run 的 console.log 和 log.txt"
+    - "核对启动行中的 config 路径和 train.py 输出的 cfg:"
+    - "确认 control/small_reg 日志含 loss_vfl，MAL 日志含 loss_mal"
+    - "核对 small-reg 权重以及 Mosaic/MixUp 的运行时配置"
+
+notes: >-
+  AP75、分尺度 AP/AR 和 recall 只保留三位小数，约 0.001 以内差异可能受打印
+  舍入影响。mAP 和 AP50 使用 quick-probe 摘要中的六位小数。

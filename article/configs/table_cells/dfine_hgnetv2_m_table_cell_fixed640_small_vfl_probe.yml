@@ -1,0 +1,9 @@
+__include__: [
+  './dfine_hgnetv2_m_table_cell_fixed640.yml',
+]
+
+# At 640x640, normalized area 0.0025 corresponds to a 32x32 COCO-small box.
+# Only matched positive VFL terms are reweighted; box regression is unchanged.
+DEIMCriterion:
+  small_object_weight: 3.0
+  small_object_area_threshold: 0.0025

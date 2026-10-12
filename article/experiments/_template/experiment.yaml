@@ -1,0 +1,40 @@
+schema_version: 1
+experiment_id: EXP-TYPE-000
+slug: short_ascii_slug
+title: "实验标题"
+type: diagnostic
+status: planned
+validity: not_run
+paper_role: diagnosis
+question: "本实验要回答的唯一问题。"
+hypothesis_ids: [H-000]
+protocol_ids: [P-000]
+method_ids: []
+control_experiment_id: null
+legacy_ids: []
+invariants:
+  code_base: "相同 commit 或明确记录 diff"
+  dataset: DATA-000
+  initialization: MODEL-000
+  input_size: null
+  num_queries: null
+  global_batch_size: null
+  epochs: null
+  optimizer_steps: null
+  evaluator_max_dets: null
+independent_variables:
+  - name: variable_name
+    control: null
+    treatment: null
+planned_metrics:
+  primary: []
+  secondary: []
+  diagnostics: []
+acceptance_criteria:
+  supports_hypothesis: "预注册的支持条件。"
+  rejects_hypothesis: "预注册的反证条件。"
+  invalidates_experiment: "配置未加载、数据不一致等失效条件。"
+runs: []
+created_at: YYYY-MM-DD
+updated_at: YYYY-MM-DD
+notes: ""

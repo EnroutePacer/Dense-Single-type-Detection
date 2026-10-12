@@ -1,0 +1,75 @@
+schema_version: 1
+updated_at: 2026-10-12
+
+claims:
+  - id: C-001
+    status: target
+    statement: "在固定 K=640 下，所提 selector/query initialization 提高 unique-GT coverage 并降低 selection starvation rate。"
+    facts: []
+    hypotheses: [H-001, H-002, H-003]
+    experiments: [EXP-DIAG-003, EXP-ABL-001]
+    protocols: [P-002]
+    artifacts: []
+    paper_locations: ["sec:diagnosis", "sec:method"]
+    admission: "冻结模型、同 K、带 GT，对比 global Top-K、简单 calibration/quota、本文方法和 GT-aware oracle。"
+    limitation: "selector coverage 提升本身不代表最终 AP 提升。"
+
+  - id: C-002
+    status: target
+    statement: "coverage 改善能转化为相同 epoch/steps 下更高的检测 AP/AR。"
+    facts: []
+    hypotheses: [H-001, H-002]
+    experiments: [EXP-TRAIN-001, EXP-TRAIN-002, EXP-TRAIN-003]
+    protocols: [P-001, P-003]
+    artifacts: []
+    paper_locations: ["tab:main-results", "fig:convergence"]
+    admission: "相同初始化、global batch、优化器、调度、seed 和 maxDets=300；至少三个 seed。"
+    limitation: "当前训练暂停，尚无支持证据。"
+
+  - id: C-003
+    status: target
+    statement: "改进没有把错误从 selection 转移至 decoder 或 output。"
+    facts: []
+    hypotheses: [H-004]
+    experiments: [EXP-DIAG-003, EXP-DIAG-004]
+    protocols: [P-002]
+    artifacts: []
+    paper_locations: ["fig:stage-survival"]
+    admission: "报告 generation、selection、各 decoder layer、output 的逐阶段 GT coverage，并检查重复框、FP 和校准。"
+    limitation: "当前只有无 GT 先导观察。"
+
+  - id: C-004
+    status: target
+    statement: "收益主要出现在密集、短边小或细长目标，且不明显损害其他分桶。"
+    facts: []
+    hypotheses: [H-001, H-005, H-006]
+    experiments: [EXP-DIAG-003, EXP-DIAG-004, EXP-TRAIN-001, EXP-TRAIN-002, EXP-TRAIN-003]
+    protocols: [P-002, P-003]
+    artifacts: []
+    paper_locations: ["tab:stratified-results"]
+    admission: "预注册密度、短边、面积、长宽比分桶，并给出样本数、均值和方差。"
+    limitation: "P3 来源和 predicted-small 均不能替代 GT 分桶。"
+
+  - id: C-005
+    status: target
+    statement: "方法固定 decoder query 数，部署代价可控。"
+    facts: []
+    hypotheses: []
+    experiments: [EXP-BENCH-001, EXP-BENCH-002]
+    protocols: [P-004]
+    artifacts: []
+    paper_locations: ["tab:efficiency"]
+    admission: "固定 K，报告参数、FLOPs、selector latency、模型 latency 和完整 pipeline latency。"
+    limitation: "未经实测不得写零开销。"
+
+  - id: C-006
+    status: target
+    statement: "机制适用于密集单类别检测，而不是表格专用技巧。"
+    facts: []
+    hypotheses: []
+    experiments: []
+    protocols: []
+    artifacts: []
+    paper_locations: ["tab:generalization"]
+    admission: "至少第二个公开密集单类数据集，或公开、可复算的合成密度基准。"
+    limitation: "当前只有表格单元格基座。"

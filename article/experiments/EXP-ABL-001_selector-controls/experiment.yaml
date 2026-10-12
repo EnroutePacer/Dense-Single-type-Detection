@@ -1,0 +1,29 @@
+schema_version: 1
+experiment_id: EXP-ABL-001
+slug: selector_controls
+title: "固定 K 下的 query selector 冻结诊断对照"
+type: ablation
+status: planned
+validity: not_run
+paper_role: ablation
+question: "同 K 的简单或 coverage-aware selector 能否缩小 Top-K unique coverage gap？"
+hypothesis_ids: [H-001, H-002, H-003]
+protocol_ids: [P-002]
+method_ids: []
+control_experiment_id: EXP-DIAG-003
+legacy_ids: []
+invariants:
+  input_size: [640, 640]
+  selector_k: 640
+  model_frozen: true
+independent_variables:
+  - name: selector
+    control: global_score_topk
+    treatment: [per_level_calibration, per_level_quota, deduplicated, coverage_aware, gt_oracle]
+planned_metrics:
+  primary: [unique_gt_coverage_topk, selection_starvation_rate]
+  secondary: [effective_query_utilization, topk_recall]
+runs: []
+created_at: 2026-10-10
+updated_at: 2026-10-10
+notes: "不改变模型权重，不启动训练。"

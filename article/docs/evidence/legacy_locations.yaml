@@ -1,0 +1,18 @@
+schema_version: 1
+updated_at: 2026-10-10
+roots:
+  - logical_root: legacy_sources
+    repository_relative_path: 01_sources
+    status: local_private_immutable
+    git_tracked: false
+  - logical_root: legacy_evidence
+    repository_relative_path: 03_evidence
+    status: local_private_immutable
+    git_tracked: false
+  - logical_root: legacy_archive
+    repository_relative_path: 99_archive
+    status: local_private_immutable
+    git_tracked: false
+notes:
+  - "这些位置暂不移动，以保护哈希和历史链接。"
+  - "新资产应进入 _local/ 并登记 ART ID。"

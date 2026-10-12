@@ -1,0 +1,14 @@
+schema_version: 1
+experiment_id: EXP-DIAG-002
+slug: qualitative_comparison
+title: "DEIM 与 PaddleX-L 同图定性比较"
+type: diagnostic
+status: completed
+validity: valid_with_scope
+paper_role: qualitative
+question: "相同输入上的输出形态有哪些可供后续验证的差异？"
+hypothesis_ids: []
+protocol_ids: [P-004]
+legacy_ids: [I008]
+runs: 1
+notes: "无 GT，只能作为问题发现，不能支持定量优劣。"

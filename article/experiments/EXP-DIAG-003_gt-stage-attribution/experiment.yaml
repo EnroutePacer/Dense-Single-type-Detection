@@ -1,0 +1,31 @@
+schema_version: 1
+experiment_id: EXP-DIAG-003
+slug: gt_stage_attribution
+title: "带 GT 的 generation-selection-decoder-output 分解"
+type: diagnostic
+status: planned
+validity: not_run
+paper_role: diagnosis
+question: "真实漏检在哪一阶段首次发生？"
+hypothesis_ids: [H-001, H-002, H-003, H-004, H-005, H-006]
+protocol_ids: [P-001, P-002]
+method_ids: []
+control_experiment_id: null
+legacy_ids: []
+invariants:
+  input_size: [640, 640]
+  num_queries: 640
+  selector_k: 640
+  model_frozen: true
+planned_metrics:
+  primary: [dense_recall, topk_recall, selection_starvation_rate, unique_gt_coverage]
+  secondary: [decoder_layer_recall, output_recall, score_iou_calibration]
+  diagnostics: [best_candidate_rank, duplicate_queries_per_gt, effective_query_utilization]
+acceptance_criteria:
+  supports_hypothesis: "按 P-002 的阶段差值和预注册分桶判定，不预设瓶颈。"
+  rejects_hypothesis: "对应阶段没有显著损失，或竞争解释更能说明结果。"
+  invalidates_experiment: "GT/坐标映射错误、导出改变前向、数据或权重哈希不一致。"
+runs: []
+created_at: 2026-10-10
+updated_at: 2026-10-10
+notes: "训练前必须完成。"

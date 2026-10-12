@@ -1,0 +1,14 @@
+schema_version: 1
+experiment_id: EXP-BENCH-001
+slug: cpu_latency
+title: "固定 CPU 协议推理延迟"
+type: benchmark
+status: completed
+validity: valid_with_scope
+paper_role: benchmark
+question: "在固定 CPU 协议下，各部署路径的 latency 如何比较？"
+hypothesis_ids: []
+protocol_ids: [P-004]
+legacy_ids: [I001, I002, I003, I004, I005, I006, I007]
+runs: 7
+notes: "延迟有效；无 GT，不能支持精度结论。"

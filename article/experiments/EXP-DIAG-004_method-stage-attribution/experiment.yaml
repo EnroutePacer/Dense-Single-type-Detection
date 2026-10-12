@@ -1,0 +1,18 @@
+schema_version: 1
+experiment_id: EXP-DIAG-004
+slug: method_stage_attribution
+title: "方法模型的分阶段归因"
+type: diagnostic
+status: planned
+validity: not_run
+paper_role: main
+question: "方法改善 selection 后是否在 decoder/output 阶段保持真实 GT coverage？"
+hypothesis_ids: [H-001, H-002, H-003, H-004, H-005, H-006]
+protocol_ids: [P-001, P-002]
+method_ids: []
+control_experiment_id: EXP-DIAG-003
+legacy_ids: []
+runs: []
+created_at: 2026-10-12
+updated_at: 2026-10-12
+notes: "仅在方法 checkpoint 存在后执行。"

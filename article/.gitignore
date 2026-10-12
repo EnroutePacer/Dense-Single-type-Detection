@@ -1,0 +1,65 @@
+# Local/private research assets
+_local/
+
+# Immutable legacy evidence kept locally during the staged migration
+00_overview/
+01_sources/
+02_experiments/
+03_evidence/
+04_analysis/
+05_paper/
+99_archive/
+
+# Training and inference outputs
+output/
+outputs/
+/runs/
+checkpoints/
+wandb/
+tensorboard/
+events.out.tfevents.*
+*.log
+
+# Model and deployment binaries
+*.pth
+*.pt
+*.ckpt
+*.onnx
+*.pdiparams
+*.pdmodel
+*.engine
+
+# Raw archives, datasets, and local papers
+*.tar
+*.tar.gz
+*.tgz
+*.zip
+*.7z
+*.pdf
+data/raw/
+data/images/
+datasets/
+
+# Python/build/editor noise
+__pycache__/
+*.py[cod]
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+dist/
+build/
+.venv/
+venv/
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Temporary files
+*.tmp
+*.bak
+*.swp
+~$*

@@ -2,6 +2,10 @@
   DEIM: DETR with Improved Matching for Fast Convergence
 </h2>
 
+> **Dense Single-type Detection research:** the self-contained paper workspace,
+> experiment registry, evidence chain, method designs, and reproducibility tools
+> are maintained in [`article/`](article/README.md).
+
 <p align="center">
     <a href="https://github.com/ShihuaHuang95/DEIM/blob/master/LICENSE">
         <img alt="license" src="https://img.shields.io/badge/LICENSE-Apache%202.0-blue">

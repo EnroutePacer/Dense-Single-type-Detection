@@ -1,0 +1,6 @@
+# Compatibility alias only. New experiments must inherit the canonical
+# fixed-640 file directly, not this historical filename.
+__include__: [
+  './dfine_hgnetv2_m_table_cell_fixed640.yml',
+]
+

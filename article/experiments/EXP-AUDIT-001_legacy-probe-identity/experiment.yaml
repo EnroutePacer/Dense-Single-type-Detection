@@ -1,0 +1,14 @@
+schema_version: 1
+experiment_id: EXP-AUDIT-001
+slug: legacy_probe_identity
+title: "旧恢复训练探针配置身份审计"
+type: audit
+status: completed
+validity: valid
+paper_role: audit
+question: "旧探针是否实际加载了其声称的配置？"
+hypothesis_ids: []
+protocol_ids: [P-001, P-006]
+legacy_ids: [T003, T004, T005, T006, T007, T008, T009, T010]
+runs: 8
+notes: "配置身份审计成立；small-object 消融结论无效。"

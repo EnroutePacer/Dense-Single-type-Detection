@@ -1,0 +1,14 @@
+schema_version: 1
+experiment_id: EXP-DIAG-001
+slug: query_selection_no_gt
+title: "无 GT 的 encoder Top-K 与 decoder query 先导诊断"
+type: diagnostic
+status: completed
+validity: valid_with_scope
+paper_role: diagnosis
+question: "无 GT 输入上跨层 Top-K 来源与后续置信度存活呈现什么行为？"
+hypothesis_ids: [H-001, H-002, H-003, H-004, H-005]
+protocol_ids: [P-005]
+legacy_ids: [I009]
+runs: 1
+notes: "只用于提出假设，不能计算 GT recall 或 SSR。"

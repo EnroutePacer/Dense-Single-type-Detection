@@ -1,0 +1,9 @@
+{
+  "schema_version": 1,
+  "experiment_id": "EXP-TYPE-000",
+  "run_id": "RUN-YYYYMMDD-HHMMSS-s00",
+  "primary_metric": {"name": null, "value": null, "unit": null, "protocol_id": null},
+  "metrics": {},
+  "training": {"epochs": null, "optimizer_steps": null, "wall_time_seconds": null, "gpu_hours": null, "peak_memory_mib": null},
+  "evaluation": {"max_dets": null, "num_queries": null, "num_top_queries": null}
+}

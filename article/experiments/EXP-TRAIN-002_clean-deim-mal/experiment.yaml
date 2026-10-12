@@ -1,0 +1,18 @@
+schema_version: 1
+experiment_id: EXP-TRAIN-002
+slug: clean_deim_mal_baseline
+title: "完整 Dense O2O/MAL 的 DEIM 基线"
+type: train
+status: planned
+validity: not_run
+paper_role: baseline
+question: "完整 Dense O2O/MAL 相对 D-FINE/VFL 的同协议行为是什么？"
+hypothesis_ids: []
+protocol_ids: [P-001, P-003, P-006]
+method_ids: []
+control_experiment_id: EXP-TRAIN-001
+legacy_ids: [T013]
+runs: []
+created_at: 2026-10-10
+updated_at: 2026-10-10
+notes: "训练暂停，等待诊断 Gate。"

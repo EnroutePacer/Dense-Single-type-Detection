@@ -1,0 +1,14 @@
+schema_version: 1
+experiment_id: EXP-EVAL-001
+slug: maxdets_sweep
+title: "Epoch-27 checkpoint 的 maxDets 100/300 复评"
+type: eval
+status: completed
+validity: partial
+paper_role: diagnosis
+question: "COCO maxDets=100 是否系统性低估密集单元格检测？"
+hypothesis_ids: []
+protocol_ids: [P-003]
+legacy_ids: [T001, T002]
+runs: 2
+notes: "日志支持数值；checkpoint 与标注快照仍待归档。"

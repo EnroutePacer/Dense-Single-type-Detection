@@ -1,0 +1,35 @@
+__include__: [
+  '../dfine_hgnetv2_m_table_cell_fixed640.yml',
+]
+
+# MixUp-only: keep the clean VFL dataset transforms and add only batch MixUp.
+# MixUp p=0.5 is active for epochs 4..27 in this 28-epoch run.
+output_dir: ./output/benchmark_e28/vfl_mixup_only_seed0
+epoches: 28
+checkpoint_freq: 4
+
+train_dataloader:
+  dataset:
+    transforms:
+      ops:
+        - {type: RandomPhotometricDistort, p: 0.25}
+        - {type: RandomHorizontalFlip, p: 0.5}
+        - {type: Resize, size: [640, 640]}
+        - {type: SanitizeBoundingBoxes, min_size: 1}
+        - {type: ConvertPILImage, dtype: float32, scale: True}
+        - {type: ConvertBoxes, fmt: cxcywh, normalize: True}
+      policy:
+        name: default
+        epoch: 0
+        ops: []
+  collate_fn:
+    type: BatchImageCollateFunction
+    base_size: 640
+    base_size_repeat: null
+    scales: null
+    scale_weights: null
+    stop_epoch: 105
+    final_size: null
+    mixup_prob: 0.5
+    mixup_epochs: [4, 49]
+
