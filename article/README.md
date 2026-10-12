@@ -1,8 +1,8 @@
 # Dense Single-Class Detection
 
-这是一个以表格单元格检测为验证基座、研究**密集单类别检测**的论文代码仓库。当前核心问题是：固定 query 预算下，global score-only Top-K 是否造成高分辨率候选的 **query selection–survival gap**。
+这是一个以表格单元格检测为验证基座、研究**密集单类别检测**的论文代码仓库。当前关注两个训练层问题：固定 query 预算下的 **query selection–survival gap**，以及整框 IoU 共享权重无法按边表达短边尺度与同类邻域歧义。
 
-当前结论必须保持克制：13 张无 GT 图片的先导诊断显示 P3/P4/P5 的 Top-K 入选明显不均衡；进一步从 `image (12)` 的 GT 可视化恢复框后，观察到 dense→Top-K 覆盖大幅下降，selection starvation 已成为主假设。但该 GT 来自图片恢复而非原始 COCO JSON，正式分阶段归因仍是最高优先级；训练暂不推进。
+当前结论必须保持克制：13 张无 GT 图片及 `image (12)` 恢复 GT 的先导诊断支持 selection starvation 假设；代码审计确认当前 FGL 将同一个整框 IoU 复制给四条边。前者仍需原始 COCO JSON 复核，后者只是机制事实；两者都还没有证明新训练方法能够提高 AP。
 
 ## 当前仓库状态
 
@@ -12,6 +12,7 @@
 - 旧 small-loss probes 已确认没有加载其声称的配置，属于“运行完成但目标消融无效”，不会被包装成论文结果。
 - 三个新 12,800-step 摘要已归档：small-reg 没有改善 AP-small/AR-small，MAL+Dense O2O 摘要结果明显退化；由于缺少 console/resolved config，目前只记录数值，不做方法归因。
 - 已实现候选方法 [M-001 SGQS](methods/M-001_sgqs/README.md)，在训练期直接监督 Top-K 前的 encoder 候选、owner 回归与生存排名；当前状态为 implemented/unvalidated，尚无训练效果结论。
+- 已设计最新方法 [M-002 SGQS-E](methods/M-002_sgqs_e/README.md)：保留 SGQS，并以短边、逐边误差和同类邻域构造 EFGL；当前状态为 designed/unimplemented/unvalidated。
 - 正式 COCO 主评估固定使用 `maxDets=[1,10,300]`；机制诊断在 evaluator 截断前进行。
 
 ## 研究入口
@@ -25,7 +26,8 @@
 7. [实验注册表](experiments/registry.csv)
 8. [证据与仓库策略](docs/reproducibility/repository_policy.md)
 9. [SGQS 候选方法](methods/M-001_sgqs/README.md)：[完整公式](methods/M-001_sgqs/losses.md)与[实现设计](methods/M-001_sgqs/design.md)
-10. [12,800-step 结果审计](experiments/EXP-AUDIT-002_12800-probe-results/README.md)
+10. [SGQS-E 最新双模块方案与全部公式](methods/M-002_sgqs_e/README.md)
+11. [12,800-step 结果审计](experiments/EXP-AUDIT-002_12800-probe-results/README.md)
 
 ## 仓库结构
 
@@ -55,7 +57,7 @@ _local/                               Git 忽略的本地权重、数据、run �
 
 ## 当前合规表述
 
-> 现有无 GT 诊断显示跨层 Top-K 来源及后续高置信存活存在显著不均衡，由此提出 query selection–survival gap 假设；真实瓶颈位于 generation、selection 还是 decoder，仍需逐 GT 分阶段验证。
+> 现有先导证据支持 query selection–survival gap 假设；代码事实同时表明 FGL 四边共享整框 IoU 权重。SGQS-E 据此提出 Top-K 前候选生存监督和逐边邻域定位监督，但目前仅为未实现、未验证的方法设计。
 
 在完成带 GT 的归因实验前，不得写成“小目标主要死在 encoder Top-K”或“小目标主要死在 decoder”。
 

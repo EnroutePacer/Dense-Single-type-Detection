@@ -10,7 +10,7 @@ if [[ "${CONFIG_FILE}" != /* ]]; then
 fi
 PRETRAINED="${PRETRAINED:-${PROJECT_ROOT}/deim_dfine_hgnetv2_m_coco_90e.pth}"
 RESUME="${RESUME:-}"
-RUNTIME_ENV="${RUNTIME_ENV:-/aicamera-mlp/chenkai/envs/deim}"
+RUNTIME_ENV="${RUNTIME_ENV:-}"
 
 # Supports merge_table_cell_coco.py output and the legacy flat layout.
 DATA_ROOT="${DATA_ROOT:-}"
@@ -43,16 +43,16 @@ SEED="${SEED:-0}"
 NUM_QUERIES="${NUM_QUERIES:-640}"
 
 die() { echo "错误: $*" >&2; exit 2; }
-if [[ ! -d "${RUNTIME_ENV}" ]]; then
-    die "Conda 环境不存在: ${RUNTIME_ENV}"
+if [[ -n "${RUNTIME_ENV}" ]]; then
+    [[ -d "${RUNTIME_ENV}" ]] || die "Conda 环境不存在: ${RUNTIME_ENV}"
+    if [[ "${CONDA_PREFIX:-}" != "${RUNTIME_ENV}" ]]; then
+        CONDA_CMD="${CONDA_EXE:-$(command -v conda || true)}"
+        [[ -n "${CONDA_CMD}" ]] || die "找不到 conda，无法激活环境: ${RUNTIME_ENV}"
+        eval "$("${CONDA_CMD}" shell.bash hook)"
+        conda activate "${RUNTIME_ENV}"
+    fi
+    [[ "${CONDA_PREFIX:-}" == "${RUNTIME_ENV}" ]] || die "Conda 环境激活失败: ${RUNTIME_ENV}"
 fi
-if [[ "${CONDA_PREFIX:-}" != "${RUNTIME_ENV}" ]]; then
-    CONDA_CMD="${CONDA_EXE:-$(command -v conda || true)}"
-    [[ -n "${CONDA_CMD}" ]] || die "找不到 conda，无法激活环境: ${RUNTIME_ENV}"
-    eval "$("${CONDA_CMD}" shell.bash hook)"
-    conda activate "${RUNTIME_ENV}"
-fi
-[[ "${CONDA_PREFIX:-}" == "${RUNTIME_ENV}" ]] || die "Conda 环境激活失败: ${RUNTIME_ENV}"
 
 [[ -f "${CONFIG_FILE}" ]] || die "配置文件不存在: ${CONFIG_FILE}"
 if [[ -n "${RESUME}" ]]; then

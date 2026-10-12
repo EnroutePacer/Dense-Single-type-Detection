@@ -6,7 +6,7 @@ SCRIPT_DIR="$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_ROOT="$(cd -- "${SCRIPT_DIR}/../.." && pwd)"
 CONFIG_FILE="${PROJECT_ROOT}/configs/table_cells/dfine_hgnetv2_s_table_cell.yml"
 PRETRAINED="${PRETRAINED:-${PROJECT_ROOT}/deim_dfine_hgnetv2_s_coco_120e.pth}"
-RUNTIME_ENV="${RUNTIME_ENV:-/aicamera-mlp/chenkai/envs/deim}"
+RUNTIME_ENV="${RUNTIME_ENV:-}"
 
 # Override these without editing the script. For the output of
 # merge_table_cell_coco.py, DATA_ROOT is the merged root containing images/
@@ -40,16 +40,16 @@ NUM_QUERIES="${NUM_QUERIES:-640}"
 
 die() { echo "错误: $*" >&2; exit 2; }
 
-if [[ ! -d "${RUNTIME_ENV}" ]]; then
-    die "Conda 环境不存在: ${RUNTIME_ENV}"
+if [[ -n "${RUNTIME_ENV}" ]]; then
+    [[ -d "${RUNTIME_ENV}" ]] || die "Conda 环境不存在: ${RUNTIME_ENV}"
+    if [[ "${CONDA_PREFIX:-}" != "${RUNTIME_ENV}" ]]; then
+        CONDA_CMD="${CONDA_EXE:-$(command -v conda || true)}"
+        [[ -n "${CONDA_CMD}" ]] || die "找不到 conda，无法激活环境: ${RUNTIME_ENV}"
+        eval "$("${CONDA_CMD}" shell.bash hook)"
+        conda activate "${RUNTIME_ENV}"
+    fi
+    [[ "${CONDA_PREFIX:-}" == "${RUNTIME_ENV}" ]] || die "Conda 环境激活失败: ${RUNTIME_ENV}"
 fi
-if [[ "${CONDA_PREFIX:-}" != "${RUNTIME_ENV}" ]]; then
-    CONDA_CMD="${CONDA_EXE:-$(command -v conda || true)}"
-    [[ -n "${CONDA_CMD}" ]] || die "找不到 conda，无法激活环境: ${RUNTIME_ENV}"
-    eval "$("${CONDA_CMD}" shell.bash hook)"
-    conda activate "${RUNTIME_ENV}"
-fi
-[[ "${CONDA_PREFIX:-}" == "${RUNTIME_ENV}" ]] || die "Conda 环境激活失败: ${RUNTIME_ENV}"
 
 [[ -f "${CONFIG_FILE}" ]] || die "配置文件不存在: ${CONFIG_FILE}"
 [[ -f "${PRETRAINED}" ]] || die "预训练权重不存在: ${PRETRAINED}"

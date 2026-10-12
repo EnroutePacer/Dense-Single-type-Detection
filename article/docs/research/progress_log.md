@@ -1,5 +1,20 @@
 # 科研进展日志
 
+## 2026-10-12 — 公开仓库清理
+
+- 活跃根配置树只保留 fixed-640 M 控制配置与 S 配置；旧 probe、multiscale、small-reg/MAL 和 epoch-28 benchmark 根副本退出活跃入口。
+- 根 `output/` 中本地仍存在的 checkpoint、TensorBoard、原始日志和传输包移入 Git 忽略的 `_local/cleanup_20261012/`；公开树只保留 `article/experiments/` 中的结构化审计。
+- 移除 4 份无入链且已被 canonical 文档取代的 legacy 分析；保留 M-001 实现、EXP/ART 记录、legacy records 以及受哈希/来源链约束的 `article/` benchmark 快照。
+- 本次没有实现 M-002 或启动新训练。
+
+## 2026-10-12 — SGQS-E 最新方案冻结
+
+- 基于当前两个研究问题及其训练差异总结，建立 M-002 SGQS-E；状态为 `designed / unimplemented / unvalidated`。
+- 方法仅含两部分：SGQS 在 global Top-K 前提供唯一 owner、dense 分类、owner 回归与 cutoff survival；EFGL 用短边、逐边相对误差和同类邻域歧义替换原 FGL 的四边共享 IoU 权重。
+- 完整记录总损失、邻域几何、课程、初值、梯度边界和 B0/B1/B2/B3 最小消融。静态预处理 GT 点被否决，owner 必须在全部数据增强之后在线生成。
+- 邻居约束 DN 暂不并入首版；DDF/教师 KL、Matcher、query、预测头与推理路径保持不变，以保证能分别归因候选链和回归链。
+- 本条是方法设计记录，不是训练结果；没有新增 AP、收敛或 latency 证据。
+
 ## 2026-10-12 — SGQS v1 代码实现
 
 - 将 M-001 从 `candidate` 更新为 `implemented / unvalidated`。

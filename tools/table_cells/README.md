@@ -21,7 +21,7 @@ bash tools/table_cells/train_dfine_s_table_cell_multigpu.sh
 ```
 
 S 脚本默认加载项目根目录下的 `deim_dfine_hgnetv2_s_coco_120e.pth`；可用 `PRETRAINED=/path/to/other.pth` 覆盖。
-脚本会自动执行 `conda activate /aicamera-mlp/chenkai/envs/deim`，也可用 `RUNTIME_ENV=/path/to/deim` 覆盖。
+脚本默认使用当前已激活的 Python/Conda 环境；如需由脚本激活环境，请显式传入 `RUNTIME_ENV=/path/to/deim`。
 
 D-FINE-M 使用独立入口，默认每卡 batch size 为 1：
 

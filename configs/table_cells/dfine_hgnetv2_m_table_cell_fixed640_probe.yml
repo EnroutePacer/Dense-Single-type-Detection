@@ -1,5 +1,0 @@
-# Compatibility alias for commands written before the configuration cleanup.
-__include__: [
-  './dfine_hgnetv2_m_table_cell_fixed640.yml',
-]
-

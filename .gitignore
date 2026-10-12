@@ -137,5 +137,18 @@ dmypy.json
 *.html
 .DS_Store
 
-# Generated experiment binaries (keep text logs and metrics in Git)
+# Local experiment evidence and generated outputs. Public summaries belong in
+# article/experiments; raw logs, checkpoints and transfer archives stay local.
+_local/
+output/
+outputs/
+runs/
+checkpoints/
+wandb/
+tensorboard/
 events.out.tfevents.*
+*.log
+*.tar
+*.tar.gz
+*.tgz
+*.7z

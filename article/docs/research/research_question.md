@@ -1,10 +1,12 @@
-# 研究问题：Query Selection–Survival Gap
+# 研究问题：候选生存与逐边定位
 
 ## 问题定义
 
 在固定 query 预算下，D-FINE/DEIM 使用全局分类分数 Top-K 初始化 decoder。对密集、单类别、细长或低像素短边目标，高分重复候选与跨层分数失衡可能占用 query 预算，使 dense encoder 本可表示的 GT 在 Top-K 后失去唯一覆盖；入选 query 还可能在 decoder 细化或重评分过程中丧失几何覆盖或置信度。
 
-这是**待验证、可证伪的假设**，不是已经成立的结论。
+进入回归链后，当前 FGL 虽然对四条边分别预测分布目标，但使用同一个整框 IoU 作为四边质量权重。我们进一步检验：该共享权重是否不能充分表达短边尺度、逐边相对误差和密集同类邻域歧义，从而限制小框高质量定位。
+
+这两个问题分别对应候选选择层和定位监督层，都是**待验证、可证伪的假设**，不是已经成立的结论。
 
 ## 当前代码链路
 
@@ -15,12 +17,18 @@ P3/P4/P5 memory（640 输入共 8,400 个位置）
   -> 入选位置生成初始 reference/query
   -> decoder 读取完整 memory 并逐层细化
   -> postprocess / evaluator
+
+matched decoder/DN boxes
+  -> 每条边的 FDR 分布目标
+  -> 四边共享整框 IoU 权重的 FGL
+  -> L1 / GIoU / DDF 与其他原损失
 ```
 
 关键实现：
 
 - [`engine/deim/dfine_decoder.py`](../../engine/deim/dfine_decoder.py)：encoder score、global Top-K、query/reference 初始化与 decoder。
 - [`engine/deim/deim_criterion.py`](../../engine/deim/deim_criterion.py)：匹配和损失监督。
+- [`methods/M-002_sgqs_e/README.md`](../../methods/M-002_sgqs_e/README.md)：SGQS-E 双模块方案、总损失与逐边邻域公式。
 - [`scripts/diagnose/diagnose_deim_query_selection.py`](../../scripts/diagnose/diagnose_deim_query_selection.py)：当前无 GT 先导诊断。
 - [`engine/data/dataset/coco_eval.py`](../../engine/data/dataset/coco_eval.py)：正式 COCO 评估口径。
 
@@ -79,6 +87,7 @@ SSR_τ        = P(C_topK=0 | C_dense=1)
 - encoder score 与 GT IoU 的分层校准；
 - decoder 每层 IoU、score 与匹配身份轨迹；
 - 按 GT 数、短边像素、`min(w,h)/stride`、面积、长宽比、局部密度、边界和域分桶。
+- AP75/AP90、四边像素/相对误差，以及密集/稀疏 × 小/大交叉组。
 
 ## 判定逻辑
 
@@ -86,5 +95,6 @@ SSR_τ        = P(C_topK=0 | C_dense=1)
 - dense recall 高而 Top-K recall 明显下降：支持 selection starvation。
 - Top-K recall 高而 decoder/final recall 下降：支持 survival collapse。
 - 同 K 的 coverage-aware selector 改善 unique coverage，并经训练转化为相同 epoch 更高 AP/AR，才可能成为论文贡献。
+- EFGL 若不能同时改善逐边误差和同预算 AP75/AP90，则否定当前逐边权重设计；若统一 IoU 下限达到相同效果，则将 EFGL 降格为工程调整。
 
-当前唯一合规总述是：**无 GT 先导诊断揭示了值得验证的 selection–survival 不均衡，但尚未定位真实漏检阶段。**
+当前合规总述是：**先导证据支持验证 selection–survival gap，代码事实确认 FGL 四边共享整框 IoU 权重；SGQS-E 针对两层提出训练设计，但尚未实现或证明指标收益。**
