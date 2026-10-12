@@ -1,0 +1,34 @@
+# Large experiment artifacts are versioned through Git LFS. Text logs,
+# metrics, summaries and resolved configs remain ordinary Git objects.
+output/**/*.log text eol=lf
+outputs/**/*.log text eol=lf
+output/**/*.txt text eol=lf
+outputs/**/*.txt text eol=lf
+output/**/*.md text eol=lf
+outputs/**/*.md text eol=lf
+output/**/*.csv text eol=lf
+outputs/**/*.csv text eol=lf
+output/**/*.json text eol=lf
+outputs/**/*.json text eol=lf
+output/**/*.yml text eol=lf
+outputs/**/*.yml text eol=lf
+output/**/*.yaml text eol=lf
+outputs/**/*.yaml text eol=lf
+output/**/*.pth filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.pth filter=lfs diff=lfs merge=lfs -text
+output/**/*.pt filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.pt filter=lfs diff=lfs merge=lfs -text
+output/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.onnx filter=lfs diff=lfs merge=lfs -text
+output/**/events.out.tfevents.* filter=lfs diff=lfs merge=lfs -text
+outputs/**/events.out.tfevents.* filter=lfs diff=lfs merge=lfs -text
+output/**/*.tar filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.tar filter=lfs diff=lfs merge=lfs -text
+output/**/*.tar.gz filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.tar.gz filter=lfs diff=lfs merge=lfs -text
+output/**/*.tgz filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.tgz filter=lfs diff=lfs merge=lfs -text
+output/**/*.zip filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.zip filter=lfs diff=lfs merge=lfs -text
+output/**/*.7z filter=lfs diff=lfs merge=lfs -text
+outputs/**/*.7z filter=lfs diff=lfs merge=lfs -text

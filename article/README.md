@@ -7,7 +7,7 @@
 ## 当前仓库状态
 
 - 活跃代码来自 2026-10-10 同步后的 `DEIM_2`，保留 DEIM 原生根布局：`train.py`、`engine/`、`configs/`、`tools/`。
-- 同步时排除了 `output/`、checkpoint、缓存和字节码；代码快照有独立 SHA-256 清单。
+- 初次同步曾排除 `output/`；开发期正式输出现已恢复并纳入版本管理，文本走普通 Git，大型二进制走 Git LFS。
 - 历史服务器快照、模型、原始日志、诊断 CSV 和未确认授权的图片仍保留在旧编号目录中，并由 `.gitignore` 隔离；本轮没有移动、删除或改写它们。
 - 旧 small-loss probes 已确认没有加载其声称的配置，属于“运行完成但目标消融无效”，不会被包装成论文结果。
 - 三个新 12,800-step 摘要已归档：small-reg 没有改善 AP-small/AR-small，MAL+Dense O2O 摘要结果明显退化；由于缺少 console/resolved config，目前只记录数值，不做方法归因。
@@ -53,7 +53,7 @@ _local/                               Git 忽略的本地权重、数据、run �
 
 每个论文实验必须拥有唯一 `EXP-*`，每次执行拥有唯一 `RUN-*`。最低证据包括实际命令、resolved config、代码/数据/初始化权重哈希、环境、seed、批量大小、完整评估口径、原始指标、日志及结论边界。目录名和启动命令都不能替代运行时配置证据。
 
-大 checkpoint、TensorBoard event、完整诊断 CSV 和原始数据不进入普通 Git；它们保存在 `_local/`、对象存储或 release 中，公开仓库只提交逻辑 ID、大小、SHA-256、许可与获取方式。
+大 checkpoint、TensorBoard event 和归档不进入普通 Git 对象库，而是通过 Git LFS 保存；正式输出同时提交逻辑 ID、大小和 SHA-256。原始数据、无权公开的材料与额外安全备份仍保存在 `_local/` 或受控对象存储。
 
 ## 当前合规表述
 

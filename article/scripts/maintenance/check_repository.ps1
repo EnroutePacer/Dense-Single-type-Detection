@@ -5,7 +5,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
-$RepositoryRoot = if ($RepositoryRoot) { $RepositoryRoot } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..')).Path }
+$RepositoryRoot = if ($RepositoryRoot) { $RepositoryRoot } else { (Resolve-Path (Join-Path $PSScriptRoot '..\..\..')).Path }
 $repo = (Resolve-Path -LiteralPath $RepositoryRoot).Path
 $excludedTop = @('_local', '00_overview', '01_sources', '02_experiments', '03_evidence', '04_analysis', '05_paper', '99_archive', '.git')
 $files = Get-ChildItem -LiteralPath $repo -Recurse -Force -File | Where-Object {
@@ -17,14 +17,27 @@ $files = Get-ChildItem -LiteralPath $repo -Recurse -Force -File | Where-Object {
 $errors = [System.Collections.Generic.List[string]]::new()
 $warnings = [System.Collections.Generic.List[string]]::new()
 
-$forbidden = $files | Where-Object {
-    $_.FullName -match '[\\/](output|outputs|__pycache__|checkpoints)[\\/]' -or
-    $_.Name -match '^(events\.out|.*\.(pyc|pth|pt|onnx|pdiparams|pdmodel|tar\.gz|log))$'
-}
-foreach ($item in $forbidden) { $errors.Add("Forbidden public artifact: $($item.FullName)") }
+foreach ($item in $files) {
+    $relative = $item.FullName.Substring($repo.Length + 1)
+    $gitPath = $relative.Replace('\', '/')
+    $inCanonicalOutput = $relative -match '^(output|outputs)[\\/]'
+    $requiresLfs = $item.Name -match '(^events\.out\.tfevents\.|.*\.(pth|pt|onnx|pdiparams|pdmodel|engine|tar|tar\.gz|tgz|zip|7z)$)'
+    $filterLine = (& git -C $repo check-attr filter -- $gitPath 2>$null) -join ''
+    $usesLfs = $filterLine -match ': filter: lfs$'
 
-foreach ($item in $files | Where-Object { $_.Length -gt 10MB }) {
-    $errors.Add("Public file exceeds 10 MiB: $($item.FullName)")
+    if ($item.FullName -match '[\\/](__pycache__|checkpoints)[\\/]' -or $item.Extension -eq '.pyc') {
+        $errors.Add("Forbidden public artifact: $($item.FullName)")
+    }
+    elseif ($requiresLfs -and (-not $inCanonicalOutput -or -not $usesLfs)) {
+        $errors.Add("Large/binary artifact is outside canonical LFS output policy: $($item.FullName)")
+    }
+    elseif ($item.Extension -eq '.log' -and -not $inCanonicalOutput) {
+        $errors.Add("Raw log is outside output/ or outputs/: $($item.FullName)")
+    }
+
+    if ($item.Length -gt 10MB -and -not $usesLfs) {
+        $errors.Add("Non-LFS public file exceeds 10 MiB: $($item.FullName)")
+    }
 }
 
 $pathPattern = '(\b[A-Z]:\\[A-Za-z0-9_. ()-]{2,}|/aicamera-mlp/|(?:root|admin|ubuntu)@)'

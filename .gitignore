@@ -137,11 +137,9 @@ dmypy.json
 *.html
 .DS_Store
 
-# Local experiment evidence and generated outputs. Public summaries belong in
-# article/experiments; raw logs, checkpoints and transfer archives stay local.
+# Local scratch space. Canonical experiment evidence belongs in output/ or
+# outputs/ and is intentionally committed; large binary artifacts use Git LFS.
 _local/
-output/
-outputs/
 runs/
 checkpoints/
 wandb/
@@ -152,3 +150,27 @@ events.out.tfevents.*
 *.tar.gz
 *.tgz
 *.7z
+
+# Experiment outputs are a durable part of the development record. These
+# exceptions override the global binary/log rules above only inside the two
+# canonical output roots.
+!output/**/*.log
+!outputs/**/*.log
+!output/**/*.pth
+!outputs/**/*.pth
+!output/**/*.pt
+!outputs/**/*.pt
+!output/**/*.onnx
+!outputs/**/*.onnx
+!output/**/events.out.tfevents.*
+!outputs/**/events.out.tfevents.*
+!output/**/*.tar
+!outputs/**/*.tar
+!output/**/*.tar.gz
+!outputs/**/*.tar.gz
+!output/**/*.tgz
+!outputs/**/*.tgz
+!output/**/*.zip
+!outputs/**/*.zip
+!output/**/*.7z
+!outputs/**/*.7z

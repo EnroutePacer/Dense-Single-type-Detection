@@ -32,7 +32,7 @@ article/
 └── data/, models/               数据与模型清单，不保存私有原件
 ```
 
-权重、数据集、完整训练输出及本地原始证据不进入普通 Git；公开结果通过配置、指标、文件哈希和 Artifact ID 建立可追溯关系。
+`output/` 与 `outputs/` 是开发阶段的持久实验记录，日志、指标、配置快照和清单进入普通 Git，checkpoint、evaluator、TensorBoard 与归档等二进制由 Git LFS 管理。数据集及临时材料仍只放在 `_local/` 或外部存储；每项关键产物同时记录文件哈希和 Artifact ID。
 
 ---
 

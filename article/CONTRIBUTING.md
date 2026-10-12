@@ -19,7 +19,7 @@
 
 ## 大文件与敏感信息
 
-权重、数据、原始日志、TensorBoard、压缩包和大型 CSV 放到 `_local/` 或外部对象存储。公开清单只记录逻辑 ID、SHA-256、字节数、许可和下载地址。提交前检查 Windows/服务器绝对路径、用户名、主机名、Token 与密钥。
+数据集和临时材料放到 `_local/` 或外部对象存储。正式实验的 `output/`、`outputs/` 不得因整理目录而删除：日志、指标、配置快照和清单进入普通 Git，checkpoint、evaluator、TensorBoard 与归档通过 Git LFS 提交。每项关键产物仍需登记逻辑 ID、SHA-256、字节数与来源；提交前检查绝对路径、用户名、主机名、Token 与密钥。
 
 ## 修改活跃代码
 
