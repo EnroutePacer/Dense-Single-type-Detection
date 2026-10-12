@@ -1,0 +1,25 @@
+Experiment: fixed640 + MAL + Dense O2O, global batch 16, elementwise IoU memory fix
+Steps: 12800
+Starting checkpoint: checkpoint0027.pth
+Evaluation maxDets: 300
+
+IoU metric: bbox
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.851
+ Average Precision  (AP) @[ IoU=0.50      | area=   all | maxDets=300 ] = 0.871
+ Average Precision  (AP) @[ IoU=0.75      | area=   all | maxDets=300 ] = 0.866
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= small | maxDets=300 ] = 0.666
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area=medium | maxDets=300 ] = 0.849
+ Average Precision  (AP) @[ IoU=0.50:0.95 | area= large | maxDets=300 ] = 0.889
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=  1 ] = 0.009
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets= 10 ] = 0.086
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=   all | maxDets=300 ] = 0.857
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= small | maxDets=300 ] = 0.675
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area=medium | maxDets=300 ] = 0.854
+ Average Recall     (AR) @[ IoU=0.50:0.95 | area= large | maxDets=300 ] = 0.897
+ Average Recall     (AR) @[ IoU=0.50      | area=   all | maxDets=300 ] = 0.878
+ Average Recall     (AR) @[ IoU=0.75      | area=   all | maxDets=300 ] = 0.870
+
+Quick probe coco_eval_bbox: mAP@50:95 0.864248 -> 0.850864 (delta -0.013384), AP50 0.880289 -> 0.870690 (delta -0.009598)
+best_stat: {'epoch': 27, 'coco_eval_bbox': 0.8642475584500717}
+Quick probe finished. Checkpoint: /aicamera-mlp/zhuyouwei/code/DEIM/output/probe12800_fixed640_mal_dense_o2o_bs16_memfix/probe.pth
+Training time 3:34:55

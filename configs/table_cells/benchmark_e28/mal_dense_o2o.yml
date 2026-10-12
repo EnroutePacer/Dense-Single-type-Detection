@@ -1,0 +1,55 @@
+__include__: [
+  '../dfine_hgnetv2_m_table_cell_fixed640.yml',
+]
+
+# Controlled DEIM core: only MAL + Dense O2O differ from vfl_clean.
+output_dir: ./output/benchmark_e28/mal_dense_o2o_seed0
+epoches: 28
+checkpoint_freq: 4
+
+DEIMCriterion:
+  weight_dict: {loss_mal: 1, loss_bbox: 5, loss_giou: 2, loss_fgl: 0.15, loss_ddf: 1.5}
+  losses: ['mal', 'boxes', 'local']
+  alpha: 0.75
+  gamma: 1.5
+  reg_max: 32
+  matcher:
+    type: HungarianMatcher
+    weight_dict: {cost_class: 2, cost_bbox: 5, cost_giou: 2}
+    alpha: 0.25
+    gamma: 2.0
+  small_object_weight: 1.0
+  small_object_area_threshold: 0.0025
+  small_object_box_weight: 1.0
+  small_object_local_weight: 1.0
+
+train_dataloader:
+  dataset:
+    transforms:
+      ops:
+        - {type: Mosaic, output_size: 320, rotation_range: 10, translation_range: [0.1, 0.1], scaling_range: [0.5, 1.5], probability: 1.0, fill_value: 0, use_cache: False, max_cached_images: 50, random_pop: True}
+        - {type: RandomPhotometricDistort, p: 0.5}
+        - {type: RandomZoomOut, fill: 0}
+        - {type: RandomIoUCrop, p: 0.8}
+        - {type: SanitizeBoundingBoxes, min_size: 1}
+        - {type: RandomHorizontalFlip}
+        - {type: Resize, size: [640, 640]}
+        - {type: SanitizeBoundingBoxes, min_size: 1}
+        - {type: ConvertPILImage, dtype: float32, scale: True}
+        - {type: ConvertBoxes, fmt: cxcywh, normalize: True}
+      policy:
+        name: stop_epoch
+        epoch: [4, 49, 90]
+        ops: ['Mosaic', 'RandomPhotometricDistort', 'RandomZoomOut', 'RandomIoUCrop']
+      mosaic_prob: 0.5
+  collate_fn:
+    type: BatchImageCollateFunction
+    base_size: 640
+    base_size_repeat: null
+    scales: null
+    scale_weights: null
+    stop_epoch: 90
+    final_size: null
+    mixup_prob: 0.5
+    mixup_epochs: [4, 49]
+
