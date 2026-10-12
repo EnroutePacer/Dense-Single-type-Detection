@@ -27,7 +27,7 @@ for name in \
   RUN_ID CONTRACT_ID CONFIG_FILE OUTPUT_DIR DATA_ROOT RUN_MODE \
   GPUS NPROC_PER_NODE BATCH_SIZE_PER_GPU NUM_WORKERS MASTER_PORT \
   EPOCHS NUM_QUERIES SEED QUICK_STEPS RUNTIME_ENV \
-  METHOD_PROVENANCE FROZEN_INPUTS VERIFY_FROZEN_INPUTS \
+  METHOD_PROVENANCE FROZEN_INPUTS RUNTIME_MANIFEST VERIFY_FROZEN_INPUTS \
   PREFLIGHT_ONLY ALLOW_EXISTING; do
   require_env "${name}"
 done
@@ -36,6 +36,7 @@ CONFIG_FILE="$(resolve_project_path "${CONFIG_FILE}")"
 OUTPUT_DIR="$(resolve_project_path "${OUTPUT_DIR}")"
 METHOD_PROVENANCE="$(resolve_project_path "${METHOD_PROVENANCE}")"
 FROZEN_INPUTS="$(resolve_project_path "${FROZEN_INPUTS}")"
+RUNTIME_MANIFEST="$(resolve_project_path "${RUNTIME_MANIFEST}")"
 BASE_LAUNCHER="${PROJECT_ROOT}/tools/table_cells/train_dfine_m_table_cell_multigpu.sh"
 CONTRACT_VALIDATOR="${PROJECT_ROOT}/tools/table_cells/verify_e35_r7_contract.py"
 PYTHON_BIN="${RUNTIME_ENV}/bin/python"
@@ -56,11 +57,13 @@ GPU_COUNT="$(awk -F, '{print NF}' <<< "${GPUS}")"
 [[ "${GPU_COUNT}" -eq "${NPROC_PER_NODE}" ]] || \
   die "GPUS 数量 ${GPU_COUNT} 与 NPROC_PER_NODE=${NPROC_PER_NODE} 不一致"
 
-for required_file in "${CONFIG_FILE}" "${METHOD_PROVENANCE}" "${FROZEN_INPUTS}" \
+for required_file in "${CONFIG_FILE}" "${METHOD_PROVENANCE}" "${FROZEN_INPUTS}" "${RUNTIME_MANIFEST}" \
   "${BASE_LAUNCHER}" "${CONTRACT_VALIDATOR}"; do
   [[ -f "${required_file}" ]] || die "缺少文件: ${required_file}"
 done
 [[ -x "${PYTHON_BIN}" ]] || die "找不到训练环境 Python: ${PYTHON_BIN}"
+
+(cd "${PROJECT_ROOT}" && sha256sum -c "${RUNTIME_MANIFEST}")
 
 if [[ -d "${DATA_ROOT}/images" && -f "${DATA_ROOT}/annotations/instance_train.json" ]]; then
   TRAIN_IMAGES="${DATA_ROOT}/images"
@@ -198,6 +201,8 @@ fi
   echo "method_reference_commit=6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a"
   echo "method_provenance=${METHOD_PROVENANCE}"
   echo "method_provenance_sha256=$(sha256sum "${METHOD_PROVENANCE}" | awk '{print $1}')"
+  echo "runtime_manifest=${RUNTIME_MANIFEST}"
+  echo "runtime_manifest_sha256=$(sha256sum "${RUNTIME_MANIFEST}" | awk '{print $1}')"
   echo "contract_preflight=passed"
   echo "launcher=${BASH_SOURCE[0]}"
   echo "launcher_sha256=$(sha256sum "${BASH_SOURCE[0]}" | awk '{print $1}')"
@@ -218,6 +223,7 @@ fi
 cp "${CONFIG_FILE}" "${OUTPUT_DIR}/config_source.yml"
 cp "${METHOD_PROVENANCE}" "${OUTPUT_DIR}/method_provenance.yml"
 cp "${FROZEN_INPUTS}" "${OUTPUT_DIR}/frozen_inputs.yml"
+cp "${RUNTIME_MANIFEST}" "${OUTPUT_DIR}/runtime_sha256.txt"
 cp "${PREFLIGHT_RESOLVED}" "${OUTPUT_DIR}/resolved_config.yml"
 
 CONFIG_FILE="${CONFIG_FILE}" \

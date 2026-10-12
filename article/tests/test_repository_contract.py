@@ -70,6 +70,7 @@ class RepositoryContractTest(unittest.TestCase):
         flattened = launcher.replace("\\\n", " ").replace("\n", " ")
         self.assertIn("RUN_ID CONTRACT_ID CONFIG_FILE OUTPUT_DIR DATA_ROOT RUN_MODE", flattened)
         self.assertIn("GPUS NPROC_PER_NODE BATCH_SIZE_PER_GPU", flattened)
+        self.assertIn("METHOD_PROVENANCE FROZEN_INPUTS RUNTIME_MANIFEST", flattened)
         self.assertNotIn("case \"${EXPERIMENT}\"", launcher)
         self.assertIn("verify_e35_r7_contract.py", launcher)
         provenance = yaml.safe_load(

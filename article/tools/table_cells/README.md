@@ -49,8 +49,10 @@ manifest，然后调用底层多卡训练入口。
 `configs/e35_r7/method_provenance.yml` 冻结方法文件哈希；
 `verify_e35_r7_contract.py` 检查最终解析配置中的损失、增强、课程、fixed-640、
 query 640、global batch 64、checkpoint 模式、数据/权重身份和
-`last_epoch=27`。成功后保存 `run_manifest.txt`、`config_source.yml`、
-`resolved_config.yml`、`method_provenance.yml` 与 `frozen_inputs.yml`。
+`last_epoch=27`。launcher 还会先按显式 `RUNTIME_MANIFEST` 对整套活动运行
+文件逐项验 SHA-256。成功后保存 `run_manifest.txt`、`config_source.yml`、
+`resolved_config.yml`、`method_provenance.yml`、`frozen_inputs.yml` 与
+`runtime_sha256.txt`。
 
 矩阵分为两层：B0--B3 是论文 SGQS-E 主消融；C1--C4 只是机制诊断对照，
 不能替代主消融，也不能把它们的收益归入 SGQS-E。B0 已完成，不重复训练。
