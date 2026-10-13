@@ -15,6 +15,10 @@
 见[配对诊断与趋势](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
 和[损失及问题的数学说明](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
 
+2026-10-14：新增 [SGQS 28+7 监督来源探针与运行命令](article/experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)。
+优先区分第一层 DN-DDF 停滞、GO/owner 选择性监督、候选排名与小框泛化；
+提供 B0/B1 配对日志采集及固定 train/val 的 raw/EMA 回放。诊断代码已做 CPU 检查，真实实验未运行。
+
 研究问题、实验记录、证据链和候选方法集中维护在 [`article/`](article/README.md)。仓库结构如下：
 
 ```text

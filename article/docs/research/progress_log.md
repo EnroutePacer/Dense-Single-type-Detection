@@ -1,5 +1,13 @@
 # 科研进展日志
 
+## 2026-10-14 — SGQS 28+7 监督来源探针
+
+- 核查远程新增B3日志：复现B1 small/large反向走势与浅层DN-DDF停滞。B1 e30→34第一层DN-DDF为2.4786→2.5379，B0为2.3448→1.4498；不能据此认定大框抢梯度或小框过拟合。
+- 新增[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)：独立训练观测wrapper与B0/B1配置，保留原loss、Matcher、GO、DN及推理实现；每轮保存raw/EMA checkpoint。
+- 记录全GT分组GO覆盖、owner冲突来源与原始rank、普通query排名、DN正/负/padding的KL与权重、实际rho和第一层分布logit上的FGL/DDF梯度内积。采样日志不能当完整逐step或无偏整轮统计。
+- 增加冻结输入哈希预检、流式固定子集准备、raw/EMA离线COCO@300/@640及逐annotation_id回放、拒绝缺失rank的汇总器。
+- CPU验证与真实实验状态分开：诊断已实现，真实28+7、CUDA耗时及数据集回放未运行，不新增AP改善或过拟合结论。
+
 ## 2026-10-13 — 归档 B1/B2 七轮续训与数学诊断
 
 - 用户提供的 `message (2).txt` / `message (3).txt` 分别对应 B1 SGQS / B2 EFGL；原始字节存入根 `outputs/e35_r7_sgqse/`，附 ingestion provenance、大小和 SHA-256，未补造历史运行前 manifest。

@@ -1,0 +1,15 @@
+__include__: ['../e35_r7/resume_b1_sgqs.yml']
+
+# Strict epoch-27 resume; observe absolute epochs 28..34. No loss changes.
+output_dir: ./outputs/probes/sgqs_e28_r7_seed0
+checkpoint_freq: 1
+criterion: SupervisionProbeCriterion
+SupervisionProbeCriterion:
+  base_criterion: SGQSCriterion
+  enabled: True
+  interval: 100
+  early_epoch: 28
+  early_steps: 200
+  early_interval: 10
+  max_gt_rows: 64
+  corner_gradients: True

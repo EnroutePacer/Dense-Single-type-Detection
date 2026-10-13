@@ -15,6 +15,10 @@
 
 ## 当前顺序
 
+2026-10-14 当前优先项：[EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md)，
+从同一epoch27断点运行带观测的B1及B0，逐轮保存checkpoint并固定样本回放。
+该实验不改变方法loss，优先查清已有小框峰值为何未保持；状态planned/not_run。
+
 1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：完成已启动的 B0 与同 checkpoint 的 B1/B2/B3 七 epoch 续训屏选；
 2. [EXP-TRAIN-002](EXP-TRAIN-002_clean-deim-mal/README.md)：运行 fixed-640/query-640/global-batch-64 的 controlled DEIM-core 35e 基线；
 3. 只有短续训出现值得复验的正信号时，才启动 [EXP-TRAIN-004](EXP-TRAIN-004_sgqs-e-b0-b3/README.md) 正式从头、多 seed 四组对照；
