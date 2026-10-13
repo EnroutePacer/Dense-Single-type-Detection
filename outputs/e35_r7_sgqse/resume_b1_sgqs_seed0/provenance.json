@@ -1,0 +1,21 @@
+{
+  "arm": "B1",
+  "experiment_id": "EXP-TRAIN-005",
+  "ingested_at": "2026-10-13",
+  "source_attachment": "message (2).txt",
+  "sha256": "686a2abbc98cd948b9be92f7fcec5613f567d37bdb9e154c4977f12ec0e32bf4",
+  "size_bytes": 974528,
+  "archive_path": "outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log",
+  "byte_preserving": true,
+  "epoch_interval": [
+    28,
+    34
+  ],
+  "seed": 0,
+  "at_start_manifest_available": false,
+  "structured_server_log_available": false,
+  "runtime_identity_verified": false,
+  "interpretation_source_commit": "61982ec",
+  "ingestion_base_commit": "4844254",
+  "note": "Resolved configuration is embedded in console.log. Missing historical manifests are not reconstructed as runtime evidence."
+}

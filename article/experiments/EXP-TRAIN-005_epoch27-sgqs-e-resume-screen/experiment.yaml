@@ -3,7 +3,7 @@ experiment_id: EXP-TRAIN-005
 slug: epoch27_sgqs_e_resume_screen
 title: "Epoch-27 checkpoint 的 SGQS-E 七 epoch 续训屏选"
 type: train
-status: planned
+status: partial
 validity: partial
 paper_role: screening
 question: "在不重跑前 28 epoch 的条件下，SGQS、EFGL 及其组合是否产生值得正式从头训练验证的正信号？"
@@ -22,7 +22,7 @@ invariants:
   absolute_end_epoch: 35
   continuation_epochs: 7
   global_batch_size: 64
-  optimizer_steps: null
+  optimizer_steps: 39417
   evaluator_max_dets: 300
   seed: 0
   optimizer_and_augmentation: "Inherited fixed640 VFL control, identical across B0/B1/B2/B3"
@@ -38,11 +38,11 @@ diagnostic_controls:
   C4_deim_core_retrofit: configs/e35_r7/resume_c4_deim_core.yml
 execution_state:
   deployment: "Runtime overlay from repository commit 014d37e deployed and checksum-verified; 32 server method tests passed"
-  preflight: "deim_core_e35 and B0/B1/B2/B3 all passed against frozen real data/checkpoint hashes; no run was started"
+  preflight: "At deployment, deim_core_e35 and B0/B1/B2/B3 passed against frozen inputs; those checks were not historical at-start manifests for the ingested logs"
   B0: "completed; epoch-34 mAP=0.866667088526, AP-small=0.685633491224; raw logs ingested but no at-start run_manifest"
-  B1: not_started
-  B2: not_started
-  B3: not_started
+  B1: "completed; user console ingested 2026-10-13; EMA mAP=0.8676084550759916, AP-small approximately 0.682; no at-start manifest or structured server log supplied"
+  B2: "completed; user console ingested 2026-10-13; EMA mAP=0.8666260825427902, AP-small approximately 0.685; no at-start manifest or structured server log supplied"
+  B3: "no log supplied; execution status unverified"
   C1_small_reg: not_started
   C2_mal_only: not_started
   C3_mosaic_only: not_started
@@ -57,6 +57,12 @@ acceptance_criteria:
   rejects_formal_followup: "No arm improves the paired endpoint, or diagnostics contradict the claimed mechanism"
   invalidates_experiment: "Any mismatch in checkpoint/data/batch/seed/end epoch/evaluator, inactive method switches, or missing provenance"
 runs: []
+ingested_evidence:
+  B1_console: outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log
+  B2_console: outputs/e35_r7_sgqse/resume_b2_efgl_seed0/console.log
+  paired_diagnosis: diagnostics/20261013_b1_b2/README.md
+  math_diagnosis: diagnostics/20261013_b1_b2/math_diagnosis.md
+  run_metadata_status: "Three completed historical executions remain unmapped; no start timestamps or RUN identities invented"
 created_at: 2026-10-12
-updated_at: 2026-10-12
-notes: "This is a low-cost checkpoint-continuation screen, not evidence equivalent to the formal from-start multi-seed EXP-TRAIN-004. B0 is complete; B1/B2/B3 remain unstarted. The time adapter changes only the curriculum origin/duration, not the 6fd2c30 loss equations."
+updated_at: 2026-10-13
+notes: "Partial matrix: B0/B1/B2 completed and ingested; B3 has no supplied log. B1 small-object gains are transient, B2 is close to B0. Single-seed checkpoint continuation does not validate stable gains or complementarity. The time adapter changes only the curriculum origin/duration, not the 6fd2c30 loss equations."

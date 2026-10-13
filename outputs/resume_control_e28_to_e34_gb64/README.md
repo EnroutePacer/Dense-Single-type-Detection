@@ -6,7 +6,7 @@ ended at `epoches=35`.
 
 The console evidence resolves to: 8 GPUs, per-GPU batch 8, global batch 64,
 seed 0, one 640x640 dataset resize, no multiscale/Mosaic/MixUp, 640 decoder
-queries, VFL + box + GIoU + FGL + DDF, and COCO `maxDets=300`. The initial raw
+queries, VFL + box + GIoU + FGL + DDF, and COCO `maxDets=300`. The initial EMA
 epoch-27 evaluation was mAP 0.864310288258. The final epoch-34 result was:
 
 | Metric | Value |
@@ -23,7 +23,7 @@ epoch-27 evaluation was mAP 0.864310288258. The final epoch-34 result was:
 | AR-large | 0.933702910420 |
 
 Thus the seven-epoch continuation improved mAP by +0.002356800268 over the
-raw resumed checkpoint. This B0 result is the comparison endpoint for B1/B2/B3;
+EMA resumed checkpoint. This B0 result is the comparison endpoint for B1/B2/B3;
 it is not evidence for SGQS or EFGL.
 
 Evidence files:

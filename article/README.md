@@ -13,6 +13,7 @@
 - 三个新 12,800-step 摘要已归档：small-reg 没有改善 AP-small/AR-small，MAL+Dense O2O 摘要结果明显退化；由于缺少 console/resolved config，目前只记录数值，不做方法归因。
 - 已实现候选方法 [M-001 SGQS](methods/M-001_sgqs/README.md)，在训练期直接监督 Top-K 前的 encoder 候选、owner 回归与生存排名；当前状态为 implemented/unvalidated，尚无训练效果结论。
 - 最新方法 [M-002 SGQS-E](methods/M-002_sgqs_e/README.md) 已完成[数学评审](methods/M-002_sgqs_e/math_review.md)与[代码实现](methods/M-002_sgqs_e/implementation.md)：修正 SGQS 的生存门槛与监督冲突，并以短边、逐边误差和同类邻域构造 EFGL；当前状态为 implemented/unvalidated，尚无真实训练收益结论。
+- B0/B1/B2 七 epoch 续训已归档：[配对诊断](experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)及[数学说明](experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。B1 总 mAP 略升但小目标收益未保持；B2 基本等同 B0。单 seed、缺运行前 manifest，B3 尚无日志，不能确认稳定收益或互补性。
 - 正式 COCO 主评估固定使用 `maxDets=[1,10,300]`；机制诊断在 evaluator 截断前进行。
 
 ## 研究入口
@@ -57,7 +58,7 @@ _local/                               Git 忽略的本地权重、数据、run �
 
 ## 当前合规表述
 
-> 现有先导证据支持 query selection–survival gap 假设；代码事实同时表明 FGL 四边共享整框 IoU 权重。SGQS-E 据此提出 Top-K 前候选生存监督和逐边邻域定位监督，但目前仅为未实现、未验证的方法设计。
+> 现有先导证据支持 query selection–survival gap 假设；代码事实同时表明 FGL 四边共享整框 IoU 权重。SGQS-E 已实现，首批 B1/B2 短续训暴露出 owner 监督过滤与补偿强度问题，尚无稳定训练收益或互补性证据。
 
 在完成带 GT 的归因实验前，不得写成“小目标主要死在 encoder Top-K”或“小目标主要死在 decoder”。
 

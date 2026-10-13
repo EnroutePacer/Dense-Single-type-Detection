@@ -8,6 +8,10 @@
 - `ART-000001`：服务器代码与日志原始归档，是不可变追溯源。
 - `ART-000017`～`ART-000021`：三个新 12,800-step 的指标摘要与三方汇总；缺运行时配置，只支持记录数值和负结果边界。
 - `ART-000022`：28-epoch benchmark 的服务器传输代码包；只证明代码包身份，不代表任何训练已执行。
+- `ART-000024`～`ART-000027`：EXP-TRAIN-005 的 B0 精确指标与原始日志。
+- `ART-000028`、`ART-000029`：B1 SGQS / B2 EFGL 完整 console 附件，字节不变；支持配置、过程和结果记录，但缺历史运行前身份 manifest。
+- `ART-000030`～`ART-000035`：B0/B1/B2 [配对诊断、数学说明及可复现解析](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)。支持单 seed 的短续训观察与实现问题定位，不支持稳定收益或 B3 互补性。
+- `ART-000036`、`ART-000037`：B1/B2 ingestion provenance，仅证明本轮附件归档身份，不是历史训练 manifest。
 
 ## B：支持行为观察，不能替代 GT 指标
 

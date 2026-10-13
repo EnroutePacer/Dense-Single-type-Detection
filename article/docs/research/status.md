@@ -1,6 +1,6 @@
 # 研究状态
 
-更新时间：2026-10-12
+更新时间：2026-10-13
 
 ## 当前主线
 
@@ -24,6 +24,14 @@
 - M-002 SGQS-E 的完整公式、课程、代码和最小消融已落地。CPU 检查包含零 IoU 梯度、同权重 DN/eval 等价、训练入口与 trace；尚不能声称 AP 或收敛已有提升。
 
 ## 当前最高优先级
+
+2026-10-13 新证据：[B1/B2 七轮配对诊断](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
+显示 B1 的小目标峰值未保持，B2 终点基本等同 B0。SGQS 整组冲突过滤末期
+撤销约 55.08% owner 的新增监督；97.78% 是保留集合内的条件生存率。
+EFGL 的主普通分支平均补偿仅约 1e-4 量级，课程在 epoch 30.1 结束。
+优先检查分类/回归监督相容性分离、dense/owner 启动扰动与 EFGL 重复误差
+衰减，具体公式见[数学说明](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
+本轮只归档与分析，尚未实施这些候选修订；正式多 seed 和 B3 仍待证据。
 
 1. 为配对训练固定数据 split/COCO JSON、初始化 checkpoint、配置和预算，并登记哈希；已有先导归因可并行复核，不阻止方法对照。
 2. 用当前同一提交的 B0 作 clean control，不能把共享 invalid-anchor correctness fix 混入 SGQS 增益。

@@ -10,6 +10,11 @@
 
 直接入口：[数学评审](article/methods/M-002_sgqs_e/math_review.md)、[修订公式](article/methods/M-002_sgqs_e/README.md)、[配置与验证](article/methods/M-002_sgqs_e/implementation.md)。四组配置位于 `configs/sgqs_e/`。
 
+2026-10-13：B0/B1/B2 七 epoch 续训日志已归档。B1 总 mAP 略升但早期小目标
+收益未保持，B2 基本等同基线；当前没有稳定训练收益或 B3 互补性结论。
+见[配对诊断与趋势](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
+和[损失及问题的数学说明](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
+
 研究问题、实验记录、证据链和候选方法集中维护在 [`article/`](article/README.md)。仓库结构如下：
 
 ```text
