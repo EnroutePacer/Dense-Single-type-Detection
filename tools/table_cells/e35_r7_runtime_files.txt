@@ -39,5 +39,4 @@ tools/table_cells/README.md
 tools/table_cells/dump_resolved_training_config.py
 tools/table_cells/e35_r7_runtime_files.txt
 tools/table_cells/train_dfine_m_table_cell_multigpu.sh
-tools/table_cells/run_e35_r7_experiment.sh
-tools/table_cells/verify_e35_r7_contract.py
+tools/table_cells/run_table_cell_experiment.sh

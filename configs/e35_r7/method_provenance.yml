@@ -59,7 +59,13 @@ resume_screen:
     decoder_queries: 640
     evaluator_max_dets: 300
     seed: 0
-    world_size: 8
-    batch_size_per_gpu: 8
     global_batch: 64
     quick_steps: 0
+  recorded_runtime_layouts:
+    primary:
+      world_size: 8
+      batch_size_per_gpu: 8
+    auxiliary_c1_c3:
+      world_size: 4
+      batch_size_per_gpu: 16
+    note: runtime layouts are explicit command inputs, not launcher contracts

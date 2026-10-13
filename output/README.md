@@ -12,8 +12,9 @@ The files restored on 2026-10-12 came from the unchanged local safety copy at `_
 
 `targeted_e28_r7_training_bundle.tar.gz` is retained as historical evidence and
 is superseded; it must not be extracted over the current source tree because it
-contains an older criterion implementation. The active server overlay for the
-35e/r7 matrix is `e35_r7_sgqse_runtime_bundle.tar.gz`, verified by
-`tools/table_cells/e35_r7_runtime_sha256.txt` after extraction.
-It pins SGQS-E to commit `6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a`
-and includes the provenance/contract preflight used before any new run.
+contains an older criterion implementation. `e35_r7_sgqse_runtime_bundle.tar.gz`
+and `tools/table_cells/e35_r7_runtime_sha256.txt` preserve the fixed-contract
+overlay deployed on 2026-10-12; they are also historical and must not overwrite
+the current tree. New runs use the repository version of
+`tools/table_cells/run_table_cell_experiment.sh`, which records hashes at run
+time without enforcing that old deployment contract.

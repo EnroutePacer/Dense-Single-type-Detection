@@ -37,22 +37,22 @@ M 脚本默认加载项目根目录下的 `deim_dfine_hgnetv2_m_coco_90e.pth`；
 
 该任务配置固定 640×640 输入，查询数默认为 640，以覆盖合并脚本允许的最大单表单元格数；仅启用轻度光度扰动和水平翻转，Mosaic、RandomIoUCrop、RandomZoomOut、MixUp 及多尺度训练均关闭，以免破坏表格网格和稀疏小单元格。
 
-## 35 epoch / epoch-27 resume 实验矩阵
+## 通用实验入口与 35 epoch / epoch-27 resume 矩阵
 
-正式入口是 `run_e35_r7_experiment.sh`。它是透明的通用执行器，不按实验名
+正式入口是 `run_table_cell_experiment.sh`。它是透明的通用执行器，不按实验名
 选择配置，也不在内部隐藏 GPU、batch、epoch、checkpoint 或输出路径。调用者
-必须显式传入这些参数；脚本只负责解析配置、执行 fail-closed 契约校验、记录
-manifest，然后调用底层多卡训练入口。
+必须显式传入这些参数；脚本只负责参数自洽检查、解析配置、记录 manifest，
+然后启动多卡训练。GPU 数量和每卡 batch 不固定，只要求 `GPUS` 数量与
+`NPROC_PER_NODE` 一致；全局 batch 由两者的乘积得到。
 
 方法数学以提交
 `6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a` 为唯一基准。
-`configs/e35_r7/method_provenance.yml` 冻结方法文件哈希；
-`verify_e35_r7_contract.py` 检查最终解析配置中的损失、增强、课程、fixed-640、
-query 640、global batch 64、checkpoint 模式、数据/权重身份和
-`last_epoch=27`。launcher 还会先按显式 `RUNTIME_MANIFEST` 对整套活动运行
-文件逐项验 SHA-256。成功后保存 `run_manifest.txt`、`config_source.yml`、
-`resolved_config.yml`、`method_provenance.yml`、`frozen_inputs.yml` 与
-`runtime_sha256.txt`。
+`configs/e35_r7/method_provenance.yml` 记录方法文件哈希，但不作为启动门槛。
+如果命令提供 `PROVENANCE_FILE` 与 `RUNTIME_FILES_LIST`，launcher 会把方法
+说明复制到输出目录，并按运行当时的文件内容动态生成 SHA-256 清单。它不会
+拿这些文件与预置合同比较。成功后保存 `run_manifest.txt`、
+`config_source.yml`、`resolved_config.yml`，以及可选的
+`method_provenance.yml`、`runtime_files.txt` 和 `runtime_sha256.txt`。
 
 矩阵分为两层：B0--B3 是论文 SGQS-E 主消融；C1--C4 只是机制诊断对照，
 不能替代主消融，也不能把它们的收益归入 SGQS-E。B0 已完成，不重复训练。
@@ -68,9 +68,9 @@ query 640、global batch 64、checkpoint 模式、数据/权重身份和
 | `resume_c1_small_reg` | epoch 27 | box 1.30 / local 1.15 | 待跑，历史启发式对照 |
 | `resume_c2_mal_only` | epoch 27 | 只把 VFL 换成 MAL | 待跑，分类损失对照 |
 | `resume_c3_mosaic_only` | epoch 27 | 只加 Mosaic | 待跑，数据增强对照 |
-| `resume_c4_deim_core` | epoch 27 | MAL + Dense O2O | 待跑，晚期 retrofit 诊断 |
+| `resume_c4_deim_core` | epoch 27 | MAL + Dense O2O | 暂停，4×16 显存风险待解决 |
 
-八个待执行实验的完整显式命令见
-`configs/e35_r7/SERVER_COMMANDS.md`。对 resume 实验，`EPOCHS=35` 是绝对
+当前活动实验的完整显式命令见 `configs/e35_r7/SERVER_COMMANDS.md`。对
+resume 实验，`EPOCHS=35` 是绝对
 终点，实际执行 epoch 28--34；不能写成 `EPOCHS=7`。把
 `PREFLIGHT_ONLY=1` 可用于只读预检，成功时不会创建输出目录或启动训练。
