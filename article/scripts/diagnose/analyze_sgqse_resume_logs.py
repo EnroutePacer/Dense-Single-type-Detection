@@ -50,7 +50,7 @@ def parse(path):
 
 
 runs = {name: parse(path) for name, path in INPUTS.items()}
-(OUT / 'parsed.json').write_text(json.dumps(runs, ensure_ascii=False, indent=2), encoding='utf-8')
+(OUT / 'parsed.json').write_text(json.dumps(runs, ensure_ascii=False, indent=2), encoding='utf-8', newline='\n')
 baseline = {int(row['epoch']): row for row in csv.DictReader(
     (ROOT / 'outputs/resume_control_e28_to_e34_gb64/metrics.csv').open(encoding='utf-8-sig'))}
 rows = []
