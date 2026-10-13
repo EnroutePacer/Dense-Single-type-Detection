@@ -1,0 +1,18 @@
+{
+  "arm": "B3",
+  "experiment_id": "EXP-TRAIN-005",
+  "ingested_at": "2026-10-13",
+  "source_attachment": "已粘贴的文本.txt",
+  "sha256": "763b4c43883fe030fb6a7b0b9d634dc43096e100e85cc591657a830f6df0ad35",
+  "size_bytes": 1013201,
+  "archive_path": "outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log",
+  "byte_preserving": true,
+  "run_id": "resume_b3_sgqs_e_seed0",
+  "contract_id": "resume_b3_sgqs_e",
+  "epoch_interval": [
+    28,
+    34
+  ],
+  "seed": 0,
+  "embedded_run_manifest": true
+}
