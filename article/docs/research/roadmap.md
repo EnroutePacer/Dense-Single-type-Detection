@@ -1,6 +1,6 @@
 # 研究路线图
 
-当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，下一步固定数据、初始化和预算后运行 B0/B1/B2/B3；根据结果开展针对性消融与多 seed 复验。以下 Gate 0–4 保留为历史诊断路线，其中“必须先完整归因”和“训练暂停”不再是当前门禁。
+当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，B0--B3/C2 单 seed checkpoint 续训屏选已经完成；当前先执行 [EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 定位 DN-DDF、GO/owner、候选排名和 raw/EMA 泛化链路，再依据证据决定最小损失修订与正式从头多 seed 对照。以下 Gate 0–4 保留为诊断路线，其中“必须先完整归因”和“训练暂停”不再是当前门禁。
 
 ## Gate 0：资产与口径
 
@@ -40,6 +40,6 @@
 
 只选择一个由证据支持的主组件，其他作为消融或未来工作。
 
-## Gate 4：训练与论文验证（当前暂停）
+## Gate 4：训练与论文验证（屏选完成，正式验证待修订）
 
 相同初始化、global batch、epoch/steps、seed 和 `maxDets=300` 下比较 baseline 与方法。先 seed 0 验证方向，再三 seed；报告早期同 epoch、最终指标、wall-clock、GPU-hours、参数/FLOPs 和固定延迟协议。

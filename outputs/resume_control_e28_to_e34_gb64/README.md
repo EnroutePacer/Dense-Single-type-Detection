@@ -34,6 +34,9 @@ Evidence files:
 - `log.txt`: one exact JSON metric row for each epoch 28--34.
 - `metrics.csv`: lossless 12-decimal extraction of the COCO arrays in
   `log.txt`.
+- `best_stg1.pth`, `checkpoint0031.pth`, `last.pth` and `eval/latest.pth`:
+  server model/evaluator artifacts stored through Git LFS.
+- `summary/`: the eight-worker TensorBoard event set from the completed run.
 
 The run predates the new fail-closed launcher, so it has no generated
 `run_manifest.txt`. Its complete resolved configuration is nevertheless printed

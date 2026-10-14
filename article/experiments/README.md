@@ -9,7 +9,7 @@
 
 推荐编号：`EXP-TRAIN`、`EXP-EVAL`、`EXP-DIAG`、`EXP-BENCH`、`EXP-ABL`、`EXP-AUDIT`。旧 `T001/I009` 只放在 `legacy_ids`。
 
-每个实验从 `_template/` 创建，并登记到 [registry.csv](registry.csv)。大文件不进 Git，只通过 `ART-*` 引用。
+每个实验从 `_template/` 创建，并登记到 [registry.csv](registry.csv)。文本和小型证据走普通 Git；开发期需要归档的权重、TensorBoard 等大二进制走 Git LFS，并统一登记为 `ART-*`。
 
 旧实验尚未拥有逐次 `RUN-*` 元数据。注册表分别记录 `legacy_run_count` 与 `registered_run_count`，并将其标为 `run_migration_status=unmapped`；这表示历史结果仍可审计，但 ART→RUN→EXP 链尚未补齐，不能伪装成已完成的新规范记录。
 
@@ -19,7 +19,7 @@
 从同一epoch27断点运行带观测的B1及B0，逐轮保存checkpoint并固定样本回放。
 该实验不改变方法loss，优先查清已有小框峰值为何未保持；状态planned/not_run。
 
-1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：完成已启动的 B0 与同 checkpoint 的 B1/B2/B3 七 epoch 续训屏选；
+1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：B0/B1/B2/B3 与 C2 核心屏选矩阵及完整证据已归档；
 2. [EXP-TRAIN-002](EXP-TRAIN-002_clean-deim-mal/README.md)：运行 fixed-640/query-640/global-batch-64 的 controlled DEIM-core 35e 基线；
 3. 只有短续训出现值得复验的正信号时，才启动 [EXP-TRAIN-004](EXP-TRAIN-004_sgqs-e-b0-b3/README.md) 正式从头、多 seed 四组对照；
 4. 对有正信号的部分补做机制消融，并在 MAL + Dense O2O 基座上复验。

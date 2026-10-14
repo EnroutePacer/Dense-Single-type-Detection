@@ -4,8 +4,8 @@
 
 当前候选：
 
-- `M-001_sgqs`：Scale-aware GT Query Survival。由恢复 GT 的先导审计支持，直接监督 Top-K 前的 encoder 候选及其生存排名；代码与配置已实现，尚未训练或验证。
-- `M-002_sgqs_e`：SGQS-E。当前最新主线，组合候选监督与邻域/短边感知 EFGL；数学评审后使用非 owner 竞争门槛和基础监督保护。代码、四组消融配置与 CPU 验证已完成，尚无真实训练效果验证。见[评审](M-002_sgqs_e/math_review.md)与[实现](M-002_sgqs_e/implementation.md)。
+- `M-001_sgqs`：Scale-aware GT Query Survival。代码与配置已实现，并作为 B1 完成一次 epoch-27 单 seed 续训屏选；总 mAP 为弱正信号，但小目标终点低于 B0，尚未正式验证。
+- `M-002_sgqs_e`：SGQS-E。组合候选监督与邻域/短边感知 EFGL；代码、四组消融配置与 CPU 验证已完成，B0--B3 单 seed 短续训矩阵也已归档。状态为 `implemented / screened / unvalidated`，尚无稳定收益、small-object 改善或互补性证据。见[评审](M-002_sgqs_e/math_review.md)、[实现](M-002_sgqs_e/implementation.md)与[屏选结果](../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)。
 
 M-001 必须继续与已实现代码保持一致，M-002 作为新方法单独演进。首轮只比较 baseline、SGQS、EFGL、SGQS+EFGL；邻居约束 DN 暂不并入，避免堆叠第三个变量。
 

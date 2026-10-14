@@ -1,0 +1,65 @@
+schema_version: 1
+method_id: M-002_sgqs_e
+reference:
+  commit: 6fd2c301bd8c09ff3d49fa077c34eaf75ef35b9a
+  subject: Implement reviewed SGQS-E training objectives and controlled ablations
+  role: normative_math_and_implementation_reference
+hash_policy: sha256_after_canonical_lf
+
+# Every file below is byte-equivalent to the reference commit after CRLF/LF
+# normalization, except the single explicitly allow-listed resume adapter.
+reference_files:
+  configs/table_cells/dfine_hgnetv2_m_table_cell_fixed640.yml: fcf6e5a5efb1ec37cfe932f5763ec0fb98b4e69eb09fd6c6dac899ee357f5515
+  configs/sgqs/sgqs_hgnetv2_m_table_cell_fixed640.yml: 555407a0be5735c21e08004fc6a8dc22ea7a47614ac78aa48ffafd7c905770eb
+  configs/sgqs_e/b0_baseline.yml: 139ad1d8461577e0f04c292a2e11d5d5657d47a774e70de1b0359aa23ed4f483
+  configs/sgqs_e/b1_sgqs.yml: 86f1511d16b3c70b009e213c69e19d8301886e40ca72b74e7d635d3140408ba7
+  configs/sgqs_e/b2_efgl.yml: b0a63fec9fe3d99ffcc5ed9d38abae79225975e80d9452eb444e7fbf653d0867
+  configs/sgqs_e/b3_sgqs_e.yml: 0f2b8880003345703317b8c329f3871c757b6c6086f8b1a9ce44d8583e96f7d3
+  configs/sgqs_e/efgl.yml: 27b474ae4657e8e7c3bb9d3c377b5f662cb4a75d5d49fc35b467d0bbee555788
+  engine/core/yaml_utils.py: 54986b267b3d2759fdbce9fe34f37cc899c6d8c5a89340caa52e116f1dc4ee6f
+  engine/deim/box_ops.py: ca374c756f45508f07fb8ba4850be327cefcd6eb199000dd9ccbd7d6545537ef
+  engine/deim/deim_criterion.py: ec9ed58cb040cbda76d46253b15fda86762509d747eca05d7efc6ff60c466b64
+  engine/deim/dfine_decoder.py: 7d6f4c7d998906494c1fa7d3be5ee4fc9be23cf657fc8899c6ec8f930c455e3a
+  engine/deim/matcher.py: 745aca6e52510171b4c616e5ae7d23bef916b0af989da7594e7348ce0cd3cf5e
+  engine/deim/postprocessor.py: f3ff32b17558178d59c1fe88377ec404b43bd24de06d5ce607159062f261e918
+  engine/misc/box_ops.py: 507f491779819e8bbab76039d423a6f63f3498d3dde7ffcb0edaf798669fb3fa
+  engine/sgqs/__init__.py: b928fa1e0b14c87e46d844b815989ee369de5aa263f19e33eb584b6c6ab9a17f
+  engine/sgqs/candidate_supervision.py: bf4a0e2beaf990f42e5b734dd905f4a05a1d161191431d209353818fead43ab7
+  engine/sgqs/criterion.py: 1e55bf5c8c36815c8c69d6f325678a595b358196edf53acb212eb290019b9a77
+  engine/sgqs/edge_localization.py: c75947a4a657956bb4edcc90ef82f46919b65f736f2f7b8cc73e69406ea08f22
+  engine/solver/det_engine.py: 5402cde540edefee4cdc1f528b46e8947c72d5a64b1fedb575dac12d21312923
+  engine/data/dataset/coco_eval.py: 61caf9aa3c6698e40c98dd44dc401bf9f43816f9846c1c771115b8603da64289
+
+allowed_runtime_delta:
+  path: engine/sgqs/edge_localization.py
+  runtime_sha256: ed3baee8ae7e85bff1d90134bab21e473fd4e93e32df5304f6d42100a99dfbfc
+  purpose: translate_the_existing_efgl_curriculum_to_resume_local_time
+  constraints:
+    - compensation_start_epoch defaults to 0.0
+    - compensation_duration_epochs defaults to null
+    - default behavior is exactly the reference c(p)=max(0,1-p/(T*0.30))
+    - no owner, loss, matching, edge-weight, DDF, DN, or inference equation changes
+
+resume_screen:
+  source_checkpoint_last_epoch: 27
+  target_epoches: 35
+  executed_epoch_indices: [28, 29, 30, 31, 32, 33, 34]
+  local_horizon_epochs: 7
+  sgqs_survival:
+    start_epoch: 28.0
+    ramp_epochs: 1.0
+    active_arms: [resume_b1_sgqs, resume_b3_sgqs_e]
+  efgl_compensation:
+    start_epoch: 28.0
+    duration_epochs: 2.1
+    derivation: 7*0.30
+    active_arms: [resume_b2_efgl, resume_b3_sgqs_e]
+  invariants:
+    input_size: [640, 640]
+    decoder_queries: 640
+    evaluator_max_dets: 300
+    seed: 0
+    world_size: 8
+    batch_size_per_gpu: 8
+    global_batch: 64
+    quick_steps: 0

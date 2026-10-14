@@ -1,5 +1,15 @@
 # 科研进展日志
 
+## 2026-10-14 — 完成 B0--B3/C2 三端证据校对
+
+- 对训练服务器执行只读校对：未安装软件、未改环境、未删文件、未停止进程，也未写入项目目录。服务器活动树没有 `.git`；方法运行清单仍指向 `6fd2c301...`，SGQS-E 关键实现与本地一致，服务器仅缺本地新增的项目文档和统一 launcher。
+- 下载 B0、B1、B2、B3、C2 五个已完成目录及共同 `checkpoint0027.pth`；完成集 95 个文件逐项服务器/本地 SHA-256 一致。共同 checkpoint 为 313,584,754 bytes，SHA-256 `3eba494a...94ede`。
+- B0/B1/B2/B3 epoch-34 mAP 分别为 `0.866667088526`、`0.867608455076`、`0.866626082543`、`0.867687360283`。B3 相对 B0 为 `+0.001020271757`，但 AP-small 为 `-0.003389557047`；单 seed 不支持稳定收益或互补性。
+- C2 MAL-only mAP 为 `0.868764797642`，是已完成组最高值，但 AP-small 比 B0 低 `0.008056974425`。它只作为辅助损失对照，不归为 SGQS-E 贡献。
+- C1 small-reg、C3 Mosaic-only 和 DEIM-core 分别停在 epoch 30 step 3800、epoch 28 step 500 和 epoch 0 step 2200；审计时没有活动训练进程，console 也没有明确异常栈。只归档小型文本身份记录，不归档 partial checkpoint，不构造有效终点。
+- B1/B2/B3 已登记的用户附件 `console.log` 保持字节不变；服务器原件另存为 `server_console.log`。完整权重、TensorBoard、resolved config、structured log 和 at-start manifest 进入 `outputs/`；大文件使用 Git LFS。
+- 新增 [B0--B3/C2 跟进](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)，保留既有 B1/B2 诊断为当时快照，不改写已登记的历史证据。
+
 ## 2026-10-14 — SGQS 28+7 监督来源探针
 
 - 核查远程新增B3日志：复现B1 small/large反向走势与浅层DN-DDF停滞。B1 e30→34第一层DN-DDF为2.4786→2.5379，B0为2.3448→1.4498；不能据此认定大框抢梯度或小框过拟合。
@@ -8,7 +18,7 @@
 - 增加冻结输入哈希预检、流式固定子集准备、raw/EMA离线COCO@300/@640及逐annotation_id回放、拒绝缺失rank的汇总器。
 - CPU验证与真实实验状态分开：诊断已实现，真实28+7、CUDA耗时及数据集回放未运行，不新增AP改善或过拟合结论。
 
-## 2026-10-13 — 归档 B1/B2 七轮续训与数学诊断
+## 2026-10-13 — 归档 B1/B2 七轮续训与数学诊断（阶段性快照）
 
 - 用户提供的 `message (2).txt` / `message (3).txt` 分别对应 B1 SGQS / B2 EFGL；原始字节存入根 `outputs/e35_r7_sgqse/`，附 ingestion provenance、大小和 SHA-256，未补造历史运行前 manifest。
 - B0/B1/B2 初始 EMA mAP 同为 `0.8643102882584186`，均完成 epoch 28--34、每轮 5,631 steps。终点 mAP 分别为 `0.8666670885264904`、`0.8676084550759916`、`0.8666260825427902`；B1/B2 AP-small 约为 0.682/0.685。

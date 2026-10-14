@@ -1,0 +1,229 @@
+task: detection
+evaluator:
+  type: CocoEvaluator
+  iou_types:
+  - bbox
+num_classes: 1
+remap_mscoco_category: false
+train_dataloader:
+  type: DataLoader
+  dataset:
+    type: CocoDetection
+    img_folder: /aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/images
+    ann_file: /aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/annotations/instance_train.json
+    return_masks: false
+    transforms:
+      type: Compose
+      ops:
+      - type: RandomPhotometricDistort
+        p: 0.25
+      - type: RandomHorizontalFlip
+        p: 0.5
+      - type: Resize
+        size:
+        - 640
+        - 640
+      - type: SanitizeBoundingBoxes
+        min_size: 1
+      - type: ConvertPILImage
+        dtype: float32
+        scale: true
+      - type: ConvertBoxes
+        fmt: cxcywh
+        normalize: true
+      policy:
+        name: default
+        epoch: 0
+        ops: []
+  shuffle: true
+  num_workers: 4
+  drop_last: true
+  collate_fn:
+    type: BatchImageCollateFunction
+    base_size: 640
+    base_size_repeat: null
+    scales: null
+    scale_weights: null
+    stop_epoch: 105
+    final_size: null
+    mixup_prob: 0.0
+    mixup_epochs:
+    - 0
+    - 0
+  total_batch_size: 64
+val_dataloader:
+  type: DataLoader
+  dataset:
+    type: CocoDetection
+    img_folder: /aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/images
+    ann_file: /aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/annotations/instance_val.json
+    return_masks: false
+    transforms:
+      type: Compose
+      ops:
+      - type: Resize
+        size:
+        - 640
+        - 640
+      - type: ConvertPILImage
+        dtype: float32
+        scale: true
+  shuffle: false
+  num_workers: 4
+  drop_last: false
+  collate_fn:
+    type: BatchImageCollateFunction
+    base_size: 640
+    base_size_repeat: null
+    scales: null
+    scale_weights: null
+    stop_epoch: null
+    final_size: null
+  total_batch_size: 64
+print_freq: 100
+output_dir: /aicamera-mlp/zhuyouwei/code/DEIM/output/e35_r7_sgqse/resume_c1_small_reg_seed0
+checkpoint_freq: 4
+sync_bn: true
+find_unused_parameters: false
+use_amp: true
+scaler:
+  type: GradScaler
+  enabled: true
+use_ema: true
+ema:
+  type: ModelEMA
+  decay: 0.9999
+  warmups: 1000
+  start: 0
+epoches: 35
+clip_max_norm: 0.1
+optimizer:
+  type: AdamW
+  params:
+  - params: ^(?=.*backbone)(?!.*norm).*$
+    lr: 1.25e-05
+  - params: ^(?=.*(?:encoder|decoder))(?=.*(?:norm|bn)).*$
+    weight_decay: 0.0
+  lr: 0.00025
+  betas:
+  - 0.9
+  - 0.999
+  weight_decay: 0.000125
+lr_scheduler:
+  type: MultiStepLR
+  milestones:
+  - 500
+  gamma: 0.1
+lr_warmup_scheduler:
+  type: LinearWarmup
+  warmup_duration: 500
+model: DEIM
+criterion: DEIMCriterion
+postprocessor: PostProcessor
+use_focal_loss: true
+eval_spatial_size:
+- 640
+- 640
+DEIM:
+  backbone: HGNetv2
+  encoder: HybridEncoder
+  decoder: DFINETransformer
+lrsheduler: flatcosine
+lr_gamma: 1
+warmup_iter: 500
+flat_epoch: 4000000
+no_aug_epoch: 0
+HGNetv2:
+  pretrained: false
+  local_model_dir: ../RT-DETR-main/D-FINE/weight/hgnetv2/
+  name: B2
+  return_idx:
+  - 1
+  - 2
+  - 3
+  freeze_at: -1
+  freeze_norm: false
+  use_lab: true
+HybridEncoder:
+  in_channels:
+  - 384
+  - 768
+  - 1536
+  feat_strides:
+  - 8
+  - 16
+  - 32
+  hidden_dim: 256
+  use_encoder_idx:
+  - 2
+  num_encoder_layers: 1
+  nhead: 8
+  dim_feedforward: 1024
+  dropout: 0.0
+  enc_act: gelu
+  expansion: 1.0
+  depth_mult: 0.67
+  act: silu
+DFINETransformer:
+  feat_channels:
+  - 256
+  - 256
+  - 256
+  feat_strides:
+  - 8
+  - 16
+  - 32
+  hidden_dim: 256
+  num_levels: 3
+  num_layers: 4
+  eval_idx: -1
+  num_queries: 640
+  num_denoising: 100
+  label_noise_ratio: 0.5
+  box_noise_scale: 1.0
+  reg_max: 32
+  reg_scale: 4
+  layer_scale: 1
+  num_points:
+  - 3
+  - 6
+  - 3
+  cross_attn_method: default
+  query_select_method: default
+  activation: relu
+  mlp_act: relu
+  sgqs_supervisor: null
+PostProcessor:
+  num_top_queries: 640
+DEIMCriterion:
+  weight_dict:
+    loss_vfl: 1
+    loss_bbox: 5
+    loss_giou: 2
+    loss_fgl: 0.15
+    loss_ddf: 1.5
+  losses:
+  - vfl
+  - boxes
+  - local
+  alpha: 0.75
+  gamma: 2.0
+  reg_max: 32
+  matcher:
+    type: HungarianMatcher
+    weight_dict:
+      cost_class: 2
+      cost_bbox: 5
+      cost_giou: 2
+    alpha: 0.25
+    gamma: 2.0
+  small_object_weight: 1.0
+  small_object_area_threshold: 0.0025
+  small_object_box_weight: 1.3
+  small_object_local_weight: 1.15
+__include__:
+- ../sgqs_e/b0_baseline.yml
+efgl:
+  enabled: false
+seed: 0
+resume: /aicamera-mlp/zhuyouwei/code/DEIM/output/dfine_hgnetv2_m_table_cell/checkpoint0027.pth

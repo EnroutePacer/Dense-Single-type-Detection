@@ -1,10 +1,13 @@
 # EXP-TRAIN-005：Epoch-27 SGQS-E 七 epoch 续训屏选
 
-状态：partial / partial。B0、B1、B2 已完成；B1/B2 的完整 console 附件于
-2026-10-13 归档，B3 尚无日志。三组均缺可用的历史 at-start manifest，
-不把后续 preflight 或本轮 ingestion provenance 伪装成运行前证据。
+状态：partial / partial。B0--B3 核心四臂已完成并归档；C2 MAL-only 辅助
+对照也已完成。C1、C3 与 DEIM-core 为中断的 partial run，C4 无输出，因而
+整个 EXP 仍保持 partial。B1--B3/C2 均有服务器 at-start manifest、resolved
+config、结构化日志和权重；B0 早于新 launcher，仍明确标记为无 at-start
+manifest，不用事后 preflight 代替。
 
-最新入口：[B1/B2 配对诊断](diagnostics/20261013_b1_b2/README.md)、
+最新入口：[B0--B3/C2 结果跟进](diagnostics/20261013_b0_b3_c2_followup/README.md)、
+[B1/B2 配对诊断快照](diagnostics/20261013_b1_b2/README.md)、
 [原设计、损失与问题的数学说明](diagnostics/20261013_b1_b2/math_diagnosis.md)。
 
 ## 设计
@@ -60,25 +63,28 @@ fixed-640、query 640、VFL、无 Mosaic/MixUp/多尺度、从
 终点，不构成 SGQS/EFGL 的收益证据。原始材料见
 `outputs/resume_control_e28_to_e34_gb64/`，ART-000024--ART-000027。
 
-## 已完成的 B1/B2 与诊断
+## 已完成的核心四臂与 C2
 
-| epoch 34 | B0 | B1 SGQS | B2 EFGL |
-|---|---:|---:|---:|
-| EMA mAP | 0.866667089 | 0.867608455 | 0.866626083 |
-| AP-small | 0.685633491 | 约 0.682 | 约 0.685 |
-| AR-small | 0.690892250 | 约 0.686 | 约 0.690 |
+| epoch 34 | B0 | B1 SGQS | B2 EFGL | B3 SGQS-E | C2 MAL |
+|---|---:|---:|---:|---:|---:|
+| EMA mAP | 0.866667089 | 0.867608455 | 0.866626083 | 0.867687360 | 0.868764798 |
+| AP-small | 0.685633491 | 0.682071410 | 0.685311726 | 0.682243934 | 0.677576517 |
+| AR-small | 0.690892250 | 0.686096939 | 0.690269679 | 0.686048348 | 0.682780612 |
 
-B1/B2 小目标指标仅有 console 三位小数精度；共同恢复点评价也是 EMA，
-不是 raw 模型。B1 的 AP-small 在 epoch 30 达到约 0.706，终点收益未保持；
-B2 终点基本等同 B0。SGQS 冲突保护大面积撤销新增 owner 监督，97.78%
-生存率只以过滤后的集合为分母；EFGL 的平均补偿很弱且在 epoch 30.1 结束。
-这些是优先验证的机制问题，不是已证明的唯一因果解释。
+B3 相对 B0 为 `+0.001020272` mAP，相对 B1 仅 `+0.000078905`；单 seed
+交互量 `B3-B1-B2+B0=+0.000119911`，不足以证明稳定互补。B1/B3 的
+AP-small 与 AR-small 均低于 B0。C2 总 mAP 最高，但 AP-small 比 B0 低
+`0.008056974`，只作为辅助损失对照。B1 的 AP-small 在 epoch 30 曾达到约
+0.706，终点收益未保持；SGQS 冲突保护末期撤销约 55% owner 新增监督，
+EFGL 补偿很弱且在 epoch 30.1 结束。这些是下一步机制修订线索，不是已证明
+的唯一因果解释。
 
 原始日志位于 [B1](../../../outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/README.md)
-与 [B2](../../../outputs/e35_r7_sgqse/resume_b2_efgl_seed0/README.md)。
-缺失的服务器 `log.txt`、checkpoint 和历史 manifest 不补造；不依据目录名
-推断 B3 已运行。新增证据登记为 ART-000028--ART-000037，三组历史执行仍缺
-独立 RUN 元数据，因此注册表保持 `run_migration_status=unmapped`。
+、[B2](../../../outputs/e35_r7_sgqse/resume_b2_efgl_seed0/README.md)、
+[B3](../../../outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/README.md) 与
+[C2](../../../outputs/e35_r7_sgqse/resume_c2_mal_only_seed0_correct0/README.md)。
+服务器原件、权重及 TensorBoard 均已 SHA-256 校验归档。历史目录尚未迁移
+为正式 `RUN-*` 标识，因此注册表仍保持 `run_migration_status=unmapped`。
 
 ## 证据边界
 
@@ -89,4 +95,6 @@ B2 终点基本等同 B0。SGQS 冲突保护大面积撤销新增 owner 监督�
 旧 `targeted_e28_r7_training_bundle.tar.gz` 的 small-reg、MAL-only、
 Mosaic-only 和 MAL+Dense-O2O 四组已重写为 C1--C4 辅助诊断对照。它们与
 B0--B3 共享 checkpoint、预算和评估协议，但不进入 SGQS-E 的主效应/交互
-计算，也不能替代 B1/B2/B3。
+计算，也不能替代 B1/B2/B3。当前 C2 已完成；C1 停在 epoch 30 step
+3800/5631，C3 停在 epoch 28 step 500/5631，均无活动训练进程且不得当作
+epoch-34 结果；C4 未见输出。

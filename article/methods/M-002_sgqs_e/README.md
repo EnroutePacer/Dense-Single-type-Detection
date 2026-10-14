@@ -1,9 +1,12 @@
 # M-002 — SGQS-E：候选生存与逐边定位
 
-**状态：** `implemented / unvalidated`
+**状态：** `implemented / screened / unvalidated`
 
-2026-10-13：[B1/B2 短续训诊断](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
-已归档，暴露 owner 整组过滤和 EFGL 补偿强度问题，尚无稳定收益结论。
+2026-10-13：[B0--B3/C2 短续训结果](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)
+已归档。B3 相对 B0 有 `+0.001020272` mAP 的单 seed 弱信号，但
+AP-small/AR-small 下降；EFGL 未表现出有意义的额外终点收益。早期
+[B1/B2 诊断](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
+暴露 owner 整组过滤和 EFGL 补偿强度问题，尚无稳定收益结论。
 以下保留被测试的设计；[数学诊断](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)
 中的候选修订尚未替换本文或训练实现。
 **目标：** 在固定输入、固定 query 数和固定推理图下，优化密集单类型小框的两个训练环节：

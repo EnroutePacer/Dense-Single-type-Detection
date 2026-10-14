@@ -10,8 +10,12 @@
 - `ART-000022`：28-epoch benchmark 的服务器传输代码包；只证明代码包身份，不代表任何训练已执行。
 - `ART-000024`～`ART-000027`：EXP-TRAIN-005 的 B0 精确指标与原始日志。
 - `ART-000028`、`ART-000029`：B1 SGQS / B2 EFGL 完整 console 附件，字节不变；支持配置、过程和结果记录，但缺历史运行前身份 manifest。
-- `ART-000030`～`ART-000035`：B0/B1/B2 [配对诊断、数学说明及可复现解析](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)。支持单 seed 的短续训观察与实现问题定位，不支持稳定收益或 B3 互补性。
+- `ART-000030`～`ART-000035`：B0/B1/B2 [配对诊断、数学说明及可复现解析](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)。这是 B3 到达前的不可变阶段性快照；支持机制问题定位，不代表当前完整矩阵状态。
 - `ART-000036`、`ART-000037`：B1/B2 ingestion provenance，仅证明本轮附件归档身份，不是历史训练 manifest。
+- `ART-000038`、`ART-000039`：B3 用户附件 console 与 ingestion provenance；与服务器原件分开保留。
+- `ART-000040`～`ART-000058`：共同 epoch-27 checkpoint、全输出 SHA-256 manifest、B0/B1/B2/B3/C2 关键服务器日志、at-start manifest 与最终 checkpoint。B1--B3/C2 运行身份可复核；B0 仍明确缺新 launcher 的历史 at-start manifest。
+- `ART-000059`、`ART-000060`：[B0--B3/C2 完整跟进](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)与精确 endpoint 表。可计算单 seed 主效应/交互，但不支持稳定互补性或小目标改善。
+- `ART-000061`、`ART-000062`：B1/B3 曲线生成脚本与长表。COCO console 值只有三位小数，不能用于证明 B3 相对 B1 的 `+0.000078905` 精确差值。
 
 ## B：支持行为观察，不能替代 GT 指标
 
@@ -24,7 +28,11 @@
 
 - 第一版 S 第三 epoch mAP≈0.86：缺原始日志与 checkpoint。
 - 数据规模和 GT 密度统计：缺对应 annotation JSON 与复算脚本快照。
-- epoch-27 与 probe checkpoint：尚未进入 artifact registry。
+- 旧 probe checkpoint 尚未完整进入 artifact registry；本轮共同 epoch-27 checkpoint 已登记为 `ART-000040`。
 - 当前代码的准确上游 commit/remote：同步目录不是 Git 仓库。
+
+## D：失败/中断证据
+
+- `ART-000063`～`ART-000065`：C1 small-reg、C3 Mosaic-only 与 DEIM-core 的中断 console。只支持记录配置身份和停止位置；没有完成 marker，不得当作 epoch-34 指标或用于方法排序。
 
 完整 locator、bytes、SHA-256、发布状态与关联实验见 [artifact_registry.csv](artifact_registry.csv)。公开论文主张不得直接引用本地目录名，必须引用 ART/RUN/EXP/F/C 链。

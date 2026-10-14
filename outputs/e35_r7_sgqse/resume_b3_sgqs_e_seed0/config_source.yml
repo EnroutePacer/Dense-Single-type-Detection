@@ -1,0 +1,12 @@
+__include__: ['../sgqs_e/b3_sgqs_e.yml']
+
+output_dir: ./output/e35_r7_sgqse/resume_b3_sgqs_e_seed0
+epoches: 35
+
+SGQSCriterion:
+  survival_start_epoch: 28.0
+  survival_ramp_epochs: 1.0
+
+efgl:
+  compensation_start_epoch: 28.0
+  compensation_duration_epochs: 2.1

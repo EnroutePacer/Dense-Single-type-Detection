@@ -93,7 +93,10 @@ B0配对：把arm改为`b0`、RUN改为新目录`outputs/probes/b0_e28_r7_seed0`
 
 ```bash
 # 子集只创建一次，两臂和所有epoch复用同一manifest。
-"$PY" -m pip install ijson
+"$PY" -c 'import ijson' || {
+  echo "ijson is unavailable; stop and select an approved existing environment." >&2
+  exit 1
+}
 "$PY" tools/table_cells/prepare_probe_subset.py \
   --train-ann "$DATA/annotations/instance_train.json" \
   --val-ann "$DATA/annotations/instance_val.json" --images "$DATA/images" \

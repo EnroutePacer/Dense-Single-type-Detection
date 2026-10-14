@@ -6,14 +6,19 @@
 
 我们以表格单元格检测作为验证基座，研究两个训练层问题：固定 query 预算下的 **query selection–survival gap**，以及整框 IoU 共享权重无法按边表达短边尺度与同类邻域歧义。
 
-当前 M-002 SGQS-E 已完成数学评审与代码实现：保留 SGQS 的候选监督，修正生存门槛与监督冲突，并加入邻域感知的逐边 EFGL。目标是在不增加推理 query 数量和预测头的前提下，提高密集单类型小框的收敛效率与定位精度。当前状态为 implemented/unvalidated，CPU 检查不代表数据集 AP 已改善；M-001 和既有训练设计继续保留。
+当前 M-002 SGQS-E 已完成数学评审、代码实现和一次 epoch-27 单 seed
+续训屏选：保留 SGQS 的候选监督，修正生存门槛与监督冲突，并加入邻域感知
+的逐边 EFGL。当前状态为 `implemented / screened / unvalidated`；短续训信号
+不等于正式数据集收益，M-001 和既有训练设计继续保留。
 
 直接入口：[数学评审](article/methods/M-002_sgqs_e/math_review.md)、[修订公式](article/methods/M-002_sgqs_e/README.md)、[配置与验证](article/methods/M-002_sgqs_e/implementation.md)。四组配置位于 `configs/sgqs_e/`。
 
-2026-10-13：B0/B1/B2 七 epoch 续训日志已归档。B1 总 mAP 略升但早期小目标
-收益未保持，B2 基本等同基线；当前没有稳定训练收益或 B3 互补性结论。
-见[配对诊断与趋势](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
-和[损失及问题的数学说明](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
+2026-10-13：B0--B3 七 epoch 核心矩阵及 C2 MAL-only 已完整归档。
+B3 相对 B0 为 `+0.001020272` mAP，但 AP-small 为 `-0.003389557`；C2
+总 mAP 最高但 AP-small 更低。单 seed、已收敛 checkpoint 续训不能证明稳定
+收益、small-object 改善或方法互补性。见[完整结果跟进](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)、
+[早期 B1/B2 诊断](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
+和[数学说明](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
 
 2026-10-14：新增 [SGQS 28+7 监督来源探针与运行命令](article/experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)。
 优先区分第一层 DN-DDF 停滞、GO/owner 选择性监督、候选排名与小框泛化；
