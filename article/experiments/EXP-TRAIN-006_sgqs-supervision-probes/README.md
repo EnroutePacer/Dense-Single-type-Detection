@@ -83,6 +83,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 "$PY" tools/table_cells/prepare_probe_run.py --arm sgqs --resume "$CKPT" \
   --data-root "$DATA" --output "$RUN" --source-revision "$REV"
 
+test ! -e "$RUN/console.log"
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 "$PY" -m torch.distributed.run \
   --nproc_per_node=8 --master_port=29716 tools/table_cells/train_with_probes.py \
   -c "$RUN/resolved.yml" -r "$CKPT" --seed 0 --use-amp 2>&1 | tee "$RUN/console.log"

@@ -1,4 +1,6 @@
 """Fail-closed entrypoint for the fixed eight-GPU supervision probe."""
+import argparse
+import json
 import os
 import runpy
 import sys
@@ -35,8 +37,40 @@ def require_probe_topology(environ=None, visible_device_count=None):
     return values
 
 
-def main():
+def reserve_probe_rank(argv=None, environ=None):
+    """Atomically prevent any rank from reusing a prepared experiment run."""
+    environ = os.environ if environ is None else environ
+    parser = argparse.ArgumentParser(add_help=False)
+    parser.add_argument('-c', '--config', required=True)
+    args, _ = parser.parse_known_args(sys.argv[1:] if argv is None else argv)
+    config = Path(args.config).resolve()
+    run_dir = config.parent
+    manifest = run_dir / 'run_manifest.json'
+    if config.name != 'resolved.yml' or config.is_symlink() or not config.is_file():
+        raise RuntimeError(f'Probe training requires a regular prepared resolved.yml: {config}')
+    if manifest.is_symlink() or not manifest.is_file():
+        raise RuntimeError(f'Probe training requires the prepared run_manifest.json: {manifest}')
+    try:
+        rank = int(environ['RANK'])
+    except (KeyError, ValueError):
+        raise RuntimeError(f'RANK must be an integer set by torchrun; got {environ.get("RANK")!r}') from None
+    if rank < 0 or rank >= EXPECTED_WORLD_SIZE:
+        raise RuntimeError(f'RANK must be in [0, {EXPECTED_WORLD_SIZE - 1}]; got {rank}')
+    marker = run_dir / f'.probe_started.rank{rank}'
+    payload = json.dumps({'rank': rank, 'world_size': EXPECTED_WORLD_SIZE}, sort_keys=True) + '\n'
+    try:
+        with marker.open('x', encoding='utf-8') as stream:
+            stream.write(payload)
+    except FileExistsError:
+        raise RuntimeError(
+            f'Probe rank {rank} has already been launched for this run: {marker}. '
+            'Refusing to overwrite or append to an existing experiment.') from None
+    return marker
+
+
+def main(argv=None):
     require_probe_topology()
+    reserve_probe_rank(argv)
     from tools.table_cells import supervision_probe  # noqa: F401,E402
     runpy.run_path(str(ROOT / 'train.py'), run_name='__main__')
 
