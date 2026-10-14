@@ -68,20 +68,21 @@ teacher为同次末层预测，正样本w为当前IoU，负样本w为teacher分�
 
 ## 服务器命令
 
-在仓库根目录执行。先更新仓库，使用现有训练Python环境；替换下列路径。下面不会由Codex自动启动GPU训练。
+在仓库根目录执行。使用现有训练 Python 环境；禁止在共享服务器临时安装依赖。若部署目录没有 `.git`，同步方必须给出云端完整提交号，预检将该 revision 与显式运行文件清单及逐文件 SHA-256 一起写入 `run_manifest.json`。下面不会由 Codex 自动启动 GPU 训练。
 
 ```bash
-git pull --ff-only
+set -Eeuo pipefail
 PY=/path/to/existing/venv/bin/python
 DATA=/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged
 CKPT="$PWD/output/dfine_hgnetv2_m_table_cell/checkpoint0027.pth"
 RUN="$PWD/outputs/probes/sgqs_e28_r7_seed0"
+REV=<40-character-cloud-commit-from-deployment>
 
 # 先核验全部冻结输入，生成独立输出目录；现有目录会拒绝覆盖。
+CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 \
 "$PY" tools/table_cells/prepare_probe_run.py --arm sgqs --resume "$CKPT" \
-  --data-root "$DATA" --output "$RUN"
+  --data-root "$DATA" --output "$RUN" --source-revision "$REV"
 
-set -o pipefail
 CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 "$PY" -m torch.distributed.run \
   --nproc_per_node=8 --master_port=29716 tools/table_cells/train_with_probes.py \
   -c "$RUN/resolved.yml" -r "$CKPT" --seed 0 --use-amp 2>&1 | tee "$RUN/console.log"

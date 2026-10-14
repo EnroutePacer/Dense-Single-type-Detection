@@ -17,7 +17,9 @@ def subset(path, count, seed, excluded=()):
     try:
         import ijson
     except ImportError as exc:
-        raise RuntimeError('Subset preparation needs: pip install ijson (streams the 6 GB annotation file)') from exc
+        raise RuntimeError(
+            'Subset preparation needs ijson to stream the 6 GB annotation file; '
+            'select an approved existing environment and do not install into a shared server') from exc
     def items(prefix):
         with Path(path).open('rb') as f:
             yield from ijson.items(f,prefix,use_float=True)
