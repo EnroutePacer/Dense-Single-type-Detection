@@ -57,6 +57,13 @@ outputs/e35_r7_sgqse/analysis/20261013_b0_b3_c2_followup/*.csv text eol=lf
 # Keep the phase-one summary hashes stable across Windows/Linux.
 article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261014_phase1_conventional_methods/*.md text eol=lf
 outputs/e35_r7_sgqse/analysis/20261014_phase1_conventional_methods/*.csv text eol=lf
+# Keep the self-contained SGQS rank-replay bundle byte-stable and its manifest portable.
+article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.md text eol=lf
+article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.csv text eol=lf
+article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.json text eol=lf
+article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.yaml text eol=lf
+article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.py text eol=lf
+article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.png -text -diff
 # The derived curve script is itself a registered reproducibility artifact.
 outputs/e35_r7_sgqse/comparison_sgqs_vs_sgqse/*.py text eol=lf
 

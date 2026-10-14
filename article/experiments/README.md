@@ -15,9 +15,11 @@
 
 ## 当前顺序
 
-2026-10-14 当前优先项：[EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md)，
-从同一epoch27断点运行带观测的B1及B0，逐轮保存checkpoint并固定样本回放。
-该实验不改变方法loss，优先查清已有小框峰值为何未保持；状态planned/not_run。
+2026-10-15 最新完成项：[EXP-DIAG-005](EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。
+固定 val128 已将 SGQS AP-small 倒 U 的直接承载位置定位为 Decoder 最终
+score/rank 跨越 Top-300；下一步将同样的逐 GT 回放扩展到 full-val。
+[EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 臂与 val128
+回放已完成，带同一探针的 B0 臂仍未运行。
 
 1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：B0/B1/B2/B3 与 C2 核心屏选矩阵及完整证据已归档；
 2. [EXP-TRAIN-002](EXP-TRAIN-002_clean-deim-mal/README.md)：运行 fixed-640/query-640/global-batch-64 的 controlled DEIM-core 35e 基线；

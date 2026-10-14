@@ -1,0 +1,13 @@
+start_epoch,end_epoch,group,n_gt,iou_threshold,gained_top300,lost_top300,net_gain,stable_covered,stable_missed
+28,29,coco_small,430,0.5,49,17,32,249,115
+28,29,coco_small,430,0.75,49,17,32,249,115
+28,29,hybrid_small,7314,0.5,510,524,-14,4977,1303
+28,29,hybrid_small,7314,0.75,500,522,-22,4886,1406
+28,30,coco_small,430,0.5,35,13,22,253,129
+28,30,coco_small,430,0.75,35,13,22,253,129
+28,30,hybrid_small,7314,0.5,444,453,-9,5048,1369
+28,30,hybrid_small,7314,0.75,444,449,-5,4959,1462
+30,34,coco_small,430,0.5,11,36,-25,252,131
+30,34,coco_small,430,0.75,11,36,-25,252,131
+30,34,hybrid_small,7314,0.5,429,393,36,5099,1393
+30,34,hybrid_small,7314,0.75,416,380,36,5023,1495

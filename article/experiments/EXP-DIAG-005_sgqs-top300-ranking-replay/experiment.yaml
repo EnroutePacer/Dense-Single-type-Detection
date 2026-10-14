@@ -1,0 +1,40 @@
+schema_version: 1
+experiment_id: EXP-DIAG-005
+slug: sgqs_top300_ranking_replay
+title: "SGQS e28-e34 AP-small 倒 U 的 Top-300 排名回放"
+type: diagnostic
+status: completed
+validity: valid_with_scope
+paper_role: diagnosis
+question: "SGQS 的 AP-small 前段上升和后段回落分别发生在候选生成、Encoder Top-K、Decoder 几何还是最终 score/rank 截断阶段？"
+hypothesis_ids: [H-001, H-003, H-004, H-006]
+protocol_ids: [P-001, P-002, P-003, P-006]
+method_ids: [M-002]
+source_experiment_ids: [EXP-TRAIN-006]
+control_experiment_id: null
+legacy_ids: []
+runs: []
+source_run:
+  logical_id: sgqs_e28_r7_seed0
+  source_revision: 42b07d68905942256a41d8b98628a40f6bb32189
+  epochs: [28, 29, 30, 31, 32, 33, 34]
+  world_size: 8
+  batch_per_gpu: 8
+  global_batch: 64
+  seed: 0
+  input_size: [640, 640]
+  queries: 640
+  state: ema
+diagnostic_subset:
+  split: val
+  images: 128
+  noncrowd_gt: 15446
+  selection: "sha256(seed:file_name), deterministic and model-independent"
+  selection_seed: 20261014
+  subset_sha256: 3986784e3ec476a1d4e8ed308a0637e6a4ac195f3cf764293c822695e63426b3
+  coco_small_gt: 430
+  hybrid_small_gt: 7314
+  evaluation_max_dets: [300, 640]
+created_at: 2026-10-15
+updated_at: 2026-10-15
+notes: "直接机制在固定 val128 上成立：IoU 合格的 Decoder query 跨越 rank 300；完整验证集占比和参数级根因仍待 full-val 逐 GT 回放。"

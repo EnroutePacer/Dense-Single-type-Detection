@@ -1,5 +1,21 @@
 # 科研进展日志
 
+## 2026-10-15 — 定位 SGQS AP-small 倒 U 的 Top-300 排名机制
+
+- 最终核实 SGQS 探针已完整到 epoch 34，旧“epoch 32 中断”来自中途快照；
+  fixed val128 的 e28--e34 raw/EMA 回放也已完成，B0 带探针对照仍未运行。
+- full-val EMA AP-small 在 e29/e30 达到 `0.705142/0.705554`，e34 回落至
+  `0.682274`；`best_stg1`、`last`、`checkpoint0034` 的 raw/EMA 参数状态相同，
+  overall-best 文件不能替代 small 峰值 checkpoint。
+- val128 EMA 逐 GT 配对表明：e28→29 的 49 个 Top-300 gain 原本已有高 IoU
+  Decoder 框，只是 rank 359→259；e30→34 的 36 个 loss 仍有高 IoU 框，只是
+  rank 271.5→338.5。倒 U 直接承载于最终 score/rank 跨越 300，不是框消失。
+- 本地 hybrid-small Top-300 coverage 不倒 U，后期 `COCO∩hybrid -25`、
+  `hybrid-only +61`，显示 small 子群间预算重排。该 coverage 不是 COCO recall。
+- 详细证据、派生数据、静态图与脚本归档于
+  [EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；
+  430 个 COCO-small 只在 17 图且变化集中两张密集图，下一步须做 full-val 回放。
+
 ## 2026-10-14 — 三端审计与 article 去镜像
 
 - 本地与 GitHub `main` 同为 `034e358`；共享盘最后核查时无训练进程，随后

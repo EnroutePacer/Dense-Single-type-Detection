@@ -1,6 +1,6 @@
 # 研究状态
 
-更新时间：2026-10-14
+更新时间：2026-10-15
 
 ## 当前主线
 
@@ -8,15 +8,21 @@
 
 最新方法为 M-002 SGQS-E：用 SGQS 处理候选监督，用 EFGL 处理邻域/短边感知的逐边定位。数学评审、代码实现和 B0--B3 单 seed checkpoint 续训屏选已完成，状态为 `implemented / screened / unvalidated`；保留有效设计和历史 M-001，不以论文重叠为删除理由。
 
+截至 2026-10-15，[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 臂已经完整训练至 epoch 34，固定 val128 的 e28--e34 raw/EMA 回放也已完成；带同一套探针的 B0 对照臂尚未运行。本轮回放已在 val128 上定位 AP-small 倒 U 的直接承载阶段，但还没有完成 full-val 逐 annotation 归因，也没有把该现象归因为 SGQS 相对 B0 的特有效应。
+
 ## 已确认
 
 - 640×640 输入下，P3/P4/P5 共提供 8,400 个 memory 位置，当前模型全局选择 Top-640。
 - 13 张无 GT 诊断图中，P3/P4/P5 入选数量和高置信存活数量显著不均衡。
 - P3 只表示来源于 stride-8 特征层，不等于 GT-small；预测面积 `<32²` 也不等于 GT-small。
-- 这 13 张图没有配套 GT，因此目前无法给真实漏检归因。
+- 旧 13 张定性图没有配套 GT，仍不能据其归因真实漏检；后续固定 val128 诊断使用了独立的原始 annotation，不改变这套旧图的证据等级。
 - 旧 small-VFL/small-reg probes 的目标配置未加载，不能用来评价损失改动。
 - 同一 M checkpoint 在 `maxDets=300` 下复评约为 mAP 0.864247；旧约 0.5669 是 `maxDets=100` 口径。
 - 当前 M 训练脚本已尊重外部 `CONFIG_FILE`；相同口径的 B0--B3 七 epoch 续训 screen 已完成，但正式从头、多 seed 论文训练尚未执行。
+- SGQS 完整验证集 EMA AP-small 在 e28/e29/e30/e34 分别为 `0.679395/0.705142/0.705554/0.682274`；峰值在 e30，而 overall AP 峰值在 e34。完整曲线与 checkpoint 身份见 [EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。
+- 固定 val128 的 SGQS EMA 回放表明：e28→e29 的 49 个 Decoder Top-300 gain 在 e28 全部已有 IoU≥0.75 的 Decoder 最终框但 rank>300；e30→e34 的 36 个 loss 在 e34 仍全部有 IoU≥0.75 的框，只是跌出前 300。它们是独立 GT coverage，不是 COCO 一对一匹配得到的 recall、TP 或 FN。
+- 同一 val128 上 hybrid-small Top-300 coverage 不呈倒 U；e30→e34 的 `COCO-small∩hybrid-small` 净减 25、`hybrid-only` 净增 61，支持有限输出预算在 small 子群间重分配。raw 权重也没有复现 EMA 倒 U，因此 EMA 是待检验线索，而不是已证唯一根因。
+- val128 的 430 个 COCO-small GT 只位于 17 张图，状态变化又集中在两张分别含 480/320 个 GT 的密集图；这足以建立配对机制证据，但不能外推它解释 full-val 变化的比例。
 - `image (12)` 的 GT 可视化恢复先导审计显示：304 个正文框在 640 输入下短边中位约 14 px；dense encoder 在 IoU≥0.5 时可覆盖约 278 个，Top-640 后约为 135 个。该结果支持 selection starvation 作为主研究方向，但仍须原始 COCO JSON 复核。
 - 三个新 12,800-step 摘要均未超过 epoch-27 起点；small-reg 相对同周期 control 仅 +0.000514 mAP，且 AP-small/AR-small 各低约 0.002；MAL+Dense O2O 相对 control 低 0.009203 mAP。新目录缺少 console/resolved config，因此只能记录数值，暂不能完成方法归因。
 - M-001 SGQS 已完成代码实现与 11 项单元测试，并作为 B1 完成一次 epoch-27 单 seed 续训：mAP 相对 B0 `+0.000941367`，但 AP-small/AR-small 分别下降约 `0.003562/0.004795`，尚未正式验证效果与原创性。
@@ -26,26 +32,15 @@
 
 ## 当前最高优先级
 
-优先运行[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)的B1/B0观测对照。
-远程B3日志已到达并复现主要走势；首要排查为浅层DN-DDF与GT监督不同步、
-GO/guard的选择性遗漏和候选重排。现有统计不支持“后期owner过滤越来越多”，
-也未证明小框过拟合或大框梯度压制。新探针代码已实现，真实运行尚未开始。
+最高优先级是在完全相同的验证预处理下，对 e28/e29/e30/e34 的 SGQS EMA 做 **full-val 逐 annotation 回放**。每个 checkpoint 必须同时保存 Decoder 全 640 个输出的 score、rank、IoU、Top-300 截断状态，并补正式 COCO 一对一匹配，检验 val128 中观察到的排名跨界能解释 full-val AP-small 变化的多大比例。
 
-2026-10-13 新证据：[B0--B3/C2 完整跟进](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)
-显示 B3 总 mAP 的单 seed 增量只有 `+0.001020272`，且小目标终点下降；
-C2 MAL-only 总 mAP 最高但 AP-small 最差。此前
-[B1/B2 诊断](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
-发现 SGQS 整组冲突过滤末期撤销约 55.08% owner 的新增监督，EFGL 主分支
-平均补偿仅约 1e-4 且过早结束。这些只是候选原因，必须先由 EXP-TRAIN-006
-定位监督来源、候选排名和 raw/EMA 泛化链路，再决定是否采用
-[数学说明](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)
-中的最小修订。
+[EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md) 已完成 SGQS 固定 val128 的 raw/EMA 七轮回放，证明该子集上的直接承载机制是 IoU 合格 query 跨越 rank 300，而不是框消失或定位普遍退化；但 430 个 COCO-small 只在 17 张图，变化集中于两张极密图，不能把这一结果写成已完成全数据归因。raw 不复现 EMA 峰形只把 EMA 参数混合/滞后与分类校准列为上游线索，尚不能认定唯一根因。
 
-1. 先执行 EXP-TRAIN-006 的冻结输入 B1/B0 观测探针，直接记录全 GT unique-owner coverage、owner rank、Top-K survival、DN 监督与 raw/EMA 固定子集回放；该阶段不修改 loss。
-2. 依据探针再决定是否分离 SGQS 的分类保护与 owner 回归保护、是否去除 EFGL 的重复低误差衰减；这些目前只是候选干预，不作为既定结论。
-3. 只有修订后出现明确正信号，才用同一代码提交从头执行 B0/B1/B2/B3，先做 seed 0 gate，再对通过项补至少 3 seeds。
-4. 同时报告 AP75/AP90、按短边分桶的 recall 和逐边相对误差；总 mAP 不能替代机制证据。
-5. C1/C3 已作为完成的常规对照封存；C4 与旧 DEIM-core 仍只作为中断记录，不复用其 partial checkpoint。
+1. 先完成 e28/e29/e30/e34 full-val EMA 逐 annotation 回放；同时输出独立 GT coverage 与 COCO 一对一 TP/FP/FN，禁止混用两个口径。
+2. 在同一输出上比较 Top-300/Top-640、score/rank 分布、匹配竞争、图像 GT 密度及 COCO-small、hybrid-small 子群，量化前段收益与后段回跌的 full-val 来源。
+3. 若资源允许，同步补 full-val raw，以检验 val128 的 raw/EMA 分歧是否具有全数据一致性；这一步仍是相关性诊断，不是 EMA 因果消融。
+4. 完成 full-val 定位后，再运行 EXP-TRAIN-006 的 **B0 带同探针对照**。SGQS 臂与 val128 replay 已完成，B0 尚未运行；历史 B0 没有同一套字段，不能代替。
+5. 只有 full-val 与 B0 对照给出稳定方向，才决定是否对 owner/GO、DN-DDF、EMA 或分类校准做单变量短干预；通过 seed 0 gate 后再执行从头至少 3 seeds。C1/C3 已封存，C4 与旧 DEIM-core 保留为中断历史，不复用 partial checkpoint。
 
 ## 研究门槛
 

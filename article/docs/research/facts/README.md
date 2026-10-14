@@ -17,5 +17,10 @@
 | F-011 | OBSERVATION_RECOVERED_GT | 304 个正文框只有约 7.2% 属于 COCO-small，多数困难框是低像素短边的细长目标。 | AP-small 不能单独代表本文问题，需 short-side/stride 与长宽比分桶。 |
 | F-012 | FACT | 标准代码只对全部 8,400 个位置计算 encoder score；bbox head、Hungarian 与 encoder auxiliary loss只作用于 Top-K。 | Top-K 外位置没有直接的 proposal 分类/回归/排名监督，但仍可能从共享特征获得间接梯度。 |
 | F-013 | OBSERVATION_NO_GT | 三个声称正确配置的 12,800-step 目录只有 metrics 摘要，没有 console/resolved config；small-reg 未提升 AP-small/AR-small，MAL+Dense O2O 整体退化。 | 数值可记录；在补回运行时配置证据前，不能严格归因于声称方法。 |
+| F-014 | FACT | SGQS 完整验证集 EMA AP-small 在 e28/e29/e30/e34 分别为 `0.679395/0.705142/0.705554/0.682274`，呈现前升后降；完整验证集峰值为 e30。 | evaluator 数值与 checkpoint 身份见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；该曲线本身不能定位参数级根因。 |
+| F-015 | FACT | 固定 val128 的 EMA 独立 GT coverage 中，e28→e29 的 49 个 Decoder Top-300 gain 在 e28 全部已有 IoU≥0.75 的 Decoder 最终框，只是 rank>300；e30→e34 的 36 个 loss 在 e34 也全部仍有 IoU≥0.75 的 Decoder 最终框，只是 rank 跌到 300 之外。 | 逐 annotation 转移见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；这是每个 GT 独立询问是否被覆盖，允许同一 query 覆盖多个 GT，**不是** COCO 一对一匹配得到的 recall、TP 或 FN。 |
+| F-016 | FACT | 固定 val128 的 hybrid-small Decoder Top-300 独立 coverage 从 e28 到 e34 为 `75.21%→75.02%→75.09%→75.36%→75.46%→75.53%→75.58%`，不呈倒 U；e30→e34 时 `COCO-small∩hybrid-small` 净减 25，而 `hybrid-only` 净增 61，符合有限排名预算在 small 子群间重分配。 | 分桶定义、交集和转移表见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；净变化不是守恒的一对一 query 流量，也不能替代 hybrid-small custom AP。 |
+| F-017 | FACT | 固定 val128 上 raw 权重没有复现 EMA 的 AP-small 倒 U。 | raw/EMA 七轮配对见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；这只是把 EMA 参数混合、时间滞后或分类校准列为上游线索，尚无受控干预，不能认定 EMA 是唯一根因。 |
+| F-018 | FACT | val128 中 430 个 COCO-small GT 只分布在 17 张图，跨 epoch 的 COCO-small Top-300 状态变化又集中在两张分别含 480/320 个 GT 的密集图。 | 代表性审计见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；该子集足以建立配对机制证据，但不能估计这一机制解释 full-val AP-small 变化的比例。 |
 
 新增事实必须给出代码位置、run ID 或 artifact ID；目录名和口述不构成事实证据。

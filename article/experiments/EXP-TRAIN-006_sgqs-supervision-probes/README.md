@@ -1,6 +1,10 @@
 # EXP-TRAIN-006：SGQS 28+7 监督来源探针
 
-状态：**SGQS 臂完整到 epoch 31、在 epoch 32 step 1400/5631 中断；B0 臂与固定子集回放未运行**。2026-10-14。该中断运行只作为链路证据，尚无新的 AP 结论。
+## 最终状态更新（2026-10-15）
+
+最终核实状态：**SGQS 臂已完整完成 epoch 28--34，固定 val128 的 raw 与 EMA 七轮回放也已完成；带同一套探针的 B0 对照臂仍未运行**。服务器最终 console/log 同时包含 epoch 28--34 的完整记录和 `Training time` 完成标记。先前“epoch 32 step 1400/5631 中断”的说法来自尚未稳定的中途快照，是过早判断，不代表该作业的最终状态。
+
+回放的详细数据、图像和分析见 [EXP-DIAG-005：SGQS Top-300 排名回放](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。固定 val128 上已经定位到 AP-small 倒 U 的直接承载机制：IoU 合格的 Decoder 最终输出仍然存在，但其最终 score/rank 跨越 `maxDets=300` 截断线；不是候选消失，也不是定位几何退化。该结论只在固定 val128 上建立，其中 COCO-small GT 集中在少量图像，不能据此外推完整验证集上的占比或断言参数级根因。由于 B0 带探针对照尚未运行，当前仍不能把这些训练观测归因为 SGQS 相对 B0 的特有变化。
 
 依据为已归档的 [B0 日志](../../../outputs/resume_control_e28_to_e34_gb64/console.log)、[B1 日志](../../../outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log)、[B3 日志](../../../outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log)。下述 loss 数值取控制台整轮均值，AP 仅有三位小数精度。
 
@@ -53,7 +57,7 @@ teacher为同次末层预测，正样本w为当前IoU，负样本w为teacher分�
 
 [子集工具](../../../tools/table_cells/prepare_probe_subset.py)用文件名哈希固定选择train/val各128图，流式读取6GB标注；排除两组重名图，并拒绝选中子集中相同图像字节。不是模型驱动挑选，也不是全数据泄漏审计。归档源标注、子集和图像SHA-256，pilot若small GT太少需先扩大预注册样本再统一重放全部checkpoint，不能只补某一轮。
 
-[回放工具](../../../tools/table_cells/replay_probe.py)关闭增强，使用与原验证一致的640缩放，strict加载raw/EMA各自权重；对固定train和val记录真正的COCO AP/AR@300、@640及逐annotation_id的候选数据。对比e27、e28、e29、e30、e31、e34，建议七轮都回放。
+[回放工具](../../../tools/table_cells/replay_probe.py)关闭增强，使用与原验证一致的640缩放，strict加载raw/EMA各自权重；对固定train和val记录真正的COCO AP/AR@300、@640及逐annotation_id的候选数据。原设计要求逐轮回放；最终固定 val128 已对 e28--e34 七轮的 raw/EMA 全部完成回放。
 
 | 观察 | 支持的解释 | 仍不能直接推出 |
 |---|---|---|
@@ -64,7 +68,7 @@ teacher为同次末层预测，正样本w为当前IoU，负样本w为teacher分�
 | 小框GO零覆盖增加、质量权重份额下降 | 选择性监督不足 | 全部小框没有监督，DN仍在 |
 | 仅EMA出现峰值、raw没有 | 参数混合/时间滞后值得检查 | 训练过拟合已证实 |
 
-获得对应checkpoint后，第二阶段才做短干预：原样继续、只暂停SGQS新增项、只改变第一层DN-DDF，保持数据顺序、优化器和步数相同；不同时改owner、Matcher和小框权重。
+SGQS 的对应 checkpoint 已取得并完成上述 val128 回放；带同一探针的 B0 配对臂和第二阶段短干预尚未运行。后续短干预仍应只比较原样继续、暂停SGQS新增项、改变第一层DN-DDF，并保持数据顺序、优化器和步数相同；不同时改owner、Matcher和小框权重。
 
 ## 服务器命令
 
@@ -91,7 +95,7 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 "$PY" -m torch.distributed.run \
 "$PY" tools/table_cells/summarize_probe.py --run "$RUN" --output "$RUN/probe_steps.csv"
 ```
 
-B0配对：把arm改为`b0`、RUN改为新目录`outputs/probes/b0_e28_r7_seed0`，另选端口；保留其余数据、batch、seed和GPU类型。建议先完成B1以获得关键轨迹，再运行B0同探针对照；历史B0缺这些字段，不能代替。
+B0配对：把arm改为`b0`、RUN改为新目录`outputs/probes/b0_e28_r7_seed0`，另选端口；保留其余数据、batch、seed和GPU类型。SGQS 臂已经完成，仍需运行 B0 同探针对照；历史B0缺这些字段，不能代替。
 
 ```bash
 # 子集只创建一次，两臂和所有epoch复用同一manifest。

@@ -1,0 +1,31 @@
+{
+  "epochs": [
+    28,
+    29,
+    30,
+    31,
+    32,
+    33,
+    34
+  ],
+  "ema_only": true,
+  "subset_sha256": "3986784e3ec476a1d4e8ed308a0637e6a4ac195f3cf764293c822695e63426b3",
+  "images": 128,
+  "noncrowd_gt": 15446,
+  "group_counts": {
+    "coco_small": 430,
+    "hybrid_small": 7314
+  },
+  "group_overlap": {
+    "intersection": 323,
+    "coco_only": 107,
+    "hybrid_only": 6991,
+    "neither": 8025
+  },
+  "images_with_coco_small": 17,
+  "definitions": {
+    "coco_small": "annotation area in original-image pixels < 32^2",
+    "hybrid_small": "after direct 640x640 resize: bbox area < 32^2 OR bbox short side < 16",
+    "coverage": "each GT independently asks whether any candidate/query reaches the IoU threshold; not one-to-one COCO matching"
+  }
+}
