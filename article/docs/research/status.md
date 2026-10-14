@@ -22,6 +22,7 @@
 - M-001 SGQS 已完成代码实现与 11 项单元测试，并作为 B1 完成一次 epoch-27 单 seed 续训：mAP 相对 B0 `+0.000941367`，但 AP-small/AR-small 分别下降约 `0.003562/0.004795`，尚未正式验证效果与原创性。
 - 当前 `loss_local` 将匹配框的同一个 IoU 复制为四条边的 FGL 权重；IoU 为 0 时该 FGL 项为 0，但 L1/GIoU 仍有梯度。历史面积权重只能继续乘这个共享标量，不能提供逐边尺度或邻域歧义权重。
 - M-002 SGQS-E 的完整公式、课程、代码和最小消融已落地。B3 相对 B0 为 `+0.001020272` mAP，但 AP-small/AR-small 下降；单 seed、已收敛 checkpoint 的短续训尚不能支持稳定 AP、收敛或小目标改善主张。
+- C1 small-reg、C2 MAL-only、C3 Mosaic-only 已完成同口径续训。相对 B0，它们的 mAP 分别变化 `-0.000015530`、`+0.002097709`、`-0.001287789`，AP-small 分别变化 `-0.000408523`、`-0.008056974`、`-0.002657714`；没有一个常规改法提高 AP-small。
 
 ## 当前最高优先级
 
@@ -44,7 +45,7 @@ C2 MAL-only 总 mAP 最高但 AP-small 最差。此前
 2. 依据探针再决定是否分离 SGQS 的分类保护与 owner 回归保护、是否去除 EFGL 的重复低误差衰减；这些目前只是候选干预，不作为既定结论。
 3. 只有修订后出现明确正信号，才用同一代码提交从头执行 B0/B1/B2/B3，先做 seed 0 gate，再对通过项补至少 3 seeds。
 4. 同时报告 AP75/AP90、按短边分桶的 recall 和逐边相对误差；总 mAP 不能替代机制证据。
-5. C1/C3/DEIM-core 中断目录只作为失败记录；在查明调度终止原因前不复用其 partial checkpoint。
+5. C1/C3 已作为完成的常规对照封存；C4 与旧 DEIM-core 仍只作为中断记录，不复用其 partial checkpoint。
 
 ## 研究门槛
 
@@ -62,6 +63,6 @@ C2 MAL-only 总 mAP 最高但 AP-small 最差。此前
 - 完整环境锁定信息；
 - 第二个可公开的密集单类别数据集或合成基准；
 - 输入图片、派生可视化与模型权重的再发布许可结论。
-- 三个旧 12,800-step probe 的原始 `console.log`、`log.txt`、resolved config 与 checkpoint；当前仍只有文本指标摘要。B0--B3/C2 的本轮服务器证据已归档。
+- 三个旧 12,800-step probe 的原始 `console.log`、`log.txt`、resolved config 与 checkpoint；当前仍只有文本指标摘要。B0--B3/C1--C3 的本轮服务器日志证据已归档，C1/C3 最终 checkpoint 尚未同步。
 
 详细步骤见 [roadmap.md](roadmap.md)，结论边界见 [facts](facts/README.md) 与 [hypotheses](hypotheses/README.md)。

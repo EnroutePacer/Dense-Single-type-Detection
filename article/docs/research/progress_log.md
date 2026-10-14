@@ -1,12 +1,20 @@
 # 科研进展日志
 
+## 2026-10-14 — 补齐 C1/C3 常规对照并形成一阶段结论
+
+- 对共享服务器执行只读复核：B0--B3、C1 small-reg、C2 MAL-only、C3 Mosaic-only 均有 epoch-34 `Training time` 完成标记；C4 最后观察到至少 epoch 28 step 4100/5631 且文件仍在变化，旧 `deim_core_e35` 停在 epoch 0 step 2200/5631。未安装依赖、未修改环境、未干预进程。
+- 从服务器补齐 C1/C3 完整 console、结构化 `log.txt`、运行身份文件和 TensorBoard；C4 因输出未稳定而不作为最终 artifact 入库。本轮不把未同步的 C1/C3 checkpoint 写成已归档资产。
+- C1/C2/C3 相对 B0 的 mAP 变化分别为 `-0.000015530`、`+0.002097709`、`-0.001287789`；AP-small 变化分别为 `-0.000408523`、`-0.008056974`、`-0.002657714`。
+- 一阶段结论：小框回归加权基本无效，MAL-only 的总 mAP 收益不来自小框，当前 Mosaic-only 为负收益；三个常规改法均未提高 AP-small。该单 seed、七 epoch continuation 只用于屏选，不外推为普遍无效结论。
+- 完整表与边界见[一阶段常规方法总结](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261014_phase1_conventional_methods/README.md)。
+
 ## 2026-10-14 — 完成 B0--B3/C2 三端证据校对
 
 - 对训练服务器执行只读校对：未安装软件、未改环境、未删文件、未停止进程，也未写入项目目录。服务器活动树没有 `.git`；方法运行清单仍指向 `6fd2c301...`，SGQS-E 关键实现与本地一致，服务器仅缺本地新增的项目文档和统一 launcher。
 - 下载 B0、B1、B2、B3、C2 五个已完成目录及共同 `checkpoint0027.pth`；完成集 95 个文件逐项服务器/本地 SHA-256 一致。共同 checkpoint 为 313,584,754 bytes，SHA-256 `3eba494a...94ede`。
 - B0/B1/B2/B3 epoch-34 mAP 分别为 `0.866667088526`、`0.867608455076`、`0.866626082543`、`0.867687360283`。B3 相对 B0 为 `+0.001020271757`，但 AP-small 为 `-0.003389557047`；单 seed 不支持稳定收益或互补性。
 - C2 MAL-only mAP 为 `0.868764797642`，是已完成组最高值，但 AP-small 比 B0 低 `0.008056974425`。它只作为辅助损失对照，不归为 SGQS-E 贡献。
-- C1 small-reg、C3 Mosaic-only 和 DEIM-core 分别停在 epoch 30 step 3800、epoch 28 step 500 和 epoch 0 step 2200；审计时没有活动训练进程，console 也没有明确异常栈。只归档小型文本身份记录，不归档 partial checkpoint，不构造有效终点。
+- 后续复核确认 C1 small-reg 与 C3 Mosaic-only 已继续运行并完成 epoch 34；其早期 partial 判断已由上方新记录取代。旧 DEIM-core 仍停在 epoch 0 step 2200；C4 尚无稳定终点，二者都不构造有效 endpoint。
 - B1/B2/B3 已登记的用户附件 `console.log` 保持字节不变；服务器原件另存为 `server_console.log`。完整权重、TensorBoard、resolved config、structured log 和 at-start manifest 进入 `outputs/`；大文件使用 Git LFS。
 - 新增 [B0--B3/C2 跟进](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)，保留既有 B1/B2 诊断为当时快照，不改写已登记的历史证据。
 

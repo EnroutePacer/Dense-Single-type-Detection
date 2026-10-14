@@ -1,12 +1,13 @@
 # EXP-TRAIN-005：Epoch-27 SGQS-E 七 epoch 续训屏选
 
-状态：partial / partial。B0--B3 核心四臂已完成并归档；C2 MAL-only 辅助
-对照也已完成。C1、C3 与 DEIM-core 为中断的 partial run，C4 无输出，因而
-整个 EXP 仍保持 partial。B1--B3/C2 均有服务器 at-start manifest、resolved
-config、结构化日志和权重；B0 早于新 launcher，仍明确标记为无 at-start
-manifest，不用事后 preflight 代替。
+状态：partial / partial。B0--B3 核心四臂及 C1 small-reg、C2 MAL-only、
+C3 Mosaic-only 辅助对照均已完成并归档；C4 与旧 DEIM-core 仍是中断的
+partial run，因而整个 EXP 保持 partial。B1--B3/C1--C3 均有服务器
+at-start manifest、resolved config 和完成的结构化日志。B0 早于新
+launcher，仍明确标记为无 at-start manifest，不用事后 preflight 代替。
 
-最新入口：[B0--B3/C2 结果跟进](diagnostics/20261013_b0_b3_c2_followup/README.md)、
+最新入口：[一阶段常规方法总结](diagnostics/20261014_phase1_conventional_methods/README.md)、
+[B0--B3/C2 结果跟进](diagnostics/20261013_b0_b3_c2_followup/README.md)、
 [B1/B2 配对诊断快照](diagnostics/20261013_b1_b2/README.md)、
 [原设计、损失与问题的数学说明](diagnostics/20261013_b1_b2/math_diagnosis.md)。
 
@@ -63,7 +64,7 @@ fixed-640、query 640、VFL、无 Mosaic/MixUp/多尺度、从
 终点，不构成 SGQS/EFGL 的收益证据。原始材料见
 `outputs/resume_control_e28_to_e34_gb64/`，ART-000024--ART-000027。
 
-## 已完成的核心四臂与 C2
+## 已完成的核心四臂与辅助对照
 
 | epoch 34 | B0 | B1 SGQS | B2 EFGL | B3 SGQS-E | C2 MAL |
 |---|---:|---:|---:|---:|---:|
@@ -86,6 +87,18 @@ EFGL 补偿很弱且在 epoch 30.1 结束。这些是下一步机制修订线索
 服务器原件、权重及 TensorBoard 均已 SHA-256 校验归档。历史目录尚未迁移
 为正式 `RUN-*` 标识，因此注册表仍保持 `run_migration_status=unmapped`。
 
+常规辅助对照的精确终点如下，完整解释见
+[一阶段总结](diagnostics/20261014_phase1_conventional_methods/README.md)。
+
+| epoch 34 | B0 | C1 small-reg | C2 MAL-only | C3 Mosaic-only |
+|---|---:|---:|---:|---:|
+| EMA mAP | 0.866667089 | 0.866651559 | 0.868764798 | 0.865379299 |
+| AP-small | 0.685633491 | 0.685224968 | 0.677576517 | 0.682975777 |
+
+C1 与 B0 基本相同；C2 总 mAP 增加但 AP-small 明显下降；C3 整体负收益。
+三个常规改法均未提高 AP-small。C1/C3 已归档完整 console、结构化日志、
+resolved config、manifest 与 TensorBoard，但最终 checkpoint 尚未复制到仓库。
+
 ## 证据边界
 
 这个 screen 使用已经收敛 28 epoch 的共同基座，可用来快速判断新梯度在
@@ -95,6 +108,6 @@ EFGL 补偿很弱且在 epoch 30.1 结束。这些是下一步机制修订线索
 旧 `targeted_e28_r7_training_bundle.tar.gz` 的 small-reg、MAL-only、
 Mosaic-only 和 MAL+Dense-O2O 四组已重写为 C1--C4 辅助诊断对照。它们与
 B0--B3 共享 checkpoint、预算和评估协议，但不进入 SGQS-E 的主效应/交互
-计算，也不能替代 B1/B2/B3。当前 C2 已完成；C1 停在 epoch 30 step
-3800/5631，C3 停在 epoch 28 step 500/5631，均无活动训练进程且不得当作
-epoch-34 结果；C4 未见输出。
+计算，也不能替代 B1/B2/B3。C1--C3 已完成 epoch 28--34；C4 最后观察到
+至少 epoch 28 step 4100/5631，输出仍在变化且没有完成该 epoch 的评估，
+因此没有作为最终 artifact 同步，也不能作为有效 endpoint。

@@ -39,15 +39,15 @@ diagnostic_controls:
 execution_state:
   core_matrix_status: completed
   deployment: "Runtime overlay from repository commit 014d37e deployed and checksum-verified; 32 server method tests passed"
-  preflight: "B1/B2/B3/C2 server at-start manifests and resolved configs are archived; B0 predates the new launcher and remains explicitly without an at-start manifest"
+  preflight: "B1/B2/B3/C1/C2/C3 server at-start manifests and resolved configs are archived; B0 predates the new launcher and remains explicitly without an at-start manifest"
   B0: "completed; epoch-34 mAP=0.866667088526, AP-small=0.685633491224; raw logs ingested but no at-start run_manifest"
   B1: "completed; epoch-34 mAP=0.867608455076, AP-small=0.682071410226; user attachment and independently downloaded server evidence archived"
   B2: "completed; epoch-34 mAP=0.866626082543, AP-small=0.685311726499; user attachment and independently downloaded server evidence archived"
   B3: "completed; epoch-34 mAP=0.867687360283, AP-small=0.682243934177; user attachment and independently downloaded server evidence archived"
-  C1_small_reg: "interrupted_partial; stopped at epoch 30 step 3800/5631; no valid endpoint"
+  C1_small_reg: "completed; epoch-34 mAP=0.866651558764, AP-small=0.685224967827; complete console and structured log archived"
   C2_mal_only: "completed; physical directory resume_c2_mal_only_seed0_correct0; epoch-34 mAP=0.868764797642, AP-small=0.677576516799"
-  C3_mosaic_only: "interrupted_partial; stopped at epoch 28 step 500/5631; no valid endpoint"
-  C4_deim_core_retrofit: "no output found"
+  C3_mosaic_only: "completed; epoch-34 mAP=0.865379299191, AP-small=0.682975777018; complete console and structured log archived"
+  C4_deim_core_retrofit: "server_partial_unstable; last observed at least epoch 28 step 4100/5631 before evaluation; files still changing, so no final artifact was ingested"
   deim_core_e35: "interrupted_partial; stopped at epoch 0 step 2200/5631; no valid endpoint"
 planned_seeds: [0]
 planned_metrics:
@@ -68,7 +68,8 @@ ingested_evidence:
   paired_diagnosis: diagnostics/20261013_b1_b2/README.md
   math_diagnosis: diagnostics/20261013_b1_b2/math_diagnosis.md
   completed_matrix_followup: diagnostics/20261013_b0_b3_c2_followup/README.md
-  run_metadata_status: "Five completed historical executions (B0-B3 and C2) remain unmapped to formal RUN-* IDs; no IDs were invented after the fact"
+  conventional_methods_summary: diagnostics/20261014_phase1_conventional_methods/README.md
+  run_metadata_status: "Seven completed historical executions (B0-B3 and C1-C3) remain unmapped to formal RUN-* IDs; no IDs were invented after the fact"
 created_at: 2026-10-12
 updated_at: 2026-10-14
-notes: "Core B0-B3 matrix and C2 are complete; C1/C3/DEIM-core are interrupted partial runs and C4 has no output. B3 is +0.001020272 mAP over B0 but -0.003389557 AP-small; C2 has the highest total mAP and the weakest AP-small. Single-seed checkpoint continuation does not validate stable gain, small-object improvement or complementarity."
+notes: "Core B0-B3 and auxiliary C1-C3 are complete; C4 and the old DEIM-core run are interrupted partial runs. C1 is neutral, C3 is negative, and C2 has the highest total mAP but the weakest AP-small. Single-seed checkpoint continuation does not validate stable gain, small-object improvement or complementarity."

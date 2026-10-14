@@ -16,6 +16,9 @@
 - `ART-000040`～`ART-000058`：共同 epoch-27 checkpoint、全输出 SHA-256 manifest、B0/B1/B2/B3/C2 关键服务器日志、at-start manifest 与最终 checkpoint。B1--B3/C2 运行身份可复核；B0 仍明确缺新 launcher 的历史 at-start manifest。
 - `ART-000059`、`ART-000060`：[B0--B3/C2 完整跟进](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)与精确 endpoint 表。可计算单 seed 主效应/交互，但不支持稳定互补性或小目标改善。
 - `ART-000061`、`ART-000062`：B1/B3 曲线生成脚本与长表。COCO console 值只有三位小数，不能用于证明 B3 相对 B1 的 `+0.000078905` 精确差值。
+- `ART-000063`、`ART-000064`、`ART-000066`、`ART-000067`：C1 small-reg 与 C3 Mosaic-only 的完整 console 和结构化日志，支持 epoch-34 精确结果。
+- `ART-000068`、`ART-000069`：[一阶段常规方法总结](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261014_phase1_conventional_methods/README.md)及精确指标表。支持“小框加权近似无效、MAL 收益不在小框、当前 Mosaic 为负”的单 seed 屏选结论。
+- `ART-000070`、`ART-000071`：C1/C3 的 at-start manifest；与 resolved config 和输出清单共同支持运行身份复核。
 
 ## B：支持行为观察，不能替代 GT 指标
 
@@ -33,6 +36,7 @@
 
 ## D：失败/中断证据
 
-- `ART-000063`～`ART-000065`：C1 small-reg、C3 Mosaic-only 与 DEIM-core 的中断 console。只支持记录配置身份和停止位置；没有完成 marker，不得当作 epoch-34 指标或用于方法排序。
+- `ART-000065`：旧 DEIM-core 从头训练的中断 console，只支持停止位置记录。
+- C4 DEIM-core retrofit 的服务器输出仍在变化，没有稳定 artifact 或有效 endpoint；待其稳定后再归档，不得用于方法排序。
 
 完整 locator、bytes、SHA-256、发布状态与关联实验见 [artifact_registry.csv](artifact_registry.csv)。公开论文主张不得直接引用本地目录名，必须引用 ART/RUN/EXP/F/C 链。
