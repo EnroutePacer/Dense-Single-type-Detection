@@ -34,16 +34,14 @@ configs/                         当前实际运行的训练和评估配置
 configs/sgqs/                    SGQS 正式配置与 checkpoint probe 配置
 configs/sgqs_e/                  B0/B1/B2/B3 配对消融配置
 tools/                           训练、推理、部署及表格任务脚本
+tools/research/                  科研诊断、基准与证据维护工具
 figures/                         DEIM 上游说明图
 article/
-├── docs/research/               研究问题、事实、假设、协议与进展
-├── docs/evidence/               Artifact 注册和证据索引
-├── docs/reproducibility/        代码来源、哈希与复现规范
-├── experiments/                 EXP/RUN 实验注册及结果审计
-├── methods/                     候选论文方法及状态
-├── scripts/                     诊断、基准测试和仓库维护工具
-├── paper/                       论文提纲、正文、图表和补充材料
-└── data/, models/               数据与模型清单，不保存私有原件
+├── journal/                     按日期增量记录科研进度
+├── experiments/                 实验解释与结论边界
+├── methods/                     候选方法推导及状态
+└── docs/                        研究问题、证据索引与论文记录
+output/, outputs/                日志、权重、派生数据与来源快照
 ```
 
 `output/` 与 `outputs/` 是开发阶段的持久实验记录，日志、指标、配置快照和清单进入普通 Git，checkpoint、evaluator、TensorBoard 与归档等二进制由 Git LFS 管理。数据集及临时材料仍只放在 `_local/` 或外部存储；每项关键产物同时记录文件哈希和 Artifact ID。

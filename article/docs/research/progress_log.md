@@ -1,5 +1,16 @@
 # 科研进展日志
 
+## 2026-10-14 — 三端审计与 article 去镜像
+
+- 本地与 GitHub `main` 同为 `034e358`；共享盘最后核查时无训练进程，随后
+  机器关机，因此未拉取尚未完成最终哈希的文件。
+- EXP-TRAIN-006 探针完整到 epoch 31、在 epoch 32 step 1400/5631 中断；
+  C4 在 epoch 30 step 5200/5631 中断，均不作为完成实验。
+- 将 `article/` 中重复源码、配置、测试、脚本和派生数据移到根 canonical
+  位置或 `outputs/`；详见[当日日志](../../journal/2026-10-14.md)。
+- 阶段结论不变：C1 small-reg 对小框无收益，C3 Mosaic-only 退化，C2
+  MAL-only 的总体收益不来自 AP-small。
+
 ## 2026-10-14 — 补齐 C1/C3 常规对照并形成一阶段结论
 
 - 对共享服务器执行只读复核：B0--B3、C1 small-reg、C2 MAL-only、C3 Mosaic-only 均有 epoch-34 `Training time` 完成标记；C4 最后观察到至少 epoch 28 step 4100/5631 且文件仍在变化，旧 `deim_core_e35` 停在 epoch 0 step 2200/5631。未安装依赖、未修改环境、未干预进程。

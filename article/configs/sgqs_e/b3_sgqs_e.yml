@@ -1,3 +1,0 @@
-__include__: ['./b1_sgqs.yml', './efgl.yml']
-
-output_dir: ./output/sgqs_e_b3_joint

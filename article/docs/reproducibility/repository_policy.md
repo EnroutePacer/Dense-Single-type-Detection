@@ -1,31 +1,31 @@
 # 仓库与证据策略
 
-## 双层结构
+## 单一实体位置
 
-公开层包含可运行源码、小型配置、实验设计、结构化指标、哈希、论文材料，以及开发阶段 `output/`、`outputs/` 中的正式实验记录。文本记录进入普通 Git；checkpoint、evaluator、TensorBoard 和归档由 Git LFS 保存。本地层 `_local/` 只承载临时材料、不可公开的数据及额外备份。
+- `engine/`、`configs/`、`tools/`、`tests/`：唯一可执行源码与配置。
+- `output/`、`outputs/`：日志、resolved config、指标、派生数据、权重和来源
+  快照。大型二进制使用 Git LFS。
+- `article/`：科研日志、方法推导、实验解释、主张边界和证据索引，不复制
+  上述实体。
+- `_local/`：临时材料、私有数据和额外备份，不进入 Git。
 
-“已复制到论文文件夹”不等于“可提交 Git”或“可公开再分发”。每项资产必须独立记录来源、许可、字节数和 SHA-256。
+## 新材料流程
 
-## 自动整理新材料
+1. 先记录运行代码、配置、数据、初始化权重和执行命令的身份。
+2. 原始运行文件进入唯一的 `output/<run>/` 或 `outputs/<run>/`。
+3. 为每个持久文件记录相对路径、字节数和 SHA-256；大文件确认由 LFS 管理。
+4. 在 `article/` 增量记录实验口径、结果、能支持与不能支持的结论。
+5. 中断、无效或被取代的实验不删除，但必须明确标记状态。
 
-当其他工作目录出现新的训练代码或日志时：
+## 服务器边界
 
-1. 对比活跃源码并保存 commit/diff 或 source manifest；
-2. 为研究问题创建/更新 `EXP-*`，为每次执行创建 `RUN-*`；
-3. 原始日志、metrics、resolved config 和环境信息写入唯一的 `output/<RUN>/`，计算哈希并提交；
-4. checkpoint、evaluator、TensorBoard 和归档通过 Git LFS 提交，同时将结构化摘要写入实验目录；
-5. artifact registry 增加 `ART-*`；
-6. 更新 facts、claims 和 paper 时只引用注册 ID；
-7. 执行仓库验收脚本，记录失效实验而不是删除它。
+共享训练机只同步实际运行所需的根目录代码、配置和训练输出；不回传
+`article/`，不安装或修改全局环境，不干预其他用户的进程。服务器文件先只读
+确认停止变化并计算哈希，再增量复制到本地。
 
 ## 公开门禁
 
-- 原始数据、缓存和未经审计的 raw log 不得进入 Git；正式输出提交前必须完成敏感信息检查。
-- checkpoint、tar、TensorBoard 等大文件只能以 Git LFS pointer 进入 Git；普通 Git 对象默认不得超过 10 MiB，50 MiB 以上必须硬阻止。
-- 不得出现本机/服务器绝对路径、用户名、主机名、凭据或私钥。
-- Markdown 相对链接、YAML/JSON/CSV 语法和 source hash 必须通过检查。
-- 干净 clone 必须能解析 canonical config，并能运行最小 CPU smoke test。
-
-## 历史错误实验
-
-错误、无效和被新解释取代的实验不会删除；它们用 `validity=invalid` 或 `superseded` 登记，并明确能支持和不能支持的结论。
+- 原始数据、凭据、私钥和未经检查的机器敏感信息不得提交。
+- checkpoint、TensorBoard、模型及归档必须由 Git LFS 管理。
+- 普通 Git 对象不得超过 10 MiB；正式证据必须通过路径、大小和哈希检查。
+- Markdown 链接、配置语法和最小测试通过后方可推送。

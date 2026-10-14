@@ -1,6 +1,6 @@
 # EXP-TRAIN-006：SGQS 28+7 监督来源探针
 
-状态：**诊断代码已实现，真实训练/回放尚未运行**。2026-10-14。
+状态：**SGQS 臂完整到 epoch 31、在 epoch 32 step 1400/5631 中断；B0 臂与固定子集回放未运行**。2026-10-14。该中断运行只作为链路证据，尚无新的 AP 结论。
 
 依据为已归档的 [B0 日志](../../../outputs/resume_control_e28_to_e34_gb64/console.log)、[B1 日志](../../../outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log)、[B3 日志](../../../outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log)。下述 loss 数值取控制台整轮均值，AP 仅有三位小数精度。
 
@@ -125,6 +125,6 @@ done
 
 ```bash
 "$PY" -m unittest discover -s tests -v
-"$PY" -m unittest discover -s article/tests -p test_repository_contract.py -v
+"$PY" -m unittest tests.test_repository_contract -v
 "$PY" tests/probe_ddp_smoke.py --local-spawn --output /tmp/sgqs_probe_ddp_fresh
 ```

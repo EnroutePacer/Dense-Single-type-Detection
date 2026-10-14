@@ -36,4 +36,4 @@ Auxiliary status at audit time:
   contain no explicit exception explaining the termination.
 
 The source logs, configs, manifests, weights and TensorBoard files are under
-`outputs/`; [metrics.csv](metrics.csv) is the compact exact endpoint table.
+`outputs/`; [metrics.csv](../../../../../outputs/e35_r7_sgqse/analysis/20261013_b0_b3_c2_followup/metrics.csv) is the compact exact endpoint table.

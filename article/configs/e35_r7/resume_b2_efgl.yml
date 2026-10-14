@@ -1,8 +1,0 @@
-__include__: ['../sgqs_e/b2_efgl.yml']
-
-output_dir: ./output/e35_r7_sgqse/resume_b2_efgl_seed0
-epoches: 35
-
-efgl:
-  compensation_start_epoch: 28.0
-  compensation_duration_epochs: 2.1

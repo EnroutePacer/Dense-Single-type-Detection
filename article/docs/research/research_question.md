@@ -26,11 +26,11 @@ matched decoder/DN boxes
 
 关键实现：
 
-- [`engine/deim/dfine_decoder.py`](../../engine/deim/dfine_decoder.py)：encoder score、global Top-K、query/reference 初始化与 decoder。
-- [`engine/deim/deim_criterion.py`](../../engine/deim/deim_criterion.py)：匹配和损失监督。
+- [`engine/deim/dfine_decoder.py`](../../../engine/deim/dfine_decoder.py)：encoder score、global Top-K、query/reference 初始化与 decoder。
+- [`engine/deim/deim_criterion.py`](../../../engine/deim/deim_criterion.py)：匹配和损失监督。
 - [`methods/M-002_sgqs_e/README.md`](../../methods/M-002_sgqs_e/README.md)：SGQS-E 双模块方案、总损失与逐边邻域公式。
-- [`scripts/diagnose/diagnose_deim_query_selection.py`](../../scripts/diagnose/diagnose_deim_query_selection.py)：当前无 GT 先导诊断。
-- [`engine/data/dataset/coco_eval.py`](../../engine/data/dataset/coco_eval.py)：正式 COCO 评估口径。
+- [`tools/research/diagnose/diagnose_deim_query_selection.py`](../../../tools/research/diagnose/diagnose_deim_query_selection.py)：当前无 GT 先导诊断。
+- [`engine/data/dataset/coco_eval.py`](../../../engine/data/dataset/coco_eval.py)：正式 COCO 评估口径。
 
 Top-K 索引不可微，query content/reference 在进入 decoder 前被 detach；但 decoder 仍以完整 memory 作为 cross-attention value。因此不能说未选位置“完全不可见”，只能说它无法作为新的独立 decoder 初始化种子。
 

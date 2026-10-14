@@ -18,7 +18,7 @@ B1 取得了很小的总 mAP 增益，但早期 COCO 小目标收益未能保持
 - `best_stat` 是历史最佳。B1 epoch 29 的 best_stat 仍属于 epoch 28，因此 epoch 29 的实际 mAP 只能读到控制台三位小数 0.864；其余这些时点更新 best_stat，可取得精确当前 mAP。
 - 所有 B1/B2 AP-small、AR-small 只有三位小数，不能给出伪精确的小目标增益。B0 的 metrics.csv 另有高精度记录。
 - 当前 solver 在 `quick_probe=False/use_ema=True` 时恢复前后都评价 EMA 模型；这些数值不能称为 raw model 的 AP。训练机制日志来自在线训练模型，与 EMA 验证之间有时间滞后。
-- 三个输入日志的 SHA-256、完整配置、提取位置保存于 [parsed.json](parsed.json)；抽取器为 [analyze_sgqse_resume_logs.py](../../../../scripts/diagnose/analyze_sgqse_resume_logs.py)。
+- 三个输入日志的 SHA-256、完整配置、提取位置保存于 [parsed.json](../../../../../outputs/e35_r7_sgqse/analysis/20261013_b1_b2/parsed.json)；抽取器为 [analyze_sgqse_resume_logs.py](../../../../../tools/research/diagnose/analyze_sgqse_resume_logs.py)。
 
 ## 终点与轨迹
 
@@ -111,13 +111,13 @@ epoch 34 的总损失差为 9.0626−6.7865=2.2761，B1 新增 SGQS 项合计仅
 ## 数学说明与复现
 
 - [原设计、损失与问题的数学说明](math_diagnosis.md)
-- [趋势图](diagnosis.png) / [逐轮指标](epoch_metrics.csv) / [完整解析](parsed.json)
-- [解析与绘图脚本](../../../../scripts/diagnose/analyze_sgqse_resume_logs.py)
+- [趋势图](../../../../../outputs/e35_r7_sgqse/analysis/20261013_b1_b2/diagnosis.png) / [逐轮指标](../../../../../outputs/e35_r7_sgqse/analysis/20261013_b1_b2/epoch_metrics.csv) / [完整解析](../../../../../outputs/e35_r7_sgqse/analysis/20261013_b1_b2/parsed.json)
+- [解析与绘图脚本](../../../../../tools/research/diagnose/analyze_sgqse_resume_logs.py)
 
 在仓库根目录、安装 matplotlib 后执行：
 
 ```bash
-python article/scripts/diagnose/analyze_sgqse_resume_logs.py
+python tools/research/diagnose/analyze_sgqse_resume_logs.py
 ```
 
 仅重算派生文件，不启动训练。解析验证每组有 7 个训练整轮均值、406 条 step 记录和含恢复点评价的 8 次验证。

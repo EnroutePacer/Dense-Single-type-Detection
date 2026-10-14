@@ -104,21 +104,21 @@
 ### DEIM-D-FINE
 | Model | Dataset | AP<sup>D-FINE</sup> | AP<sup>DEIM</sup> | #Params | Latency | GFLOPs | config | checkpoint
 | :---: | :---: | :---: | :---: |  :---: | :---: | :---: | :---: | :---: 
-**N** | COCO | **42.8** | **43.0** | 4M | 2.12ms | 7 | [yml](../../configs/deim_dfine/deim_hgnetv2_n_coco.yml) | [ckpt](https://drive.google.com/file/d/1ZPEhiU9nhW4M5jLnYOFwTSLQC1Ugf62e/view?usp=sharing) |
-**S** | COCO | **48.7** | **49.0** | 10M | 3.49ms | 25 | [yml](../../configs/deim_dfine/deim_hgnetv2_s_coco.yml) | [ckpt](https://drive.google.com/file/d/1tB8gVJNrfb6dhFvoHJECKOF5VpkthhfC/view?usp=drive_link) |
-**M** | COCO | **52.3** | **52.7** | 19M | 5.62ms | 57 | [yml](../../configs/deim_dfine/deim_hgnetv2_m_coco.yml) | [ckpt](https://drive.google.com/file/d/18Lj2a6UN6k_n_UzqnJyiaiLGpDzQQit8/view?usp=drive_link) |
-**L** | COCO | **54.0** | **54.7** | 31M | 8.07ms | 91 | [yml](../../configs/deim_dfine/deim_hgnetv2_l_coco.yml) | [ckpt](https://drive.google.com/file/d/1PIRf02XkrA2xAD3wEiKE2FaamZgSGTAr/view?usp=drive_link) | 
-**X** | COCO | **55.8** | **56.5** | 62M | 12.89ms | 202 | [yml](../../configs/deim_dfine/deim_hgnetv2_x_coco.yml) | [ckpt](https://drive.google.com/file/d/1dPtbgtGgq1Oa7k_LgH1GXPelg1IVeu0j/view?usp=drive_link) | 
+**N** | COCO | **42.8** | **43.0** | 4M | 2.12ms | 7 | [yml](../../../configs/deim_dfine/deim_hgnetv2_n_coco.yml) | [ckpt](https://drive.google.com/file/d/1ZPEhiU9nhW4M5jLnYOFwTSLQC1Ugf62e/view?usp=sharing) |
+**S** | COCO | **48.7** | **49.0** | 10M | 3.49ms | 25 | [yml](../../../configs/deim_dfine/deim_hgnetv2_s_coco.yml) | [ckpt](https://drive.google.com/file/d/1tB8gVJNrfb6dhFvoHJECKOF5VpkthhfC/view?usp=drive_link) |
+**M** | COCO | **52.3** | **52.7** | 19M | 5.62ms | 57 | [yml](../../../configs/deim_dfine/deim_hgnetv2_m_coco.yml) | [ckpt](https://drive.google.com/file/d/18Lj2a6UN6k_n_UzqnJyiaiLGpDzQQit8/view?usp=drive_link) |
+**L** | COCO | **54.0** | **54.7** | 31M | 8.07ms | 91 | [yml](../../../configs/deim_dfine/deim_hgnetv2_l_coco.yml) | [ckpt](https://drive.google.com/file/d/1PIRf02XkrA2xAD3wEiKE2FaamZgSGTAr/view?usp=drive_link) |
+**X** | COCO | **55.8** | **56.5** | 62M | 12.89ms | 202 | [yml](../../../configs/deim_dfine/deim_hgnetv2_x_coco.yml) | [ckpt](https://drive.google.com/file/d/1dPtbgtGgq1Oa7k_LgH1GXPelg1IVeu0j/view?usp=drive_link) |
 
 
 ### DEIM-RT-DETRv2
 | Model | Dataset | AP<sup>RT-DETRv2</sup> | AP<sup>DEIM</sup> | #Params | Latency | GFLOPs | config | checkpoint
 | :---: | :---: | :---: | :---: |  :---: | :---: | :---: | :---: | :---: 
-**S** | COCO | **47.9** | **49.0** | 20M | 4.59ms | 60 | [yml](../../configs/deim_rtdetrv2/deim_r18vd_120e_coco.yml) | [ckpt](https://drive.google.com/file/d/153_JKff6EpFgiLKaqkJsoDcLal_0ux_F/view?usp=drive_link) | 
-**M** | COCO | **49.9** | **50.9** | 31M | 6.40ms | 92 | [yml](../../configs/deim_rtdetrv2/deim_r34vd_120e_coco.yml) | [ckpt](https://drive.google.com/file/d/1O9RjZF6kdFWGv1Etn1Toml4r-YfdMDMM/view?usp=drive_link) | 
-**M*** | COCO | **51.9** | **53.2** | 33M | 6.90ms | 100 | [yml](../../configs/deim_rtdetrv2/deim_r50vd_m_60e_coco.yml) | [ckpt](https://drive.google.com/file/d/10dLuqdBZ6H5ip9BbBiE6S7ZcmHkRbD0E/view?usp=drive_link) | 
-**L** | COCO | **53.4** | **54.3** | 42M | 9.15ms | 136 | [yml](../../configs/deim_rtdetrv2/deim_r50vd_60e_coco.yml) | [ckpt](https://drive.google.com/file/d/1mWknAXD5JYknUQ94WCEvPfXz13jcNOTI/view?usp=drive_link) | 
-**X** | COCO | **54.3** | **55.5** | 76M | 13.66ms | 259 | [yml](../../configs/deim_rtdetrv2/deim_r101vd_60e_coco.yml) | [ckpt](https://drive.google.com/file/d/1BIevZijOcBO17llTyDX32F_pYppBfnzu/view?usp=drive_link) | 
+**S** | COCO | **47.9** | **49.0** | 20M | 4.59ms | 60 | [yml](../../../configs/deim_rtdetrv2/deim_r18vd_120e_coco.yml) | [ckpt](https://drive.google.com/file/d/153_JKff6EpFgiLKaqkJsoDcLal_0ux_F/view?usp=drive_link) |
+**M** | COCO | **49.9** | **50.9** | 31M | 6.40ms | 92 | [yml](../../../configs/deim_rtdetrv2/deim_r34vd_120e_coco.yml) | [ckpt](https://drive.google.com/file/d/1O9RjZF6kdFWGv1Etn1Toml4r-YfdMDMM/view?usp=drive_link) |
+**M*** | COCO | **51.9** | **53.2** | 33M | 6.90ms | 100 | [yml](../../../configs/deim_rtdetrv2/deim_r50vd_m_60e_coco.yml) | [ckpt](https://drive.google.com/file/d/10dLuqdBZ6H5ip9BbBiE6S7ZcmHkRbD0E/view?usp=drive_link) |
+**L** | COCO | **53.4** | **54.3** | 42M | 9.15ms | 136 | [yml](../../../configs/deim_rtdetrv2/deim_r50vd_60e_coco.yml) | [ckpt](https://drive.google.com/file/d/1mWknAXD5JYknUQ94WCEvPfXz13jcNOTI/view?usp=drive_link) |
+**X** | COCO | **54.3** | **55.5** | 76M | 13.66ms | 259 | [yml](../../../configs/deim_rtdetrv2/deim_r101vd_60e_coco.yml) | [ckpt](https://drive.google.com/file/d/1BIevZijOcBO17llTyDX32F_pYppBfnzu/view?usp=drive_link) |
 
 
 ## 2. Quick start
@@ -138,7 +138,7 @@ pip install -r requirements.txt
 <summary> COCO2017 Dataset </summary>
 
 1. Download COCO2017 from [OpenDataLab](https://opendatalab.com/OpenDataLab/COCO_2017) or [COCO](https://cocodataset.org/#download).
-1. Modify paths in [coco_detection.yml](../../configs/dataset/coco_detection.yml)
+1. Modify paths in [coco_detection.yml](../../../configs/dataset/coco_detection.yml)
 
     ```yaml
     train_dataloader:
@@ -206,7 +206,7 @@ To train on your custom dataset, you need to organize it in the COCO format. Fol
 
 4. **Update Configuration Files:**
 
-    Modify your [custom_detection.yml](../../configs/dataset/custom_detection.yml).
+    Modify your [custom_detection.yml](../../../configs/dataset/custom_detection.yml).
 
     ```yaml
     task: detection
@@ -281,14 +281,14 @@ CUDA_VISIBLE_DEVICES=0,1,2,3 torchrun --master_port=7777 --nproc_per_node=4 trai
 
 For example, if you want to double the total batch size when training D-FINE-L on COCO2017, here are the steps you should follow:
 
-1. **Modify your [dataloader.yml](../../configs/base/dataloader.yml)** to increase the `total_batch_size`:
+1. **Modify your [dataloader.yml](../../../configs/base/dataloader.yml)** to increase the `total_batch_size`:
 
     ```yaml
     train_dataloader:
         total_batch_size: 64  # Previously it was 32, now doubled
     ```
 
-2. **Modify your [deim_hgnetv2_l_coco.yml](../../configs/deim_dfine/deim_hgnetv2_l_coco.yml)**. Here’s how the key parameters should be adjusted:
+2. **Modify your [deim_hgnetv2_l_coco.yml](../../../configs/deim_dfine/deim_hgnetv2_l_coco.yml)**. Here’s how the key parameters should be adjusted:
 
     ```yaml
     optimizer:
@@ -321,7 +321,7 @@ For example, if you want to double the total batch size when training D-FINE-L o
 
 If you'd like to train **DEIM** on COCO2017 with an input size of 320x320, follow these steps:
 
-1. **Modify your [dataloader.yml](../../configs/base/dataloader.yml)**:
+1. **Modify your [dataloader.yml](../../../configs/base/dataloader.yml)**:
 
     ```yaml
 
@@ -338,7 +338,7 @@ If you'd like to train **DEIM** on COCO2017 with an input size of 320x320, follo
                 - {type: Resize, size: [320, 320], }
     ```
 
-2. **Modify your [dfine_hgnetv2.yml](../../configs/base/dfine_hgnetv2.yml)**:
+2. **Modify your [dfine_hgnetv2.yml](../../../configs/base/dfine_hgnetv2.yml)**:
 
     ```yaml
     eval_spatial_size: [320, 320]

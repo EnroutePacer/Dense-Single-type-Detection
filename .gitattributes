@@ -48,14 +48,25 @@ outputs/e35_r7_sgqse/**/console.log -text -diff
 outputs/e35_r7_sgqse/**/server_console.log -text -diff
 # Keep registered derived-artifact bytes reproducible across Windows/Linux.
 article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/*.md text eol=lf
-article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/*.csv text eol=lf
-article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/*.json text eol=lf
-article/scripts/diagnose/analyze_sgqse_resume_logs.py text eol=lf
+outputs/e35_r7_sgqse/analysis/20261013_b1_b2/*.csv text eol=lf
+outputs/e35_r7_sgqse/analysis/20261013_b1_b2/*.json text eol=lf
+tools/research/diagnose/analyze_sgqse_resume_logs.py text eol=lf
 # Keep the completed-matrix follow-up and its registered hashes stable.
 article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/*.md text eol=lf
-article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/*.csv text eol=lf
+outputs/e35_r7_sgqse/analysis/20261013_b0_b3_c2_followup/*.csv text eol=lf
 # Keep the phase-one summary hashes stable across Windows/Linux.
 article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261014_phase1_conventional_methods/*.md text eol=lf
-article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261014_phase1_conventional_methods/*.csv text eol=lf
+outputs/e35_r7_sgqse/analysis/20261014_phase1_conventional_methods/*.csv text eol=lf
 # The derived curve script is itself a registered reproducibility artifact.
 outputs/e35_r7_sgqse/comparison_sgqs_vs_sgqse/*.py text eol=lf
+
+# Research utilities and their hash manifest must be byte-stable on Windows and Linux.
+tools/research/**/*.py text eol=lf
+tools/research/**/*.ps1 text eol=lf
+tools/research/**/*.md text eol=lf
+tests/test_repository_contract.py text eol=lf
+tests/test_sgqs*.py text eol=lf
+article/docs/reproducibility/research_scripts.sha256 text eol=lf
+
+# These are frozen historical bytes, not active executable files.
+outputs/provenance/retired_article_entities_20261014/** -text -diff

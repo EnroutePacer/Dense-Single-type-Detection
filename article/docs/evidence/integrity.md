@@ -15,4 +15,5 @@
 
 大资产若需要迁移，必须按“复制 -> 文件数/字节数/逐文件哈希比较 -> 更新 locator 与链接 -> 新位置复验 -> 保留旧副本一个备份周期 -> 再决定清理”的顺序。禁止直接剪切后再补证据。
 
-活跃源码快照清单见 [`source_snapshot.sha256`](../reproducibility/source_snapshot.sha256)。
+历史源码快照见 [`source_snapshot.sha256`](../reproducibility/source_snapshot.sha256)；
+当前运行身份以 Git commit 和对应运行目录内的 manifest/runtime hash 为准。

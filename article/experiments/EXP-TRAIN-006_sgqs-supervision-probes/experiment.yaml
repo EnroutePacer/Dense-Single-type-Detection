@@ -1,13 +1,13 @@
 experiment_id: EXP-TRAIN-006
 slug: sgqs_supervision_probes
 type: train
-status: planned
-validity: not_run
+status: interrupted
+validity: partial
 title: SGQS 28+7 监督来源与固定子集回放探针
 method_ids: [M-002]
 control_experiment_id: EXP-TRAIN-005
 updated_at: '2026-10-14'
-implementation_status: implemented_cpu_checked
+implementation_status: runtime_verified_probe_interrupted
 arms: [b0_e28_r7, sgqs_e28_r7]
 initialization: checkpoint0027.pth from configs/e35_r7/frozen_inputs.yml
 epochs: [28, 29, 30, 31, 32, 33, 34]
@@ -23,4 +23,4 @@ early_probe: {epoch: 28, steps: 200, interval: 10}
 fixed_subset: {train_images: 128, val_images: 128, seed: 20261014}
 inference_states: [raw, ema]
 evaluation_max_dets: [300, 640]
-notes: 'Observation-only paired continuation. Sampled training batches cannot establish overfitting. Fixed-subset replay is a pilot, not full-data AP or independent multi-seed validation. No training, dataset replay or AP improvement is claimed by CPU mechanism tests.'
+notes: 'The SGQS arm reached completed epoch 31 and stopped at epoch 32 step 1400/5631; the B0 arm and fixed-subset replay were not run. This interrupted observation-only run cannot establish AP improvement, overfitting or an independent multi-seed result.'

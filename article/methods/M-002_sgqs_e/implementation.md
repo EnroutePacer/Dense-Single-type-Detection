@@ -14,7 +14,7 @@
 | `engine/core/yaml_utils.py` | 消除多次配置加载共用默认字典的问题 |
 | `tests/test_sgqs_e.py` | 数学边界、梯度、配置隔离、原生训练入口与推理 trace 验证 |
 
-以上源文件、测试和新配置同步维护到 `article/` 的兼容运行镜像。根目录是 canonical 训练入口，历史 portable 配置差异不在这次变更中重写。
+以上源文件、测试和配置只在仓库根布局维护；`article/` 不再保存兼容运行镜像。
 
 模型 forward、DN 生成函数、DDF/GO-LSD、Matcher、query 数、后处理没有新增方法分支。EFGL 是 criterion 内的训练功能，没有任何模型参数或 state_dict 键。使用 `efgl.enabled: False` 回到基线；旧 SGQS 配置保留旧门槛语义。
 
@@ -99,8 +99,8 @@ c_{r7}(e)=\max\left(0,1-\frac{e-28}{7\times0.30}\right),\quad e\ge 28,
 
 ```bash
 python -m unittest discover -s tests -v
-python -m unittest discover -s article/tests -p test_repository_contract.py -v
-python article/scripts/maintenance/check_markdown_links.py
+python -m unittest tests.test_repository_contract -v
+python tools/research/maintenance/check_markdown_links.py
 ```
 
 本轮 CPU 测试覆盖：
@@ -115,14 +115,13 @@ python article/scripts/maintenance/check_markdown_links.py
 - 完整 HGNetv2-M、640×640、K=640 的 B0/B3 同权重 CPU eval：19,468,325 个参数、1,053 个 state_dict 键相同；分类与框输出最大绝对差均为 0。
 - 四组 YAML 实例化与连续配置读取隔离。
 
-共 29 项方法测试和 4 项仓库契约测试通过；`article/` 镜像运行同一套方法测试也通过，镜像结果不重复计为独立测试。验证环境为 PyTorch 2.13.0+cpu / torchvision 0.28.0+cpu。尚未进行 CUDA/AMP、多卡真实训练、全模型 ONNX/TensorRT 导出、部署延迟或数据集 AP 测量。TorchScript trace 只验证该微型 Decoder 的实际 eval 计算，不替代目标部署后端验证。
+当时共 29 项方法测试和 4 项仓库契约测试通过。验证环境为 PyTorch 2.13.0+cpu / torchvision 0.28.0+cpu。尚未进行 CUDA/AMP、多卡真实训练、全模型 ONNX/TensorRT 导出、部署延迟或数据集 AP 测量。TorchScript trace 只验证该微型 Decoder 的实际 eval 计算，不替代目标部署后端验证。
 
 ## 源码快照范围
 
 旧 `docs/reproducibility/source_snapshot.sha256` 和 `code_provenance.yaml` 保留为历史记录。旧清单混用了 LF/CRLF 字节哈希；即使统一换行，审阅基准 `927b2c6` 中 `engine/data/dataloader.py`、`engine/data/transforms/_transforms.py` 和 `engine/deim/deim_criterion.py` 也已偏离该历史清单。本轮没有把旧清单重写成“全部通过”。
 
-本版使用 [sgqs_e_source_snapshot.sha256](../../docs/reproducibility/sgqs_e_source_snapshot.sha256)，记录根目录及 article 镜像的源码、配置、测试、运行工具和依赖文件，路径相对仓库根。它统一按 UTF-8 文本的 LF 换行计算 SHA-256，保留其他字节内容；不包含数据、checkpoint 或实验结果。从仓库根校验：
-
-```powershell
-./article/scripts/reproduce/verify_source_snapshot.ps1 -RepositoryRoot . -ManifestPath article/docs/reproducibility/sgqs_e_source_snapshot.sha256 -CanonicalLF
-```
+[`sgqs_e_source_snapshot.sha256`](../../docs/reproducibility/sgqs_e_source_snapshot.sha256)
+冻结了当时包含 `article/` 镜像的历史源码快照；2026-10-14 清理后不再作为
+当前工作树门禁。当前运行身份以 Git commit、根目录源码和
+`configs/probes/runtime_files.sha256` 为准，历史清单只用于追溯。

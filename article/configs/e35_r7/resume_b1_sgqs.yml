@@ -1,8 +1,0 @@
-__include__: ['../sgqs_e/b1_sgqs.yml']
-
-output_dir: ./output/e35_r7_sgqse/resume_b1_sgqs_seed0
-epoches: 35
-
-SGQSCriterion:
-  survival_start_epoch: 28.0
-  survival_ramp_epochs: 1.0
