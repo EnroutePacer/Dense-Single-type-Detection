@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: 2026-10-12
+updated_at: 2026-10-15
 
 claims:
   - id: C-001
@@ -29,26 +29,26 @@ claims:
   - id: C-003
     status: target
     statement: "改进没有把错误从 selection 转移至 decoder 或 output。"
-    facts: []
+    facts: [F-022, F-023]
     hypotheses: [H-004]
-    experiments: [EXP-DIAG-003, EXP-DIAG-004]
+    experiments: [EXP-DIAG-003, EXP-DIAG-004, EXP-DIAG-006]
     protocols: [P-002]
-    artifacts: []
+    artifacts: [ART-000094]
     paper_locations: ["fig:stage-survival"]
     admission: "报告 generation、selection、各 decoder layer、output 的逐阶段 GT coverage，并检查重复框、FP 和校准。"
-    limitation: "当前只有无 GT 先导观察。"
+    limitation: "本地 SGQS full-val 已显示倒 U 主要由 output Top-300 admission 承载，但缺同口径受控 baseline 和多 seed；该观察不能满足‘没有转移错误’的主张。"
 
   - id: C-004
     status: target
     statement: "收益主要出现在密集、短边小或细长目标，且不明显损害其他分桶。"
-    facts: []
+    facts: [F-024]
     hypotheses: [H-001, H-005, H-006]
-    experiments: [EXP-DIAG-003, EXP-DIAG-004, EXP-TRAIN-001, EXP-TRAIN-002, EXP-TRAIN-003]
+    experiments: [EXP-DIAG-003, EXP-DIAG-004, EXP-DIAG-006, EXP-TRAIN-001, EXP-TRAIN-002, EXP-TRAIN-003]
     protocols: [P-002, P-003]
-    artifacts: []
+    artifacts: [ART-000094]
     paper_locations: ["tab:stratified-results"]
     admission: "预注册密度、短边、面积、长宽比分桶，并给出样本数、均值和方差。"
-    limitation: "P3 来源和 predicted-small 均不能替代 GT 分桶。"
+    limitation: "本地 full-val 只定位 SGQS epoch 轨迹的变化人群，未证明相对 baseline 的方法收益或其他分桶无损；密度与短边分桶重叠，P3 来源和 predicted-small 也不能替代 GT 分桶。"
 
   - id: C-005
     status: target

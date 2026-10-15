@@ -1,5 +1,32 @@
 # 科研进展日志
 
+## 2026-10-15 — 完成 SGQS 14 状态本地全验证集归因
+
+- 对 e28--e34 × raw/EMA 共 14 个唯一参数状态完成 12,841 张本地 val 图回放；每状态
+  8,218,240 个 Decoder query，共覆盖 1,458,060 个 non-crowd GT。`best_stg1`、
+  `last` 的 raw/EMA 与 e34 相同，按参数状态去重后未重复运行。
+- 本地 EMA AP-small@300 为 e28 `.674440`、e29 `.701083`、e30 `.701179`、
+  e31 `.685404`、e32 `.678901`、e33 `.677411`、e34 `.677757`；AP-small@640
+  则由 `.935530` 总体升至 `.952699`。倒 U 因而是 Top-300 admission/ranking 现象，
+  不是 Decoder 全 640 query 的整体能力同步倒退。
+- 正式 evaluator-small 一对一匹配中，e28→29 gain、e28→30 gain、e30→34 loss 的
+  十 IoU `GT×IoU transition events` 分别为 13,835、13,035、12,780；其中
+  `rank_gt300` 占 89.90%、87.73%、93.38%。IoU=.75 时占比为
+  91.92%、90.26%、95.07%。
+- 全局 10×101 PR 网格的精确 AP 分解显示，80.05%--88.66% 的变化集中在 recall
+  `.69--.72` 的打开/关闭。净 TP 差异几乎全部位于每图 GT≥301 和输入短边 8--16 px；
+  wired/wireless 同向，但密度与短边分桶重叠，不能把贡献相加。
+- hybrid-small 由 hybrid-only 目标主导，后者约占 96.35%，其后段 Top-300 recall
+  上升，走势与 evaluator-small 相反。它只能报告 coverage/recall/transition，不能
+  代称 AP-small。raw 七轮范围约 `.008`，EMA 约 `.027`；这里只建立
+  EMA-specific transient/rank trajectory，不把 EMA decay 或 resume 初始化写成根因。
+- 发布包包含正式 CSV/JSON、10,549,440 行压缩逐转移明细、六张定量图、六张代表转移图
+  与 29 张跨七轮 Encoder/Decoder query probe。probe 的 203 条 image×epoch 记录均满足
+  P3+P4+P5=640，且 Decoder boxes/scores/rank/mask 与正式回放逐项完全一致。
+- 结论限定于本地 annotation SHA `f855dd4b...bd693e`、Windows CPU、PyTorch
+  2.14.0+cpu、batch 1；服务器训练 annotation SHA 为 `a6d1073...9dd72b`。本地曲线
+  比服务器日志低约 `.0041--.0050`，不能只归因于 CPU/GPU。
+
 ## 2026-10-15 — 完成 SGQS/B0 详细日志配对探针归档
 
 - EXP-TRAIN-006 的 SGQS 与 B0 两臂均以同一 epoch-27 checkpoint、8×8 global
@@ -16,10 +43,10 @@
 - 两臂各 8 个 rank JSONL 均为 424 行且全部可解析，checkpoint0034、last、
   best_stg1 均为 `last_epoch=34`。运行源码 revision 为 `42b07d...`；冻结的 86 个
   runtime 文件至本地同步基线未变化，因此没有用服务器旧源码覆盖本地开发改动。
-- 当前只完成证据归档，尚未做两臂训练探针的机制比较；B0 val128 回放与 SGQS
-  14 状态 full-val 回放仍待执行，不能由终点差值推出具体损失或 selector 因果。
+- 当前尚未做两臂训练探针的机制比较，B0 val128 回放也未执行；SGQS 14 状态本地
+  full-val 回放已于同日完成，但仍不能由终点差值或输出排名归因推出具体训练损失因果。
 
-## 2026-10-15 — 建立 SGQS 14 状态 full-val 回放协议
+## 2026-10-15 — 建立 SGQS 14 状态 full-val 回放协议（执行前记录）
 
 - 新增
   [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)：
@@ -33,8 +60,8 @@
   候选并列排序不能逐项等同，因此 CPU 结果不作为正式机制证据。
 - 最终分析将分开保存独立 GT coverage 与正式 TP/FP/FN，并补全局 PR/score 排序、
   raw/EMA、wired/wireless、密度、短边、COCO-small/hybrid-small 交并分桶。
-- 当前没有 14 状态同后端 GPU full-val 输出，也没有新增 full-val 机制结论；
-  val128 的 rank-300 观察不得外推为解释比例。
+- 本节记录执行前状态；同日稍后已完成本地 CPU 14 状态 full-val，结果以上方新记录为准。
+  同后端 H20 复现仍未执行，val128 的比例没有被直接外推。
 
 ## 2026-10-15 — 定位 SGQS AP-small 倒 U 的 Top-300 排名机制
 

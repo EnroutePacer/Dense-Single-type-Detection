@@ -13,6 +13,7 @@ from tools.table_cells.run_coco_match_matrix import (
     IMAGES_PER_SHARD,
     IOU_THRESHOLDS,
     MAX_DETS,
+    PREDICTION_GEOMETRY_POLICY,
     QUERIES_PER_IMAGE,
     base_audit,
     build_specs,
@@ -80,7 +81,7 @@ class CocoMatchMatrixTest(unittest.TestCase):
             self.assertIn("val.raw.complete.json", waiting[28])
             self.assertIn("val.ema.complete.json", waiting[28])
 
-    def test_complete_match_state_verifies_every_shard_hash(self):
+    def test_complete_match_state_verifies_hashes_and_geometry_audit(self):
         with tempfile.TemporaryDirectory() as temporary:
             root = Path(temporary)
             args = arguments(root)
@@ -111,13 +112,15 @@ class CocoMatchMatrixTest(unittest.TestCase):
                 "max_dets": list(MAX_DETS),
                 "iou_thresholds": list(IOU_THRESHOLDS),
                 "images_per_shard": 1,
+                "prediction_geometry": PREDICTION_GEOMETRY_POLICY,
             }
             protocol_path = spec.output / "protocol.json"
             protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
             shard_manifest = []
             gt_shard_manifest = []
             annotation_total = 0
-            for index, annotations in enumerate((2, 1)):
+            negative_extent_total = 0
+            for index, (annotations, negative_extents) in enumerate(((2, 1), (1, 2))):
                 gt_path = spec.output / f"gt_matches.part{index:04d}.csv.gz"
                 status_path = spec.output / f"detection_status.part{index:04d}.npz"
                 gt_path.write_bytes(f"gt-{index}".encode())
@@ -130,6 +133,7 @@ class CocoMatchMatrixTest(unittest.TestCase):
                     "images": 1,
                     "annotations": annotations,
                     "predictions": QUERIES_PER_IMAGE,
+                    "negative_extent_detections": negative_extents,
                     "gt_matches_file": gt_path.name,
                     "gt_matches_sha256": sha256(gt_path),
                     "detection_status_file": status_path.name,
@@ -163,9 +167,11 @@ class CocoMatchMatrixTest(unittest.TestCase):
                         "last_image_id": index + 1,
                         "images": 1,
                         "annotations": annotations,
+                        "negative_extent_detections": negative_extents,
                     }
                 )
                 annotation_total += annotations
+                negative_extent_total += negative_extents
             manifest = {
                 "schema": "coco_detection_status_manifest_v1",
                 "state": spec.state_id,
@@ -177,16 +183,12 @@ class CocoMatchMatrixTest(unittest.TestCase):
             manifest_path = spec.output / "detection_status_manifest.json"
             manifest_path.write_text(json.dumps(manifest), encoding="utf-8")
             gt_manifest_path = spec.output / "gt_shard_manifest.json"
-            gt_manifest_path.write_text(
-                json.dumps(
-                    {
-                        "schema": "coco_gt_match_shard_manifest_v1",
-                        "state": spec.state_id,
-                        "shards": gt_shard_manifest,
-                    }
-                ),
-                encoding="utf-8",
-            )
+            gt_manifest = {
+                "schema": "coco_gt_match_shard_manifest_v1",
+                "state": spec.state_id,
+                "shards": gt_shard_manifest,
+            }
+            gt_manifest_path.write_text(json.dumps(gt_manifest), encoding="utf-8")
             aggregate_path = spec.output / "match_aggregates.csv"
             aggregate_path.write_text("state,unit\n", encoding="utf-8")
             complete = {
@@ -196,6 +198,7 @@ class CocoMatchMatrixTest(unittest.TestCase):
                 "images": 2,
                 "annotations": annotation_total,
                 "predictions": 2 * QUERIES_PER_IMAGE,
+                "negative_extent_detections": negative_extent_total,
                 "aggregate_csv": aggregate_path.name,
                 "aggregate_sha256": sha256(aggregate_path),
                 "detection_status_manifest": manifest_path.name,
@@ -203,7 +206,13 @@ class CocoMatchMatrixTest(unittest.TestCase):
                 "gt_shard_manifest": gt_manifest_path.name,
                 "gt_shard_manifest_sha256": sha256(gt_manifest_path),
             }
-            (spec.output / "complete.json").write_text(json.dumps(complete), encoding="utf-8")
+            complete_path = spec.output / "complete.json"
+            complete_path.write_text(json.dumps(complete), encoding="utf-8")
+
+            def write_gt_manifest_chain() -> None:
+                gt_manifest_path.write_text(json.dumps(gt_manifest), encoding="utf-8")
+                complete["gt_shard_manifest_sha256"] = sha256(gt_manifest_path)
+                complete_path.write_text(json.dumps(complete), encoding="utf-8")
 
             with (
                 mock.patch("tools.table_cells.run_coco_match_matrix.EXPECTED_IMAGES", 2),
@@ -213,10 +222,51 @@ class CocoMatchMatrixTest(unittest.TestCase):
                 self.assertEqual(
                     validate_match_complete(args, spec, prediction_descriptor), complete
                 )
+
+                protocol.pop("prediction_geometry")
+                protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
+                complete["protocol_sha256"] = sha256(protocol_path)
+                complete_path.write_text(json.dumps(complete), encoding="utf-8")
+                with self.assertRaisesRegex(Exception, "prediction-geometry policy mismatch"):
+                    validate_match_complete(args, spec, prediction_descriptor)
+                protocol["prediction_geometry"] = PREDICTION_GEOMETRY_POLICY
+                protocol_path.write_text(json.dumps(protocol), encoding="utf-8")
+                complete["protocol_sha256"] = sha256(protocol_path)
+                complete_path.write_text(json.dumps(complete), encoding="utf-8")
+
                 first_summary = spec.output / "summary.part0000.json"
                 original_summary = first_summary.read_bytes()
+                summary_payload = json.loads(original_summary)
+                for invalid_count in (-1, 1.0, True, "1"):
+                    summary_payload["negative_extent_detections"] = invalid_count
+                    first_summary.write_text(json.dumps(summary_payload), encoding="utf-8")
+                    gt_manifest["shards"][0]["summary_sha256"] = sha256(first_summary)
+                    write_gt_manifest_chain()
+                    with self.subTest(invalid_shard_negative_extent=invalid_count):
+                        with self.assertRaisesRegex(
+                            Exception, "must be a nonnegative integer"
+                        ):
+                            validate_match_complete(args, spec, prediction_descriptor)
+                first_summary.write_bytes(original_summary)
+                gt_manifest["shards"][0]["summary_sha256"] = sha256(first_summary)
+                write_gt_manifest_chain()
+
+                gt_manifest["shards"][0]["negative_extent_detections"] += 1
+                write_gt_manifest_chain()
+                with self.assertRaisesRegex(Exception, "negative-extent count mismatch"):
+                    validate_match_complete(args, spec, prediction_descriptor)
+                gt_manifest["shards"][0]["negative_extent_detections"] -= 1
+                write_gt_manifest_chain()
+
+                complete["negative_extent_detections"] = negative_extent_total + 1
+                complete_path.write_text(json.dumps(complete), encoding="utf-8")
+                with self.assertRaisesRegex(Exception, "negative-extent total disagrees"):
+                    validate_match_complete(args, spec, prediction_descriptor)
+                complete["negative_extent_detections"] = negative_extent_total
+                complete_path.write_text(json.dumps(complete), encoding="utf-8")
+
                 first_summary.write_bytes(original_summary + b" ")
-                with self.assertRaisesRegex(Exception, "GT-shard hash chain mismatch"):
+                with self.assertRaisesRegex(Exception, "matcher shard summary SHA-256 mismatch"):
                     validate_match_complete(args, spec, prediction_descriptor)
                 first_summary.write_bytes(original_summary)
                 (spec.output / "detection_status.part0001.npz").write_bytes(b"corrupt")

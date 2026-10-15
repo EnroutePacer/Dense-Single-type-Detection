@@ -267,9 +267,94 @@ def select_panels(
     return selected
 
 
+def formal_attribution_counts(
+    rows: Sequence[Mapping[str, str]],
+) -> dict[tuple[int, int, str, float, str], int]:
+    """Return audited cross-domain cause counts for renderer reconciliation."""
+
+    selected = formal_plot.select_attribution_rows(rows, formal_plot.FORMAL_PAIRS)
+    return {
+        (
+            int(row["epoch_start"]),
+            int(row["epoch_end"]),
+            str(row["transition"]),
+            float(row["iou_threshold"]),
+            str(row["cause"]),
+        ): int(row["count"])
+        for row in selected
+    }
+
+
+def reconcile_panel_selections(
+    selections: Mapping[tuple[int, int, str, float, str, str], Mapping[str, str] | None],
+    attribution_counts: Mapping[tuple[int, int, str, float, str], int],
+) -> None:
+    """Prevent a missing representative row from being reported as a zero stratum.
+
+    Attribution is aggregated across domains.  Therefore it can prove that both
+    domain panels are empty when the aggregate count is zero, and it can require
+    at least one representative when the count is positive.  It cannot prove
+    that an individually missing wired/wireless panel has zero transitions; the
+    renderer labels that case as unresolved instead of ``absent``.
+    """
+
+    for start, end, transition in SHEET_SPECS:
+        for threshold in DISPLAY_THRESHOLDS:
+            for cause in formal_plot.CAUSES:
+                aggregate_key = (start, end, transition, threshold, cause)
+                if aggregate_key not in attribution_counts:
+                    raise ValueError(
+                        f"formal attribution lacks representative aggregate: {aggregate_key}"
+                    )
+                count = int(attribution_counts[aggregate_key])
+                if count < 0:
+                    raise ValueError(f"negative formal attribution count: {aggregate_key}")
+                present_domains = [
+                    domain
+                    for domain in DOMAINS
+                    if selections[(start, end, transition, threshold, cause, domain)]
+                    is not None
+                ]
+                if count == 0 and present_domains:
+                    raise ValueError(
+                        "representative rows exist for a zero-count formal stratum: "
+                        f"{aggregate_key}, domains={present_domains}"
+                    )
+                if count > 0 and not present_domains:
+                    raise ValueError(
+                        "positive formal stratum lacks every domain representative: "
+                        f"{aggregate_key}, count={count}"
+                    )
+                if len(present_domains) > count:
+                    raise ValueError(
+                        "more represented domains than formal transitions: "
+                        f"{aggregate_key}, domains={present_domains}, count={count}"
+                    )
+
+
 def _descriptor(audit: Mapping, epoch: int, artifact: str, state: str | None = None) -> Mapping:
     replay = audit["input_identity"]["replays"][f"e{epoch}"]
     return replay["metadata"] if state is None else replay["states"][state][artifact]
+
+
+def require_shared_metadata_identity(audit: Mapping, epochs: Sequence[int]) -> Mapping:
+    """Require every rendered endpoint to use the exact same validation metadata."""
+
+    endpoint_epochs = tuple(sorted(set(map(int, epochs))))
+    if not endpoint_epochs:
+        raise ValueError("no endpoint epochs were supplied for metadata validation")
+    reference_epoch = endpoint_epochs[0]
+    reference = _descriptor(audit, reference_epoch, "metadata")
+    reference_identity = (int(reference["bytes"]), str(reference["sha256"]).lower())
+    for epoch in endpoint_epochs[1:]:
+        descriptor = _descriptor(audit, epoch, "metadata")
+        identity = (int(descriptor["bytes"]), str(descriptor["sha256"]).lower())
+        if identity != reference_identity:
+            raise ValueError(
+                "rendered endpoint metadata identity mismatch: "
+                f"e{epoch} {identity} != e{reference_epoch} {reference_identity}"
+            )
+    return reference
 
 
 def _artifact_path(
@@ -619,8 +704,12 @@ def _safe_image_path(images_root: Path, file_name: str) -> Path:
         raise ValueError(f"unsafe representative image path: {file_name}")
     if ":" in relative.parts[0]:
         raise ValueError(f"unsafe representative image path: {file_name}")
-    root = images_root.resolve()
-    path = root.joinpath(*relative.parts).resolve()
+    # The formal dataset view intentionally contains directory junctions into
+    # the immutable source dataset.  Resolve ``..`` lexically, but do not
+    # dereference those controlled junctions and mistake their targets for a
+    # path traversal outside the view.
+    root = Path(os.path.abspath(images_root))
+    path = Path(os.path.abspath(root.joinpath(*relative.parts)))
     try:
         path.relative_to(root)
     except ValueError as exc:
@@ -713,7 +802,30 @@ def render_endpoint(
 def _absent_panel(epoch: int) -> Image.Image:
     panel = Image.new("RGB", (480, 300), (43, 48, 57))
     draw = ImageDraw.Draw(panel)
-    draw.text((20, 120), f"e{epoch}: ABSENT STRATUM", font=_font(18, True), fill=(180, 187, 199))
+    draw.text(
+        (20, 120),
+        f"e{epoch}: ZERO TRANSITIONS",
+        font=_font(18, True),
+        fill=(180, 187, 199),
+    )
+    return panel
+
+
+def _unresolved_domain_panel(epoch: int, aggregate_count: int) -> Image.Image:
+    panel = Image.new("RGB", (480, 300), (43, 48, 57))
+    draw = ImageDraw.Draw(panel)
+    draw.text(
+        (20, 105),
+        f"e{epoch}: NO DOMAIN REPRESENTATIVE",
+        font=_font(17, True),
+        fill=(235, 190, 95),
+    )
+    draw.text(
+        (20, 137),
+        f"cross-domain cause count = {aggregate_count}",
+        font=_font(14),
+        fill=(200, 205, 215),
+    )
     return panel
 
 
@@ -728,6 +840,7 @@ def render_sheet(
     predictions: Mapping[int, PredictionRows],
     images_root: Path,
     image_hash_cache: dict[Path, str],
+    attribution_counts: Mapping[tuple[int, int, str, float, str], int],
 ) -> list[dict]:
     label_width, cell_width, cell_height = 260, 480, 300
     header_height = 88
@@ -746,7 +859,7 @@ def render_sheet(
     )
     draw.text(
         (18, 43),
-        "Final decoder geometry only; encoder-stage causes are numeric stage attribution.",
+        "Boxes are final Decoder only; cause labels come from saved stage IoU/rank tables.",
         font=_font(14),
         fill=(75, 85, 99),
     )
@@ -781,14 +894,33 @@ def render_sheet(
                 "domain": domain,
             }
             if representative is None:
-                draw.text((14, y + 72), "absent", font=_font(13, True), fill=(150, 68, 68))
-                sheet.paste(_absent_panel(start), (label_width, y))
-                sheet.paste(_absent_panel(end), (label_width + cell_width, y))
+                aggregate_key = (start, end, transition, threshold, cause)
+                aggregate_count = int(attribution_counts[aggregate_key])
+                if aggregate_count == 0:
+                    panel_status = "absent"
+                    label = "aggregate count = 0"
+                    label_color = (150, 68, 68)
+                    before_empty = _absent_panel(start)
+                    after_empty = _absent_panel(end)
+                    geometry_note = "formal cross-domain cause count is zero"
+                else:
+                    panel_status = "domain_not_resolved"
+                    label = f"domain count unavailable; aggregate={aggregate_count}"
+                    label_color = (155, 105, 20)
+                    before_empty = _unresolved_domain_panel(start, aggregate_count)
+                    after_empty = _unresolved_domain_panel(end, aggregate_count)
+                    geometry_note = (
+                        "formal attribution is positive across domains, but the compact "
+                        "attribution table cannot prove this domain has zero transitions"
+                    )
+                draw.text((14, y + 72), label, font=_font(12, True), fill=label_color)
+                sheet.paste(before_empty, (label_width, y))
+                sheet.paste(after_empty, (label_width + cell_width, y))
                 manifest_rows.append(
                     {
                         **base_manifest,
-                        "panel_status": "absent",
-                        "geometry_note": "no representative row for this formal stratum",
+                        "panel_status": panel_status,
+                        "geometry_note": geometry_note,
                     }
                 )
                 row_index += 1
@@ -934,9 +1066,14 @@ def run(args: argparse.Namespace) -> list[Path]:
     representatives_path = data_dir / "representative_annotations.csv"
     representatives = read_representatives(representatives_path)
     selections = select_panels(representatives)
+    attribution_counts = formal_attribution_counts(
+        formal_plot.read_csv(data_dir / "transition_attribution.csv")
+    )
+    reconcile_panel_selections(selections, attribution_counts)
     selected_rows = [row for row in selections.values() if row is not None]
 
-    metadata_descriptor = _descriptor(audit, 28, "metadata")
+    endpoint_epochs = sorted({epoch for spec in SHEET_SPECS for epoch in spec[:2]})
+    metadata_descriptor = require_shared_metadata_identity(audit, endpoint_epochs)
     metadata_path, metadata_logical = _artifact_path(
         replay_root, metadata_descriptor, 28
     )
@@ -988,6 +1125,7 @@ def run(args: argparse.Namespace) -> list[Path]:
                 predictions,
                 images_root,
                 image_hash_cache,
+                attribution_counts,
             )
             for row in rows:
                 row.update(

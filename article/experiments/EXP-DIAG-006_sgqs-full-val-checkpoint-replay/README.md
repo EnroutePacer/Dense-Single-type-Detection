@@ -1,130 +1,134 @@
 # EXP-DIAG-006：SGQS 全验证集 checkpoint 回放
 
-## 当前状态
+## 状态与结论
 
-本实验的协议、回放器、正式一对一匹配导出器和分析脚本已经就绪；**12,841 张图上的
-14 个模型状态尚未完成同后端 GPU 回放，因此本页不报告任何新的 full-val 机制结果**。
-历史训练日志中的 full-val COCO 曲线仍是已存在的 evaluator 结果，不能替代本实验要求的
-逐 annotation、逐阶段回放。
+`completed / valid_with_scope`。本实验已在本地完整验证集上完成 epoch 28--34 的 raw/EMA
+回放、正式一对一匹配、阶段归因、全局 PR 对账和代表样本复核。
 
-已完成的执行前门禁如下：
+直接结论是：**EMA AP-small 的倒 U 主要由 IoU 合格的最终 Decoder query 在每图
+Top-300 排名边界内外迁移承载，而不是 640 个 Decoder query 的整体几何能力先升后降。**
+这回答了收益和回落“直接发生在哪里”，但不把 score/rank 重排进一步归因为 SGQS、EMA
+更新公式、过拟合或某一个训练损失。
 
-- 本地 val 资产共 12,841 张图、1,458,060 个 non-crowd GT；wired 为
-  5,847 图 / 627,939 GT，wireless 为 6,994 图 / 830,121 GT，逐条 annotation
-  引用的图像均存在。
-- 本地 wired / wireless val annotation SHA-256 分别为
-  `9ae3c0166315f185805420e0a73b23f2200a924aa87986fcf3b928c8d03fd9cd` 和
-  `9ec7c82d45feacaa13142427bb39106bd2c87fa36ef3991e0f0198a07362390f`。
-  服务器训练所用 merged val annotation 的已冻结 SHA-256 为
-  `a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b`。
-- 本地 split 到 merged 的 ID/path 重排规则已在固定 val128 的全部 128 图、15,446 GT
-  上核对一致；这只是一项映射门禁，**不能证明 full-val 结果，也不能替代全量身份审计**。
-- `checkpoint0028`--`checkpoint0034` 每轮 raw 与 EMA 状态均不同，共 14 个唯一参数状态。
-  `best_stg1.pth` 和 `last.pth` 的 raw/EMA 参数状态都与 `checkpoint0034.pth` 相同，
-  因而不重复推理。身份表沿用
-  [EXP-DIAG-005/checkpoint_identity.csv](../EXP-DIAG-005_sgqs-top300-ranking-replay/data/checkpoint_identity.csv)。
-- e28 raw 已通过真实图 CPU 冒烟，固定 val128 已通过 compact replay、断点恢复与正式
-  matcher 链路门禁。CPU 与既有 GPU 输出在总体 COCO 数值上接近，但候选并列排序和个别
-  GT 的阶段值并非逐项一致，所以 CPU 门禁只证明链路可运行，不能作为最终机制证据。
+## 完整验证范围
 
-当前待完成项是：在一致的 GPU 后端上运行 e28--e34 的 raw/EMA 全量回放、正式匹配、
-分析和绘图，再把脱敏的小型派生数据与结论补到本实验目录。
+- 数据：wired 5,847 图 / 627,939 non-crowd GT，wireless 6,994 图 / 830,121
+  non-crowd GT，合计 **12,841 图 / 1,458,060 GT**；所有 annotation 引用的图像存在。
+- checkpoint：`checkpoint0028.pth`--`checkpoint0034.pth`，每轮 raw、EMA，共 **14 个唯一
+  参数状态**。`best_stg1.pth` 和 `last.pth` 的 raw/EMA 参数均与 `checkpoint0034.pth`
+  相同，因此按参数哈希去重，没有重复推理。
+- 每个状态：固定 640×640 输入、Encoder Top-640、Decoder 640 query，即每状态
+  8,218,240 个 Decoder query；正式评价同时保留 `maxDets=300/640` 与
+  IoU=.50:.05:.95 十个阈值。
+- 正式分析完成 3,920 项阶段对账、280 项 global-PR 对账和 10,549,440 行配对转移明细；
+  [audit.json](data/audit.json) 的状态为 `complete`。
 
-## 问题与比较矩阵
+## EMA AP-small 轨迹
 
-本实验回答：完整验证集上的 AP-small 前段上升与后段回落，分别有多少来自候选不存在、
-Encoder Top-640 未选中、Decoder 几何丢失、最终 rank 跌出 300、一对一匹配竞争，或
-跨图像的全局 TP/FP 分数排序？
+下表的 AP-small 均为正式 evaluator-small，`APs@300` 是日志指标的同义口径；
+`APs@640` 只改变每图检测预算。
 
-固定比较矩阵为：
+| epoch | APs@300 | APs@640 |
+|---:|---:|---:|
+| 28 | 0.674440 | 0.935530 |
+| 29 | 0.701083 | 0.897127 |
+| 30 | **0.701179** | 0.935651 |
+| 31 | 0.685404 | 0.944499 |
+| 32 | 0.678901 | 0.949416 |
+| 33 | 0.677411 | 0.950384 |
+| 34 | 0.677757 | **0.952699** |
 
-- checkpoint：epoch 28、29、30、31、32、33、34；
-- 参数状态：每轮 raw、EMA，共 14 个唯一状态；
-- 数据：完整 wired + wireless val，共 12,841 图；
-- 输入与预算：固定 640×640、Encoder `K=640`、Decoder 640 query，评价
-  `maxDets=300/640`；
-- IoU：`0.50:0.05:0.95` 十个阈值，不能只用 IoU 0.50 或 0.75 解释由十个阈值平均的
-  AP；
-- 配对端点：至少 e28→e29、e28→e30、e30→e34，并保留相邻 epoch 的完整轨迹；
-- 分桶：wired/wireless、每图 GT 密度、输入 640 后短边、COCO area、COCO/hybrid
-  交并子群。
+Top-300 在 e29/e30 达峰后回落，而 640-query AP-small 在后段持续提高。尤其 e29 的
+Top-300 上升与 APs@640 下探同时发生；因此倒 U 不是“Decoder 的 640 个输出整体先变好再
+变坏”，而是最终分数排序与 300 个 admission 名额发生了重分配。
 
-## 两种 small 口径
+## 前段收益与后段回落的直接载体
 
-两种口径必须并列保存，但回答不同问题：
+正式 `coco_small_eval`、EMA、`maxDets=300` 下，把十个 IoU 阈值的转移相加时，单位是
+**GT×IoU transition events**，不是互异 GT 数，也不是 AP 的可加分解：
 
-- **COCO evaluator small**：正式 AP-small/AR-small 使用 evaluator 的 small areaRange；
-  它用于解释日志里的 COCO AP-small 曲线。此前描述性 `coco_small` cohort 使用原图
-  annotation `area < 32²`；精确边界处以 evaluator scope 为准。
-- **本地 hybrid-small**：框直接按宽高缩放到 640×640 后，满足
-  `area < 32² OR short side < 16`。这是本项目对细长、低像素短边目标的默认机制诊断
-  cohort，不得改名为 COCO AP-small，也不得把其 coverage 写成 AP-small。
+| 配对 | 方向 | 总事件 | `rank_gt300` | 占比 |
+|:---|:---|---:|---:|---:|
+| e28→e29 | gain | 13,835 | 12,437 | 89.90% |
+| e28→e30 | gain | 13,035 | 11,436 | 87.73% |
+| e30→e34 | loss | 12,780 | 11,934 | 93.38% |
 
-因此，“解释 AP-small”必须使用 COCO evaluator scope；“按本地标准分析 small”必须
-报告 hybrid-small 及其与 COCO-small 的交并。两个数字不能互相替代。
+`rank_gt300` 表示该 GT 在 640 个最终 Decoder query 中仍有达到当前 IoU 阈值的 query，
+但该 query 的图内分数排名大于 300。也就是说，前段收益主要是合格 query 进入 Top-300，
+后段回落主要是合格 query 又跌出 Top-300。生成的
+[analysis_summary.md](data/analysis_summary.md) 中 paired attribution 表只展示
+**IoU=.75 单阈值**；十 IoU 合计必须从
+[transition_attribution.csv](data/transition_attribution.csv) 汇总，不能把两者混为一谈。
 
-## 统计口径
+全局 101 点 PR 对账给出同一结论的另一视角：e28→e29、e28→e30、e30→e34 的 AP
+变化分别有 81.2%、80.1%、88.7% 集中在 recall=.69--.72 四个采样点的打开或关闭。
+因此变化不是均匀分布在整条 PR 曲线上。
 
-每个 GT 保存四阶段独立 best-IoU 与 rank：dense-all、Encoder Top-640、Decoder
-all-640、Decoder Top-300。这里的独立 coverage 允许同一 query 覆盖多个 GT，**不是**
-COCO recall、TP 或 FN。
+## 信号出现在哪里
 
-正式 TP/FP/FN 由仓库同一 `faster_coco_eval` 的按分数排序、一对一匹配产生。即使正式
-TP/FN 转移已经分类，计数也不是 AP 的可加分解：AP 仍取决于十个 IoU 阈值以及所有
-图像合并后的 TP/FP score 顺序。最终报告必须同时给出逐 IoU AP/AR、Top-300/640 差、
-逐 GT 转移和全局 PR/score separation。
+在 IoU=.75、EMA、evaluator-small、`maxDets=300` 下，变化几乎全部定位到：
 
-## 实现与运行门禁
+- 每图 non-crowd GT 数量 **≥301**：recall 为
+  e28/e29/e30/e34 = 0.26800/0.33514/0.33407/0.26915；较低密度桶基本稳定。
+- 直接缩放到 640×640 后 GT 短边 **8--16 px**：recall 为
+  0.40510/0.46762/0.46365/0.40373；其他短边桶没有同幅度倒 U。
+- wired 与 wireless 同向：wired 为
+  0.66302/0.69084/0.69551/0.66662，wireless 为
+  0.71013/0.73624/0.73194/0.70749，所以不是单一 domain artifact。
 
-- compact、可恢复的批量回放：
-  [full_val_replay.py](../../../tools/table_cells/full_val_replay.py)
-- 正式 COCO 匹配导出：
-  [coco_match_npz.py](../../../tools/table_cells/coco_match_npz.py) 与
-  [coco_match_export.py](../../../tools/table_cells/coco_match_export.py)
-- 配对分析：[analyze_full_val.py](scripts/analyze_full_val.py)
-- 确定性绘图：[plot_full_val.py](scripts/plot_full_val.py)
-- 针对性测试：
-  [test_full_val_replay.py](../../../tests/test_full_val_replay.py)、
-  [test_coco_match_export.py](../../../tests/test_coco_match_export.py) 和
-  [test_analyze_full_val.py](scripts/test_analyze_full_val.py)
+密度 ≥301 与短边 8--16 大量重叠，是两条交叉观察轴，**不能把两者的变化量相加**。
 
-正式执行前还必须满足：合并后的 image/category/annotation ID 唯一；全量图像路径可读；
-annotation、配置、checkpoint 和运行环境身份写入审计文件；GPU val128 门禁在同一后端
-通过；14 个状态的输出均有完成标记且可断点恢复。任何一项失败都不得生成“完成”报告。
+## evaluator-small 与本地 hybrid-small
 
-## 最终必须归档的派生数据
+本实验同时保留三种明确命名的集合：
 
-预期小型表格至少包括：
+- `coco_small_eval`：原图 annotation `area <= 32²`，32,427 GT；这是正式 AP-small/AR-small
+  的 evaluator population。
+- `coco_small`：描述性严格边界 `area < 32²`，32,346 GT。
+- `local_hybrid_small`：框直接缩放到 640×640 后满足
+  `area < 32² OR short side < 16`，710,421 GT。
 
-- `metrics_14_states.csv`、`raw_ema_comparison.csv`；
-- `coco_small_per_iou.csv`、`coco_small_per_iou_budget_gap.csv`；
-- `stage_coverage.csv`；
-- `match_aggregates.csv`、`match_gt_buckets.csv`；
-- `transition_summary.csv`、`transition_attribution.csv`、必要时压缩后的
-  `transition_details`；
-- `global_pr_curve.csv`、`tp_fp_score_separation.csv`、`tp_fp_score_histogram.csv`；
-- `representative_annotations.csv`、`representative_images.csv`；
-- `analysis_summary.md`、`audit.json`、`artifact_manifest.csv`。
+其中 `hybrid_only` 有 684,512 GT，占 local hybrid 的 96.353%。在 IoU=.75 的 all-area
+正式匹配下，hybrid-only Top-300 recall 从 e30 的 0.75945 上升到 e34 的 0.76275；这一
+巨大集合会淹没 evaluator-small 的后段下降。因此 hybrid-small 只能报告
+recall、coverage 或 transition，**不能称为 AP-small，也不能用来替代 evaluator-small
+解释日志曲线**。
 
-最终图至少覆盖：14 状态 AP-small/AR-small 轨迹、十阈值与 300/640 差、四阶段
-coverage、正式 gain/loss 归因、全局 PR 与 TP/FP 分数分离、domain/density/short-side
-分桶，以及由确定性规则选取的代表图。图题必须标明是独立 coverage 还是正式一对一匹配。
+## 图、代表样本与 query probe
 
-原始权重、私有 annotation、图像、memmap、逐检测大表和含机器绝对路径的运行文件不进入
-Git；只提交足以复算公开结论的脱敏派生表、静态图、脚本与 SHA-256 manifest。当前
-[data/README.md](data/README.md) 只登记待落盘清单，不代表这些结果已经存在。已归档的
-[input_inventory.json](data/input_inventory.json) 仅是输入身份清单，不是模型结果。
+- [analysis/README.md](analysis/README.md)：详细结论、数值分解和可/不可推出的因果范围。
+- [data/README.md](data/README.md)：正式 CSV/JSON、字段语义、计数单位与复算入口。
+- [figures/README.md](figures/README.md)：6 张定量图、6 张 Decoder 代表图和 29 张
+  checkpoint query probe 的索引与读图规则。
+- [query_probe_selection.csv](figures/query_probes/query_probe_selection.csv) 从
+  evaluator-small 与 hybrid-only 两条 track、前段 gain/后段 loss、四类直接 cause、
+  wired/wireless 共 32 个 strata 确定性选样；因复用同图，共 29 张唯一图。
+- [query_probe_manifest.csv](figures/query_probes/query_probe_manifest.csv) 有
+  29×7=203 行，覆盖 EMA e28--e34。每行均验证 Encoder source-level
+  P3+P4+P5=640、Decoder query=640，且 Decoder boxes/scores/rank/hybrid mask 与正式回放
+  完全一致。
 
-## 允许与禁止的结论
+probe 中的 P3/P4/P5 是 **Encoder Top-640 选中 query 的 dense source level**，对应
+stride 8/16/32，单图单 checkpoint 互斥且合计 640；`Decoder hybrid-small` 是对最终
+Decoder box 按本地宽高规则事后分组。两者不是同一个统计，不能混称；probe 是定性机制
+示例，不是总体占比估计。
 
-在 14 状态 GPU 全量回放完成前，只允许写：资产和参数状态已盘点、协议及 CPU/val128
-工程门禁已通过、full-val 机制结果待运行。不得把下面任一说法写成事实：
+## 有效范围与限制
 
-- val128 的 rank-300 机制解释了 full-val AP-small 的多少比例；
-- raw/EMA 在 full-val 上具有与 val128 相同的曲线；
-- EMA、SGQS、过拟合或分类校准是倒 U 的唯一原因；
-- hybrid-small coverage 的变化等价于 COCO AP-small 的变化；
-- 某个 checkpoint 在新回放口径下已经优于其他 checkpoint。
+本实验是完整的**本地数据、本地后端 scoped diagnosis**，不是服务器 H20 的 bit-level
+复现：
 
-固定 val128 的既有结果与边界仍见
+- 正式本地 merged annotation SHA-256 为
+  `f855dd4b9dded934479a54aad70f01b3c678d0ae1fd91e3f8ca1cd6890bd693e`；服务器训练日志
+  冻结的 merged annotation SHA-256 为
+  `a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b`，二者不同。
+- 推理后端为 Windows CPU、PyTorch 2.14.0+cpu、batch=1；matcher 为
+  faster-coco-eval 1.8.0。本地 EMA AP-small 比服务器日志低约 0.0041--0.0050，但由于
+  annotation 身份也不同，不能把差额单独归因于 CPU/GPU。
+- raw 的 `APs@300` 七轮范围仅 0.00798，而 EMA 范围为 0.02674；可以描述为
+  “EMA-specific transient/rank trajectory”，但没有受控实验支持“EMA decay 是根因”。
+- 这里证明的是 AP 变化的直接承载阶段和集中子群；为什么训练使这些 query 的分类分数
+  穿越第 300 名，仍需训练级受控干预回答。
+
+固定 val128 的先导结果见
 [EXP-DIAG-005](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。

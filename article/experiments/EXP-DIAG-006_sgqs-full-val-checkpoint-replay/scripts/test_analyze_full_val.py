@@ -13,6 +13,8 @@ import sys
 import tempfile
 from types import SimpleNamespace
 import unittest
+from unittest import mock
+import weakref
 
 import numpy as np
 
@@ -43,6 +45,148 @@ def write_gzip_csv(path: Path, rows: list[dict]) -> None:
                 writer = csv.DictWriter(text, fieldnames=fields, lineterminator="\n")
                 writer.writeheader()
                 writer.writerows(rows)
+
+
+def write_formal_plot_gate_tables(root: Path) -> None:
+    """Seed only the full e28-e34 grids required by the formal plot gate."""
+    metric_rows = [
+        {
+            "epoch": epoch,
+            "state": state,
+            "ap_small_d300": 0.70 + (epoch - 28) / 1000,
+            "ar_small_d300": 0.80 + (epoch - 28) / 1000,
+        }
+        for epoch in PLOT_MODULE.FORMAL_EPOCHS
+        for state in PLOT_MODULE.FORMAL_STATES
+    ]
+    MODULE.write_csv(root / "metrics_14_states.csv", metric_rows)
+
+    per_iou_rows = []
+    gap_rows = []
+    for epoch in PLOT_MODULE.FORMAL_EPOCHS:
+        for threshold in PLOT_MODULE.FORMAL_THRESHOLDS:
+            per_iou_rows.append(
+                {
+                    "epoch": epoch,
+                    "state": "ema",
+                    "max_dets": 300,
+                    "iou_threshold": threshold,
+                    "ap_small": 0.75 - threshold / 10,
+                    "ar_small": 0.85 - threshold / 10,
+                }
+            )
+            gap_rows.append(
+                {
+                    "epoch": epoch,
+                    "state": "ema",
+                    "iou_threshold": threshold,
+                    "ap_d640_minus_d300": 0.01,
+                    "ar_d640_minus_d300": 0.02,
+                }
+            )
+    MODULE.write_csv(root / "coco_small_per_iou.csv", per_iou_rows)
+    MODULE.write_csv(root / "coco_small_per_iou_budget_gap.csv", gap_rows)
+
+    attribution_rows = []
+    for start, end in PLOT_MODULE.FORMAL_PAIRS:
+        for threshold in PLOT_MODULE.FORMAL_THRESHOLDS:
+            for transition in ("gain", "loss"):
+                for cause in PLOT_MODULE.CAUSES:
+                    count = 5 if cause == PLOT_MODULE.CAUSES[0] else 0
+                    attribution_rows.append(
+                        {
+                            "epoch_start": start,
+                            "epoch_end": end,
+                            "state": "ema",
+                            "match_scope": "coco_small_eval",
+                            "cohort": "coco_small_eval",
+                            "iou_threshold": threshold,
+                            "max_dets": 300,
+                            "transition": transition,
+                            "cause": cause,
+                            "count": count,
+                            "transition_total": 5,
+                            "fraction": count / 5,
+                        }
+                    )
+    MODULE.write_csv(root / "transition_attribution.csv", attribution_rows)
+
+    pr_rows = []
+    for epoch in PLOT_MODULE.GLOBAL_PR_PLOT_EPOCHS:
+        for recall in PLOT_MODULE.GLOBAL_PR_RECALL_GRID:
+            pr_rows.append(
+                {
+                    "epoch": epoch,
+                    "state": "ema",
+                    "scope": "coco_small_eval",
+                    "iou_threshold": 0.75,
+                    "max_dets": 300,
+                    "recall_threshold": recall,
+                    "interpolated_precision": 1.0 - recall / 2.0,
+                }
+            )
+    MODULE.write_csv(root / "global_pr_curve.csv", pr_rows)
+    score_rows = [
+        {
+            "epoch": epoch,
+            "state": state,
+            "scope": "coco_small_eval",
+            "iou_threshold": 0.75,
+            "max_dets": 300,
+            "tp_minus_fp_median": 0.1,
+        }
+        for epoch in PLOT_MODULE.FORMAL_EPOCHS
+        for state in PLOT_MODULE.FORMAL_STATES
+    ]
+    MODULE.write_csv(root / "tp_fp_score_separation.csv", score_rows)
+
+    stage_rows = []
+    for epoch in PLOT_MODULE.FORMAL_EPOCHS:
+        for group, _label in PLOT_MODULE.STAGE_COVERAGE_COHORTS:
+            n_gt = 20 if group == "coco_small_eval" else 40
+            for threshold in (0.5, 0.75):
+                for stage in PLOT_MODULE.STAGE_COVERAGE_STAGES:
+                    covered = n_gt // 2
+                    stage_rows.append(
+                        {
+                            "epoch": epoch,
+                            "state": "ema",
+                            "axis": "cohort",
+                            "group": group,
+                            "n_gt": n_gt,
+                            "iou_threshold": threshold,
+                            "stage": stage,
+                            "covered": covered,
+                            "coverage": covered / n_gt,
+                        }
+                    )
+    MODULE.write_csv(root / "stage_coverage.csv", stage_rows)
+
+    bucket_rows = []
+    for epoch in PLOT_MODULE.FORMAL_EPOCHS:
+        for axis, groups in PLOT_MODULE.BUCKET_RECALL_GROUPS.items():
+            for group in groups:
+                evaluable = 20
+                tp = epoch - 20
+                fn = evaluable - tp
+                bucket_rows.append(
+                    {
+                        "epoch": epoch,
+                        "state": "ema",
+                        "scope": PLOT_MODULE.BUCKET_RECALL_SCOPE,
+                        "iou_threshold": PLOT_MODULE.BUCKET_RECALL_IOU,
+                        "max_dets": PLOT_MODULE.BUCKET_RECALL_MAX_DETS,
+                        "axis": axis,
+                        "group": group,
+                        "objects": 40,
+                        "evaluable": evaluable,
+                        "tp": tp,
+                        "fn": fn,
+                        "ignored": 20,
+                        "recall": tp / evaluable,
+                    }
+                )
+    MODULE.write_csv(root / "match_gt_buckets.csv", bucket_rows)
 
 
 def cohort_masks(coco: np.ndarray, hybrid: np.ndarray) -> dict[str, np.ndarray]:
@@ -242,10 +386,140 @@ def create_fixture(root: Path) -> tuple[list[tuple[int, Path]], list[tuple[tuple
 
 
 class FullValAnalysisTest(unittest.TestCase):
+    def test_generated_report_separates_transition_directions_and_small_definitions(self):
+        summary_row = {
+            "epoch_start": 30,
+            "epoch_end": 31,
+            "state": "ema",
+            "match_scope": "coco_small_eval",
+            "cohort": "coco_small_eval",
+            "iou_threshold": 0.75,
+            "gain": 2,
+            "loss": 3,
+        }
+        attributions = []
+        gain_counts = {
+            "candidate_absence": 2,
+            "encoder_selection": 0,
+            "decoder_geometry": 0,
+            "rank_gt300": 0,
+            "one_to_one_competition": 0,
+        }
+        loss_counts = {
+            "candidate_absence": 0,
+            "encoder_selection": 0,
+            "decoder_geometry": 1,
+            "rank_gt300": 2,
+            "one_to_one_competition": 0,
+        }
+        for transition, counts in (("gain", gain_counts), ("loss", loss_counts)):
+            for cause, count in counts.items():
+                attributions.append(
+                    {
+                        **{
+                            key: summary_row[key]
+                            for key in (
+                                "epoch_start",
+                                "epoch_end",
+                                "state",
+                                "match_scope",
+                                "cohort",
+                                "iou_threshold",
+                            )
+                        },
+                        "transition": transition,
+                        "cause": cause,
+                        "count": count,
+                    }
+                )
+
+        with tempfile.TemporaryDirectory() as temp:
+            report = Path(temp) / "analysis_summary.md"
+            MODULE.write_generated_report(
+                report,
+                metrics=[],
+                per_iou_gaps=[],
+                transition_summaries=[summary_row],
+                attributions=attributions,
+                score_separation=[],
+                formal=True,
+            )
+            text = report.read_text(encoding="utf-8")
+
+        self.assertIn(
+            "| pair | state | scope | cohort | transition | count | candidate | encoder | decoder | rank | competition |",
+            text,
+        )
+        self.assertIn(
+            "| e30→e31 | ema | coco_small_eval | coco_small_eval | gain | 2 | 2 | 0 | 0 | 0 | 0 |",
+            text,
+        )
+        self.assertIn(
+            "| e30→e31 | ema | coco_small_eval | coco_small_eval | loss | 3 | 0 | 0 | 1 | 2 | 0 |",
+            text,
+        )
+        self.assertNotIn("| gain | loss |", text)
+        self.assertIn("AP-small/AR-small always refer to evaluator-small", text)
+        self.assertIn("No AP is computed or claimed for that hybrid cohort", text)
+
     def test_default_pairs_include_complete_adjacent_trajectory(self):
         adjacent = set(zip(MODULE.FORMAL_EPOCHS[:-1], MODULE.FORMAL_EPOCHS[1:]))
         self.assertLessEqual(adjacent, set(MODULE.DEFAULT_PAIRS))
         self.assertLessEqual({(28, 30), (30, 34)}, set(MODULE.DEFAULT_PAIRS))
+
+    def test_formal_pairs_are_exact_ordered_and_unique(self):
+        MODULE.validate_formal_pairs(MODULE.DEFAULT_PAIRS)
+        invalid = (
+            MODULE.DEFAULT_PAIRS[:-1],
+            (*MODULE.DEFAULT_PAIRS, MODULE.DEFAULT_PAIRS[0]),
+            tuple(reversed(MODULE.DEFAULT_PAIRS)),
+            ((29, 28), *MODULE.DEFAULT_PAIRS[1:]),
+        )
+        for pairs in invalid:
+            with self.subTest(pairs=pairs):
+                with self.assertRaisesRegex(ValueError, "exact ordered transition pairs"):
+                    MODULE.validate_formal_pairs(pairs)
+
+    def test_match_data_batches_release_raw_before_loading_ema(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            replays, matches = create_fixture(root)
+            output = root / "analysis"
+            args = MODULE.parse_args(
+                [
+                    *(item for epoch, path in replays for item in ("--replay", f"{epoch}={path}")),
+                    *(item for (epoch, state), path in matches for item in ("--match", f"{epoch}:{state}={path}")),
+                    "--output",
+                    str(output),
+                    "--pair",
+                    "28:29",
+                    "--thresholds",
+                    "0.5",
+                    "0.75",
+                    "--testing",
+                    "--skip-global-pr",
+                ]
+            )
+            original = MODULE.load_match_data
+            raw_refs: list[weakref.ReferenceType] = []
+            load_order: list[str] = []
+
+            def tracked_load(match_dir, *call_args, **call_kwargs):
+                state = match_dir.name.rsplit("_", 1)[-1]
+                if state == "ema":
+                    self.assertTrue(raw_refs)
+                    self.assertTrue(all(reference() is None for reference in raw_refs))
+                value = original(match_dir, *call_args, **call_kwargs)
+                load_order.append(state)
+                if state == "raw":
+                    raw_refs.append(weakref.ref(value))
+                return value
+
+            with mock.patch.object(MODULE, "load_match_data", side_effect=tracked_load):
+                MODULE.run_analysis(args)
+
+            self.assertEqual(load_order, ["raw", "raw", "ema", "ema"])
+            self.assertTrue(all(reference() is None for reference in raw_refs))
 
     def test_representative_bucket_is_bounded_and_keeps_top_k(self):
         bucket = {}
@@ -335,6 +609,23 @@ class FullValAnalysisTest(unittest.TestCase):
             )
             self.assertEqual(int(evaluator_row["evaluable"]), 3)
             self.assertEqual(int(strict_row["evaluable"]), 2)
+            with (outputs[0] / "match_gt_buckets.csv").open(
+                encoding="utf-8", newline=""
+            ) as handle:
+                bucket_rows = list(csv.DictReader(handle))
+            local_wired = next(
+                row
+                for row in bucket_rows
+                if row["epoch"] == "28"
+                and row["state"] == "ema"
+                and row["scope"] == "all"
+                and row["axis"] == "local_hybrid_domain"
+                and row["group"] == "wired"
+                and float(row["iou_threshold"]) == 0.75
+                and int(row["max_dets"]) == 300
+            )
+            self.assertEqual(int(local_wired["objects"]), 2)
+            self.assertEqual(int(local_wired["evaluable"]), 2)
             with (outputs[0] / "representative_annotations.csv").open(
                 encoding="utf-8", newline=""
             ) as handle:
@@ -410,37 +701,10 @@ class FullValAnalysisTest(unittest.TestCase):
                 )
             self.assertNotIn(str(root), (outputs[0] / "audit.json").read_text(encoding="utf-8"))
 
-            # The end-to-end fixture skips the expensive evaluator pass, so
-            # seed only the two global-PR tables needed to exercise rendering.
-            pr_rows = []
-            for epoch in (28, 29):
-                for recall in np.linspace(0.0, 1.0, 101):
-                    pr_rows.append(
-                        {
-                            "epoch": epoch,
-                            "state": "ema",
-                            "scope": "coco_small_eval",
-                            "iou_threshold": 0.75,
-                            "max_dets": 300,
-                            "recall_threshold": recall,
-                            "interpolated_precision": max(0.0, 1.0 - recall * 0.2),
-                            "minimum_score_at_recall": max(0.0, 1.0 - recall),
-                        }
-                    )
-            score_rows = [
-                {
-                    "epoch": epoch,
-                    "state": state,
-                    "scope": "coco_small_eval",
-                    "iou_threshold": 0.75,
-                    "max_dets": 300,
-                    "tp_minus_fp_median": 0.1 + epoch / 10000,
-                }
-                for epoch in (28, 29)
-                for state in ("raw", "ema")
-            ]
-            MODULE.write_csv(outputs[0] / "global_pr_curve.csv", pr_rows)
-            MODULE.write_csv(outputs[0] / "tp_fp_score_separation.csv", score_rows)
+            # The end-to-end fixture itself is intentionally tiny/testing-only.
+            # Seed complete synthetic matrices before directly smoke-testing the
+            # strict formal plotting functions.
+            write_formal_plot_gate_tables(outputs[0])
             figure_dir = root / "figures"
             figure_dir.mkdir()
             PLOT_MODULE.configure_style()
@@ -694,6 +958,8 @@ class FullValAnalysisTest(unittest.TestCase):
                 "iou_thresholds": list(MODULE.DEFAULT_THRESHOLDS),
                 "annotation_sha256": formal_identity["annotation_sha256"],
                 "config_sha256": formal_identity["config_sha256"],
+                "matcher_script_sha256": MODULE.FORMAL_MATCHER_SCRIPT_SHA256,
+                "match_export_sha256": MODULE.FORMAL_MATCH_EXPORT_SHA256,
                 "replay_runtime_backend": {
                     "requested_device": "cpu",
                     "torch_version": "test",
@@ -706,9 +972,24 @@ class FullValAnalysisTest(unittest.TestCase):
             }
             matrix_path = matrix_root / "matrix.complete.json"
             write_json(matrix_path, base_matrix)
-            MODULE.validate_match_matrix_audit(
+            identity = MODULE.validate_match_matrix_audit(
                 match_dirs, records, formal_identity, formal=True
             )
+            self.assertEqual(
+                identity["matcher_script_sha256"], MODULE.FORMAL_MATCHER_SCRIPT_SHA256
+            )
+            self.assertEqual(
+                identity["match_export_sha256"], MODULE.FORMAL_MATCH_EXPORT_SHA256
+            )
+
+            for field in ("matcher_script_sha256", "match_export_sha256"):
+                changed = json.loads(json.dumps(base_matrix))
+                changed[field] = "f" * 64
+                write_json(matrix_path, changed)
+                with self.assertRaisesRegex(ValueError, "identity mismatch"):
+                    MODULE.validate_match_matrix_audit(
+                        match_dirs, records, formal_identity, formal=True
+                    )
 
             corruptions = (
                 ("prediction_inputs", "e28/raw", "prediction_sha256"),

@@ -677,6 +677,9 @@ def _write_shard(
         "images": len(shard_image_ids),
         "annotations": annotation_rows,
         "predictions": len(shard_image_ids) * query_count,
+        "negative_extent_detections": int(
+            np.count_nonzero((boxes[..., 2] < 0.0) | (boxes[..., 3] < 0.0))
+        ),
         "gt_matches_file": output_path.name,
         "gt_matches_sha256": sha256(output_path),
         "detection_status_file": detection_status_path.name,
@@ -1030,6 +1033,11 @@ def export_npz_matches(
                 "compressed query-index status arrays retain TP/FP/ignored/truncated and scores "
                 "for exact stable global PR reconstruction"
             ),
+            "prediction_geometry": (
+                "scores and xywh coordinates must be finite; finite negative width/height values "
+                "are preserved exactly because faster_coco_eval/COCO marks their negative-area "
+                "detections ignored, matching the replay evaluator"
+            ),
         }
         protocol_path = output_dir / "protocol.json"
         if protocol_path.exists():
@@ -1068,12 +1076,8 @@ def export_npz_matches(
                 continue
             shard_boxes = np.asarray(boxes[start:stop])
             shard_scores = np.asarray(scores[start:stop])
-            if (
-                not np.isfinite(shard_boxes).all()
-                or not np.isfinite(shard_scores).all()
-                or (shard_boxes[..., 2:] < 0).any()
-            ):
-                raise ValueError(f"non-finite score or invalid bbox in shard {shard_index}")
+            if not np.isfinite(shard_boxes).all() or not np.isfinite(shard_scores).all():
+                raise ValueError(f"non-finite score or bbox in shard {shard_index}")
             summary = _write_shard(
                 output_path=csv_path,
                 detection_status_path=status_path,
@@ -1152,6 +1156,9 @@ def export_npz_matches(
                     "last_image_id": int(summary["last_image_id"]),
                     "images": int(summary["images"]),
                     "annotations": int(summary["annotations"]),
+                    "negative_extent_detections": int(
+                        summary.get("negative_extent_detections", 0)
+                    ),
                 }
                 for summary in shard_summaries
             ],
@@ -1165,6 +1172,10 @@ def export_npz_matches(
             "images": sum(int(item["images"]) for item in shard_summaries),
             "annotations": sum(int(item["annotations"]) for item in shard_summaries),
             "predictions": sum(int(item["predictions"]) for item in shard_summaries),
+            "negative_extent_detections": sum(
+                int(item.get("negative_extent_detections", 0))
+                for item in shard_summaries
+            ),
             "aggregate_csv": summary_csv.name,
             "aggregate_sha256": sha256(summary_csv),
             "detection_status_manifest": status_manifest_path.name,

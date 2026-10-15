@@ -29,7 +29,7 @@ F 观察 -> H 可证伪假设 -> EXP 验证 -> 新 F -> C 是否成立
 
 - “绿色 P3 点少，证明 encoder 漏掉大量小框。”
 - “小框主要死在 encoder Top-K。”
-- “小框主要死在 decoder 重评分。”
+- “本地 SGQS 排名轨迹证明所有小框都主要死在 decoder 重评分，或已证明其训练根因。”
 - “P3 就是小目标层。”
 - “增加 P3 quota、K 或 coverage-aware selection 必然提高 mAP。”
 - “方法没有推理开销。”

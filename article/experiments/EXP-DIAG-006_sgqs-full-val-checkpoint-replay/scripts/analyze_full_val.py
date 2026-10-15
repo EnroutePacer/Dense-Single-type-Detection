@@ -12,7 +12,7 @@ paired comparison of the same annotation id at two checkpoints.
 from __future__ import annotations
 
 import argparse
-from collections import Counter, defaultdict
+from collections import defaultdict
 import csv
 from dataclasses import dataclass
 import gc
@@ -24,7 +24,7 @@ import math
 from pathlib import Path, PurePosixPath
 import sys
 import tempfile
-from typing import Iterable, Iterator, Mapping, Sequence
+from typing import Callable, Iterable, Iterator, Mapping, Sequence
 
 import numpy as np
 
@@ -38,6 +38,8 @@ DEFAULT_STATES = ("raw", "ema")
 FORMAL_EPOCHS = tuple(range(28, 35))
 FORMAL_IMAGES = 12_841
 FORMAL_NONCROWD_GT = 1_458_060
+FORMAL_MATCHER_SCRIPT_SHA256 = "9dafff504264bb501276f13ed403e45ae9eb98a181885b8255efdb7c9fc9028e"
+FORMAL_MATCH_EXPORT_SHA256 = "8151bf2514e00c171384b0571d8fc645d32c53aae7f3a96d95c293563f931237"
 DEFAULT_PAIRS = (
     *((start, start + 1) for start in FORMAL_EPOCHS[:-1]),
     (28, 30),
@@ -154,6 +156,15 @@ def parse_pair(value: str) -> tuple[int, int]:
     return start, end
 
 
+def validate_formal_pairs(pairs: Sequence[tuple[int, int]]) -> None:
+    observed = tuple(pairs)
+    if observed != DEFAULT_PAIRS:
+        raise ValueError(
+            "formal analysis requires the exact ordered transition pairs "
+            f"{DEFAULT_PAIRS}; received {observed}"
+        )
+
+
 def unique_mapping(items: Iterable[tuple], name: str) -> dict:
     result = {}
     for key, value in items:
@@ -246,6 +257,15 @@ class Metadata:
             yield "input_area", label, self.input_area_group == code
         for code, label in enumerate(("coco_and_hybrid", "coco_only", "hybrid_only", "neither")):
             yield "small_partition", label, self.membership == code
+        # Keep the existing marginal axes intact while adding intersections
+        # that answer the project's local-small question directly.  These are
+        # descriptive all-area cohorts; they must not be presented as COCO AP.
+        for label in sorted(set(map(str, self.image_domain))):
+            yield "local_hybrid_domain", label, self.hybrid_small & (self.gt_domain == label)
+        for code, label in enumerate(("0", "1to32", "33to128", "129to300", "ge301")):
+            yield "local_hybrid_density", label, self.hybrid_small & (self.gt_density_bucket == code)
+        for code, label in enumerate(("lt8", "8to16", "16to32", "32to64", "ge64")):
+            yield "local_hybrid_input_short", label, self.hybrid_small & (self.input_short_bucket == code)
 
 
 def load_metadata(path: Path) -> Metadata:
@@ -609,6 +629,10 @@ def validate_match_matrix_audit(
             raise ValueError("matcher matrix annotation identity mismatch")
         if matrix.get("config_sha256") != formal_identity["config_sha256"]:
             raise ValueError("matcher matrix config identity mismatch")
+        if matrix.get("matcher_script_sha256") != FORMAL_MATCHER_SCRIPT_SHA256:
+            raise ValueError("matcher matrix matcher-script identity mismatch")
+        if matrix.get("match_export_sha256") != FORMAL_MATCH_EXPORT_SHA256:
+            raise ValueError("matcher matrix match-export identity mismatch")
         replay_runtime = matrix.get("replay_runtime_backend")
         matcher_runtime = matrix.get("matcher_runtime")
         if not isinstance(replay_runtime, dict) or not isinstance(matcher_runtime, dict):
@@ -665,6 +689,8 @@ def validate_match_matrix_audit(
         "logical_name": "matcher_matrix/matrix.complete.json",
         "bytes": path.stat().st_size,
         "sha256": sha256(path),
+        "matcher_script_sha256": matrix.get("matcher_script_sha256"),
+        "match_export_sha256": matrix.get("match_export_sha256"),
         "replay_matrix_complete_sha256": matrix.get("replay_matrix_complete_sha256"),
         "replay_runtime_backend": matrix.get("replay_runtime_backend"),
         "matcher_runtime": matrix.get("matcher_runtime"),
@@ -1635,14 +1661,20 @@ def match_bucket_rows(
     budgets: Sequence[int],
 ) -> list[dict]:
     rows = []
+    masks = list(meta.group_masks())
     for scope in scopes:
         for threshold in thresholds:
             for budget in budgets:
                 values = data.statuses[(scope, threshold, budget)]
-                for axis, group, mask in meta.group_masks():
-                    tp = int(np.count_nonzero(mask & (values == STATUS_CODE["tp"])))
-                    fn = int(np.count_nonzero(mask & (values == STATUS_CODE["fn"])))
-                    ignored = int(np.count_nonzero(mask & (values == STATUS_CODE["ignored"])))
+                is_tp = values == STATUS_CODE["tp"]
+                is_fn = values == STATUS_CODE["fn"]
+                is_ignored = values == STATUS_CODE["ignored"]
+                for axis, group, mask in masks:
+                    if axis.startswith("local_hybrid_") and scope != "all":
+                        continue
+                    tp = int(np.count_nonzero(mask & is_tp))
+                    fn = int(np.count_nonzero(mask & is_fn))
+                    ignored = int(np.count_nonzero(mask & is_ignored))
                     rows.append(
                         {
                             "epoch": epoch,
@@ -1941,7 +1973,7 @@ def analyze_transitions(
     output_path: Path,
     meta: Metadata,
     records: Mapping[tuple[int, str], ReplayState],
-    matches: Mapping[tuple[int, str], MatchData],
+    match_loader: Callable[[str], Mapping[tuple[int, str], MatchData]],
     pairs: Sequence[tuple[int, int]],
     states: Sequence[str],
     scopes: Sequence[str],
@@ -1963,7 +1995,14 @@ def analyze_transitions(
     ):
         detail_writer = csv.DictWriter(detail_handle, fieldnames=DETAIL_FIELDS, extrasaction="raise", lineterminator="\n")
         detail_writer.writeheader()
-        for state in states:
+
+        def process_state(
+            state: str,
+            matches: Mapping[tuple[int, str], MatchData],
+        ) -> int:
+            """Write one state's transitions without retaining its MatchData afterwards."""
+
+            state_detail_count = 0
             for start, end in pairs:
                 before_match = matches[(start, state)]
                 after_match = matches[(end, state)]
@@ -2036,7 +2075,7 @@ def analyze_transitions(
                                     before_match, after_match, before_stage, after_stage, meta, budget,
                                 )
                                 detail_writer.writerow({key: format_value(row.get(key)) for key in DETAIL_FIELDS})
-                                detail_count += 1
+                                state_detail_count += 1
                                 stratum = (
                                     state, start, end, scope, threshold, direction, cause,
                                     row["small_partition"], row["domain"],
@@ -2057,6 +2096,23 @@ def analyze_transitions(
                                     row,
                                     representatives_per_stratum,
                                 )
+            return state_detail_count
+
+        for state in states:
+            state_matches = match_loader(state)
+            expected_state_keys = {key for key in records if key[1] == state}
+            if set(state_matches) != expected_state_keys:
+                missing = sorted(expected_state_keys - set(state_matches))
+                extra = sorted(set(state_matches) - expected_state_keys)
+                raise ValueError(
+                    f"state match loader returned the wrong e*/{state} matrix; "
+                    f"missing={missing}, extra={extra}"
+                )
+            detail_count += process_state(state, state_matches)
+            # All large per-GT status/detail arrays for raw must be released
+            # before the EMA batch is loaded (and vice versa).
+            del state_matches
+            gc.collect()
     temporary.replace(output_path)
 
     representative_rows = []
@@ -2136,6 +2192,9 @@ def write_generated_report(
             else "TESTING ONLY: this file comes from an incomplete synthetic/subset matrix. Independent"
         ),
         "coverage is not called TP/FN. Formal TP/FN counts come only from COCO one-to-one shards.",
+        "AP-small/AR-small always refer to evaluator-small: original-annotation area <= 32^2.",
+        "`local_hybrid_small` is a separate descriptive cohort after direct 640x640 resize:",
+        "area < 32^2 OR short side < 16. No AP is computed or claimed for that hybrid cohort.",
         "",
         "## COCO metrics",
         "",
@@ -2214,8 +2273,14 @@ def write_generated_report(
         attr_index[key][row["cause"]] = int(row["count"])
     lines.extend(
         [
-            "| pair | state | scope | cohort | gain | loss | candidate | encoder | decoder | rank | competition |",
-            "|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|---:|",
+            "The `coco_small_eval` scope/cohort is the formal evaluator-small population used by",
+            "AP-small. Under the all-area scope, `coco_small` (strict area < 32^2) and",
+            "`local_hybrid_small` are descriptive cohorts only; their transition counts are not AP.",
+            "Gain and loss are reported on separate rows so their direct missing-endpoint causes",
+            "cannot be combined.",
+            "",
+            "| pair | state | scope | cohort | transition | count | candidate | encoder | decoder | rank | competition |",
+            "|:---|:---|:---|:---|:---|---:|---:|---:|---:|---:|---:|",
         ]
     )
     for row in selected:
@@ -2223,16 +2288,15 @@ def write_generated_report(
             row["epoch_start"], row["epoch_end"], row["state"], row["match_scope"],
             row["cohort"], row["iou_threshold"],
         )
-        combined = Counter()
         for direction in ("gain", "loss"):
-            combined.update(attr_index.get(base + (direction,), {}))
-        lines.append(
-            f"| e{row['epoch_start']}→e{row['epoch_end']} | {row['state']} | {row['match_scope']} | "
-            f"{row['cohort']} | {row['gain']} | {row['loss']} | "
-            f"{combined['candidate_absence']} | {combined['encoder_selection']} | "
-            f"{combined['decoder_geometry']} | {combined['rank_gt300']} | "
-            f"{combined['one_to_one_competition']} |"
-        )
+            causes = attr_index.get(base + (direction,), {})
+            lines.append(
+                f"| e{row['epoch_start']}→e{row['epoch_end']} | {row['state']} | {row['match_scope']} | "
+                f"{row['cohort']} | {direction} | {row[direction]} | "
+                f"{causes.get('candidate_absence', 0)} | {causes.get('encoder_selection', 0)} | "
+                f"{causes.get('decoder_geometry', 0)} | {causes.get('rank_gt300', 0)} | "
+                f"{causes.get('one_to_one_competition', 0)} |"
+            )
     lines.extend(
         [
             "",
@@ -2282,6 +2346,7 @@ def run_analysis(args: argparse.Namespace) -> dict:
     if formal:
         if tuple(sorted(replay_dirs)) != FORMAL_EPOCHS:
             raise ValueError(f"formal analysis requires epochs {FORMAL_EPOCHS}")
+        validate_formal_pairs(pairs)
         if states != DEFAULT_STATES:
             raise ValueError(f"formal analysis requires states {DEFAULT_STATES}")
         if thresholds != DEFAULT_THRESHOLDS or budgets != (300, 640):
@@ -2299,15 +2364,11 @@ def run_analysis(args: argparse.Namespace) -> dict:
     raw_ema = raw_ema_rows(metrics, states)
     merged_aggregates = merge_match_aggregates(match_dirs)
 
-    match_data: dict[tuple[int, str], MatchData] = {}
-    match_buckets: list[dict] = []
+    protocol_states: dict[tuple[int, str], str] = {}
     for key, directory in sorted(match_dirs.items()):
         epoch, state = key
         protocol = validate_match_protocol(
             records[key], directory, split=args.split, formal=formal
-        )
-        data = load_match_data(
-            directory, meta, args.scopes, thresholds, budgets, formal=formal
         )
         protocol_state = str(protocol.get("state", ""))
         expected_protocol_state = f"checkpoint{epoch:04d}:{state}"
@@ -2315,11 +2376,6 @@ def run_analysis(args: argparse.Namespace) -> dict:
             raise ValueError(
                 f"matcher state is not bound to requested e{epoch}/{state}: "
                 f"{protocol_state!r} != {expected_protocol_state!r}"
-            )
-        if len(data.source_states) != 1 or data.source_states[0] != protocol_state:
-            raise ValueError(
-                f"formal GT match state disagrees with protocol e{epoch}/{state}: "
-                f"rows={data.source_states}, protocol={protocol_state!r}"
             )
         status_manifest_path = directory / "detection_status_manifest.json"
         if status_manifest_path.is_file():
@@ -2329,8 +2385,30 @@ def run_analysis(args: argparse.Namespace) -> dict:
                     f"detection-status state disagrees with protocol e{epoch}/{state}: "
                     f"status={status_state!r}, protocol={protocol_state!r}"
                 )
-        match_data[key] = data
-        match_buckets.extend(match_bucket_rows(epoch, state, data, meta, args.scopes, thresholds, budgets))
+        protocol_states[key] = protocol_state
+
+    match_bucket_chunks: dict[tuple[int, str], list[dict]] = {}
+
+    def load_state_matches(state: str) -> dict[tuple[int, str], MatchData]:
+        """Load exactly one raw/EMA epoch batch; every GT CSV is read once."""
+
+        batch: dict[tuple[int, str], MatchData] = {}
+        for epoch in sorted(epochs):
+            key = (epoch, state)
+            data = load_match_data(
+                match_dirs[key], meta, args.scopes, thresholds, budgets, formal=formal
+            )
+            protocol_state = protocol_states[key]
+            if len(data.source_states) != 1 or data.source_states[0] != protocol_state:
+                raise ValueError(
+                    f"formal GT match state disagrees with protocol e{epoch}/{state}: "
+                    f"rows={data.source_states}, protocol={protocol_state!r}"
+                )
+            batch[key] = data
+            match_bucket_chunks[key] = match_bucket_rows(
+                epoch, state, data, meta, args.scopes, thresholds, budgets
+            )
+        return batch
 
     global_pr_rows: list[dict] = []
     score_separation_rows: list[dict] = []
@@ -2381,13 +2459,15 @@ def run_analysis(args: argparse.Namespace) -> dict:
                     "formal global-PR reconciliation matrix is incomplete: "
                     f"{global_pr_reconciliations} != {expected_reconciliations}"
                 )
+        del dataset_cache
+        gc.collect()
 
     details_path = args.output / "transition_details.csv.gz"
     transition_summary, attribution, representatives, representative_images, detail_count = analyze_transitions(
         details_path,
         meta,
         records,
-        match_data,
+        load_state_matches,
         pairs,
         states,
         args.scopes,
@@ -2395,6 +2475,13 @@ def run_analysis(args: argparse.Namespace) -> dict:
         args.transition_budget,
         args.representatives_per_stratum,
     )
+    # Preserve the former epoch-major/state-lexical CSV row order even though
+    # the memory-bounded loader processes raw and EMA in separate batches.
+    match_buckets = [
+        row
+        for key in sorted(match_bucket_chunks)
+        for row in match_bucket_chunks[key]
+    ]
 
     tables = {
         "metrics_14_states.csv": metrics,
@@ -2524,6 +2611,10 @@ def run_analysis(args: argparse.Namespace) -> dict:
             "coco_small": "original annotation area < 32^2",
             "coco_small_eval": "original annotation area <= 32^2; formal evaluator scope",
             "local_hybrid_small": "direct 640x640 resize: area < 32^2 OR short side < 16",
+            "local_hybrid_cross_axes": (
+                "local_hybrid_domain/local_hybrid_density/local_hybrid_input_short are intersections "
+                "with local_hybrid_small under the all-area matching scope; they are not AP"
+            ),
             "stage_coverage": "independent per-GT best-IoU coverage; not TP/FN/recall",
             "formal_matching": "COCO score-ordered one-to-one matching from match shards",
             "ap_scope": (
@@ -2541,6 +2632,10 @@ def run_analysis(args: argparse.Namespace) -> dict:
                 "independent coverage but one-to-one competition"
             ),
             "domain": "wired/wireless only when present as an explicit file-name path component; otherwise unknown",
+            "match_data_lifecycle": (
+                "GT match CSVs are read once and MatchData is retained for seven epochs of one "
+                "state at a time; raw is released before EMA is loaded"
+            ),
         },
         "input_identity": {
             "replays": replay_input_identity,

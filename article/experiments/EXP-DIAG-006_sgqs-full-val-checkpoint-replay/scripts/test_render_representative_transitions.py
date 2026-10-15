@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import csv
 import importlib.util
+import os
 from pathlib import Path
 from types import SimpleNamespace
 import sys
@@ -196,21 +197,82 @@ def create_fixture(root: Path) -> tuple[Path, Path, Path, dict[int, Path]]:
     audit = GATE.formal_audit()
     audit["images"] = 2
     audit["noncrowd_annotations"] = 2
-    audit["pairs"] = [[28, 29], [30, 34]]
-    audit["input_identity"]["replays"]["e28"]["metadata"] = descriptor(
-        metadata_path, "e28/val.metadata.npz"
-    )
+    for epoch in (28, 29, 30, 34):
+        audit["input_identity"]["replays"][f"e{epoch}"]["metadata"] = descriptor(
+            metadata_path, f"e{epoch}/val.metadata.npz"
+        )
     for epoch, prediction in prediction_paths.items():
         audit["input_identity"]["replays"][f"e{epoch}"]["states"]["ema"][
             "predictions"
         ] = descriptor(prediction, f"e{epoch}/ema/val.ema.predictions.npz")
     GATE.write_fixture(data_dir, audit)
     write_representatives(data_dir / "representative_annotations.csv")
+    attribution = GATE.attribution_rows()
+    with (data_dir / "transition_attribution.csv").open(
+        "w", encoding="utf-8", newline=""
+    ) as handle:
+        writer = csv.DictWriter(
+            handle, fieldnames=list(attribution[0]), lineterminator="\n"
+        )
+        writer.writeheader()
+        writer.writerows(attribution)
     GATE.rewrite_manifest(data_dir)
     return data_dir, replay_root, images_root, prediction_paths
 
 
 class RepresentativeRendererTest(unittest.TestCase):
+    def test_safe_image_path_allows_dataset_view_link_but_rejects_traversal(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            images_root = root / "view"
+            external = root / "source"
+            images_root.mkdir()
+            external.mkdir()
+            Image.new("RGB", (8, 8), (255, 255, 255)).save(external / "sample.png")
+            link = images_root / "linked"
+            try:
+                os.symlink(external, link, target_is_directory=True)
+            except OSError as exc:
+                self.skipTest(f"directory symlink unavailable: {exc}")
+
+            selected = MODULE._safe_image_path(images_root, "linked/sample.png")
+            self.assertEqual(selected, link / "sample.png")
+            with self.assertRaisesRegex(ValueError, "unsafe representative image path"):
+                MODULE._safe_image_path(images_root, "../source/sample.png")
+            with self.assertRaisesRegex(ValueError, "unsafe representative image path"):
+                MODULE._safe_image_path(images_root, str(external / "sample.png"))
+
+    def test_endpoint_metadata_identity_must_match_e28(self):
+        audit = GATE.formal_audit()
+        MODULE.require_shared_metadata_identity(audit, (28, 29, 30, 34))
+        audit["input_identity"]["replays"]["e34"]["metadata"]["bytes"] = 2
+        with self.assertRaisesRegex(ValueError, "metadata identity mismatch"):
+            MODULE.require_shared_metadata_identity(audit, (28, 29, 30, 34))
+
+    def test_absent_panels_are_reconciled_with_cross_domain_counts(self):
+        with tempfile.TemporaryDirectory() as temp:
+            path = Path(temp) / "representatives.csv"
+            write_representatives(path)
+            selections = MODULE.select_panels(MODULE.read_representatives(path))
+        counts = MODULE.formal_attribution_counts(GATE.attribution_rows())
+        MODULE.reconcile_panel_selections(selections, counts)
+
+        aggregate = (28, 29, "gain", 0.5, "candidate_absence")
+        missing_all = dict(selections)
+        for domain in MODULE.DOMAINS:
+            missing_all[(*aggregate, domain)] = None
+        with self.assertRaisesRegex(ValueError, "lacks every domain representative"):
+            MODULE.reconcile_panel_selections(missing_all, counts)
+
+        false_zero = dict(counts)
+        false_zero[aggregate] = 0
+        with self.assertRaisesRegex(ValueError, "zero-count"):
+            MODULE.reconcile_panel_selections(selections, false_zero)
+
+        one_domain_unknown = dict(selections)
+        one_domain_unknown[(*aggregate, "wireless")] = None
+        MODULE.reconcile_panel_selections(one_domain_unknown, counts)
+
     def test_candidate_choice_reconciles_all_five_causes(self):
         gt_box = np.asarray([50.0, 50.0, 20.0, 20.0], dtype=np.float32)
 

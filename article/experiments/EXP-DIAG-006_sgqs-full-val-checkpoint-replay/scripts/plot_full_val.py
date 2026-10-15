@@ -7,6 +7,7 @@ import argparse
 import csv
 import hashlib
 import json
+import math
 import re
 from collections.abc import Mapping
 from pathlib import Path
@@ -45,8 +46,50 @@ FORMAL_EPOCHS = tuple(range(28, 35))
 FORMAL_STATES = ("raw", "ema")
 FORMAL_THRESHOLDS = tuple(round(0.50 + 0.05 * index, 2) for index in range(10))
 FORMAL_BUDGETS = (300, 640)
+FORMAL_PAIRS = (
+    (28, 29),
+    (29, 30),
+    (30, 31),
+    (31, 32),
+    (32, 33),
+    (33, 34),
+    (28, 30),
+    (30, 34),
+)
 FORMAL_IMAGES = 12_841
 FORMAL_NONCROWD_GT = 1_458_060
+FORMAL_MATCHER_SCRIPT_SHA256 = (
+    "9dafff504264bb501276f13ed403e45ae9eb98a181885b8255efdb7c9fc9028e"
+)
+FORMAL_MATCH_EXPORT_SHA256 = (
+    "8151bf2514e00c171384b0571d8fc645d32c53aae7f3a96d95c293563f931237"
+)
+GLOBAL_PR_PLOT_EPOCHS = (28, 29, 30, 34)
+GLOBAL_PR_RECALL_GRID = tuple(round(index / 100.0, 2) for index in range(101))
+STAGE_COVERAGE_COHORTS = (
+    (
+        "coco_small_eval",
+        "Evaluator-small\n(original annotation area <= 32^2)",
+    ),
+    (
+        "local_hybrid_small",
+        "Local hybrid-small\n(640-resized area < 32^2 OR short side < 16 px)",
+    ),
+)
+STAGE_COVERAGE_STAGES = (
+    "encoder_dense_all",
+    "encoder_top640",
+    "decoder_all640",
+    "decoder_top300",
+)
+BUCKET_RECALL_SCOPE = "coco_small_eval"
+BUCKET_RECALL_IOU = 0.75
+BUCKET_RECALL_MAX_DETS = 300
+BUCKET_RECALL_GROUPS = {
+    "domain": ("wired", "wireless"),
+    "density": ("1to32", "33to128", "129to300", "ge301"),
+    "input_short": ("lt8", "8to16", "16to32", "32to64", "ge64"),
+}
 FORMAL_ANALYSIS_OUTPUTS = frozenset(
     {
         "metrics_14_states.csv",
@@ -162,6 +205,14 @@ def _validate_formal_identity(audit: Mapping) -> None:
             _require_descriptor(roots.get(root_name), f"{state_key}/{root_name}")
 
     matrix = _require_descriptor(inputs.get("matcher_matrix"), "matcher matrix gate")
+    if _require_sha(
+        matrix.get("matcher_script_sha256"), "matcher script"
+    ) != FORMAL_MATCHER_SCRIPT_SHA256:
+        raise ValueError("formal analysis matcher script identity mismatch")
+    if _require_sha(
+        matrix.get("match_export_sha256"), "match exporter"
+    ) != FORMAL_MATCH_EXPORT_SHA256:
+        raise ValueError("formal analysis match exporter identity mismatch")
     replay_runtime = _require_mapping(
         matrix.get("replay_runtime_backend"), "replay runtime backend gate"
     )
@@ -202,6 +253,12 @@ def validate_formal_analysis(data_dir: Path) -> dict:
         raise ValueError("formal analysis audit lacks the ten-IoU grid")
     if tuple(map(int, audit.get("budgets", ()))) != FORMAL_BUDGETS:
         raise ValueError("formal analysis audit lacks maxDets=300/640")
+    try:
+        pairs = tuple(tuple(map(int, pair)) for pair in audit.get("pairs", ()))
+    except (TypeError, ValueError) as exc:
+        raise ValueError("formal analysis audit has invalid transition pairs") from exc
+    if pairs != FORMAL_PAIRS:
+        raise ValueError("formal analysis audit lacks the fixed transition-pair matrix")
     if int(audit.get("transition_budget", -1)) != 300:
         raise ValueError("formal analysis audit has the wrong transition budget")
     if (
@@ -263,6 +320,254 @@ def read_csv(path: Path) -> list[dict[str, str]]:
         return list(csv.DictReader(handle))
 
 
+def _finite_float(row: Mapping[str, str], field: str, context: str) -> float:
+    try:
+        value = float(row[field])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"{context} has invalid {field}") from exc
+    if not math.isfinite(value):
+        raise ValueError(f"{context} has non-finite {field}: {value}")
+    return value
+
+
+def _formal_iou(row: Mapping[str, str], context: str) -> float:
+    """Return the canonical two-decimal IoU key without hiding off-grid input."""
+
+    value = _finite_float(row, "iou_threshold", context)
+    normalized = round(value, 2)
+    if not math.isclose(value, normalized, rel_tol=0.0, abs_tol=1e-12):
+        raise ValueError(f"{context} has off-grid iou_threshold: {value}")
+    return normalized
+
+
+def _integer(row: Mapping[str, str], field: str, context: str) -> int:
+    try:
+        return int(row[field])
+    except (KeyError, TypeError, ValueError) as exc:
+        raise ValueError(f"{context} has invalid {field}") from exc
+
+
+def _require_exact_keys(
+    actual: set[tuple],
+    expected: set[tuple],
+    label: str,
+) -> None:
+    if actual == expected:
+        return
+    missing = sorted(expected - actual)
+    unexpected = sorted(actual - expected)
+    raise ValueError(
+        f"{label} matrix mismatch: expected {len(expected)} cells, got {len(actual)}; "
+        f"missing={missing[:3]}; unexpected={unexpected[:3]}"
+    )
+
+
+def _bounded_float(
+    row: Mapping[str, str],
+    field: str,
+    context: str,
+    lower: float,
+    upper: float,
+) -> float:
+    value = _finite_float(row, field, context)
+    if not lower <= value <= upper:
+        raise ValueError(
+            f"{context} has out-of-range {field}: {value} not in [{lower}, {upper}]"
+        )
+    return value
+
+
+def select_metric_rows(rows: Sequence[Mapping[str, str]]) -> list[Mapping[str, str]]:
+    """Validate the exact 7-epoch x raw/EMA metric matrix used by the plot."""
+
+    expected = {(epoch, state) for epoch in FORMAL_EPOCHS for state in FORMAL_STATES}
+    selected: dict[tuple[int, str], Mapping[str, str]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        context = f"metric row {row_number}"
+        epoch = _integer(row, "epoch", context)
+        state = str(row.get("state", ""))
+        key = (epoch, state)
+        if key in selected:
+            raise ValueError(f"duplicate metric cell: {key}")
+        for field in ("ap_small_d300", "ar_small_d300"):
+            _bounded_float(row, field, context, 0.0, 1.0)
+        selected[key] = row
+    _require_exact_keys(set(selected), expected, "metric")
+    return [selected[key] for key in sorted(expected)]
+
+
+def select_per_iou_rows(rows: Sequence[Mapping[str, str]]) -> list[Mapping[str, str]]:
+    """Validate the exact EMA/maxDets=300 per-IoU slice rendered below."""
+
+    expected = {(epoch, threshold) for epoch in FORMAL_EPOCHS for threshold in FORMAL_THRESHOLDS}
+    selected: dict[tuple[int, float], Mapping[str, str]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        if row.get("state") != "ema":
+            continue
+        context = f"per-IoU row {row_number}"
+        max_dets = _integer(row, "max_dets", context)
+        if max_dets != 300:
+            continue
+        epoch = _integer(row, "epoch", context)
+        threshold = _formal_iou(row, context)
+        key = (epoch, threshold)
+        if key in selected:
+            raise ValueError(f"duplicate EMA/maxDets=300 per-IoU cell: {key}")
+        for field in ("ap_small", "ar_small"):
+            _bounded_float(row, field, context, 0.0, 1.0)
+        selected[key] = row
+    _require_exact_keys(set(selected), expected, "EMA/maxDets=300 per-IoU")
+    return [selected[key] for key in sorted(expected)]
+
+
+def select_per_iou_gap_rows(rows: Sequence[Mapping[str, str]]) -> list[Mapping[str, str]]:
+    """Validate the exact EMA Top-640-minus-Top-300 per-IoU slice."""
+
+    expected = {(epoch, threshold) for epoch in FORMAL_EPOCHS for threshold in FORMAL_THRESHOLDS}
+    selected: dict[tuple[int, float], Mapping[str, str]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        if row.get("state") != "ema":
+            continue
+        context = f"per-IoU budget-gap row {row_number}"
+        epoch = _integer(row, "epoch", context)
+        threshold = _formal_iou(row, context)
+        key = (epoch, threshold)
+        if key in selected:
+            raise ValueError(f"duplicate EMA per-IoU budget-gap cell: {key}")
+        for field in ("ap_d640_minus_d300", "ar_d640_minus_d300"):
+            _bounded_float(row, field, context, -1.0, 1.0)
+        selected[key] = row
+    _require_exact_keys(set(selected), expected, "EMA per-IoU budget gap")
+    return [selected[key] for key in sorted(expected)]
+
+
+def select_attribution_rows(
+    rows: Sequence[Mapping[str, str]],
+    pairs: Sequence[tuple[int, int]] = FORMAL_PAIRS,
+) -> list[Mapping[str, str]]:
+    """Validate the complete formal EMA evaluator-small attribution slice."""
+
+    pair_tuple = tuple(tuple(map(int, pair)) for pair in pairs)
+    expected = {
+        (start, end, threshold, transition, cause)
+        for start, end in pair_tuple
+        for threshold in FORMAL_THRESHOLDS
+        for transition in ("gain", "loss")
+        for cause in CAUSES
+    }
+    selected: dict[tuple[int, int, float, str, str], Mapping[str, str]] = {}
+    group_totals: dict[tuple[int, int, float, str], set[int]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        if (
+            row.get("state") != "ema"
+            or row.get("match_scope") != "coco_small_eval"
+            or row.get("cohort") != "coco_small_eval"
+        ):
+            continue
+        context = f"transition attribution row {row_number}"
+        max_dets = _integer(row, "max_dets", context)
+        if max_dets != 300:
+            continue
+        start = _integer(row, "epoch_start", context)
+        end = _integer(row, "epoch_end", context)
+        threshold = _formal_iou(row, context)
+        transition = str(row.get("transition", ""))
+        cause = str(row.get("cause", ""))
+        key = (start, end, threshold, transition, cause)
+        if key in selected:
+            raise ValueError(f"duplicate transition attribution cell: {key}")
+        count = _integer(row, "count", context)
+        transition_total = _integer(row, "transition_total", context)
+        if count < 0 or transition_total < 0 or count > transition_total:
+            raise ValueError(
+                f"{context} has invalid count/transition_total: {count}/{transition_total}"
+            )
+        fraction_text = str(row.get("fraction", "")).strip()
+        if transition_total:
+            fraction = _finite_float(row, "fraction", context)
+            if not math.isclose(
+                fraction, count / transition_total, rel_tol=1e-12, abs_tol=1e-12
+            ):
+                raise ValueError(f"{context} fraction disagrees with count/transition_total")
+        elif fraction_text not in {"", "0", "0.0"}:
+            raise ValueError(f"{context} has a fraction for an empty transition stratum")
+        selected[key] = row
+        group = (start, end, threshold, transition)
+        group_totals.setdefault(group, set()).add(transition_total)
+
+    _require_exact_keys(set(selected), expected, "formal transition attribution")
+    for group, totals in group_totals.items():
+        if len(totals) != 1:
+            raise ValueError(f"transition attribution total is inconsistent for {group}: {totals}")
+        total = next(iter(totals))
+        observed = sum(
+            _integer(selected[(*group, cause)], "count", f"transition attribution {group}")
+            for cause in CAUSES
+        )
+        if observed != total:
+            raise ValueError(
+                f"transition attribution causes do not sum to total for {group}: {observed} != {total}"
+            )
+    return [selected[key] for key in sorted(expected)]
+
+
+def select_global_pr_rows(rows: Sequence[Mapping[str, str]]) -> list[Mapping[str, str]]:
+    """Validate the exact four EMA PR curves displayed in the formal figure."""
+
+    expected = {
+        (epoch, recall)
+        for epoch in GLOBAL_PR_PLOT_EPOCHS
+        for recall in GLOBAL_PR_RECALL_GRID
+    }
+    selected: dict[tuple[int, float], Mapping[str, str]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        if row.get("state") != "ema" or row.get("scope") != "coco_small_eval":
+            continue
+        context = f"global PR row {row_number}"
+        threshold = _formal_iou(row, context)
+        max_dets = _integer(row, "max_dets", context)
+        epoch = _integer(row, "epoch", context)
+        if threshold != 0.75 or max_dets != 300 or epoch not in GLOBAL_PR_PLOT_EPOCHS:
+            continue
+        recall = _finite_float(row, "recall_threshold", context)
+        normalized_recall = round(recall, 2)
+        if not math.isclose(recall, normalized_recall, rel_tol=0.0, abs_tol=1e-12):
+            raise ValueError(f"{context} has off-grid recall_threshold: {recall}")
+        key = (epoch, normalized_recall)
+        if key in selected:
+            raise ValueError(f"duplicate global PR cell: {key}")
+        _bounded_float(row, "interpolated_precision", context, 0.0, 1.0)
+        selected[key] = row
+    _require_exact_keys(set(selected), expected, "formal global PR")
+    return [selected[key] for key in sorted(expected)]
+
+
+def select_score_separation_rows(
+    rows: Sequence[Mapping[str, str]],
+) -> list[Mapping[str, str]]:
+    """Validate the exact 7-epoch x raw/EMA score-separation slice."""
+
+    expected = {(epoch, state) for epoch in FORMAL_EPOCHS for state in FORMAL_STATES}
+    selected: dict[tuple[int, str], Mapping[str, str]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        if row.get("scope") != "coco_small_eval":
+            continue
+        context = f"score-separation row {row_number}"
+        threshold = _formal_iou(row, context)
+        max_dets = _integer(row, "max_dets", context)
+        if threshold != 0.75 or max_dets != 300:
+            continue
+        epoch = _integer(row, "epoch", context)
+        state = str(row.get("state", ""))
+        key = (epoch, state)
+        if key in selected:
+            raise ValueError(f"duplicate score-separation cell: {key}")
+        _finite_float(row, "tp_minus_fp_median", context)
+        selected[key] = row
+    _require_exact_keys(set(selected), expected, "formal score separation")
+    return [selected[key] for key in sorted(expected)]
+
+
 def configure_style() -> None:
     plt.rcParams.update(
         {
@@ -285,8 +590,8 @@ def configure_style() -> None:
 
 
 def plot_metrics(data_dir: Path, output_dir: Path) -> Path:
-    rows = read_csv(data_dir / "metrics_14_states.csv")
-    epochs = sorted({int(row["epoch"]) for row in rows})
+    rows = select_metric_rows(read_csv(data_dir / "metrics_14_states.csv"))
+    epochs = list(FORMAL_EPOCHS)
     by_key = {(int(row["epoch"]), row["state"]): row for row in rows}
     fig, axes = plt.subplots(1, 2, figsize=(11.5, 4.3), sharex=True)
     specs = (
@@ -312,31 +617,93 @@ def plot_metrics(data_dir: Path, output_dir: Path) -> Path:
     return path
 
 
+def select_stage_coverage_rows(rows: Sequence[Mapping[str, str]]) -> list[Mapping[str, str]]:
+    """Select the two declared small definitions for independent coverage.
+
+    ``coco_small`` is intentionally excluded: it is a descriptive ``area <
+    32^2`` cohort, whereas ``coco_small_eval`` is the inclusive evaluator
+    population that defines AP-small/AR-small.
+    """
+    groups = tuple(group for group, _label in STAGE_COVERAGE_COHORTS)
+    thresholds = (0.5, 0.75)
+    expected = {
+        (group, threshold, stage, epoch)
+        for group in groups
+        for threshold in thresholds
+        for stage in STAGE_COVERAGE_STAGES
+        for epoch in FORMAL_EPOCHS
+    }
+    selected: dict[tuple[str, float, str, int], Mapping[str, str]] = {}
+    population: dict[str, set[int]] = {group: set() for group in groups}
+    for row_number, row in enumerate(rows, start=2):
+        if (
+            row.get("state") != "ema"
+            or row.get("axis") != "cohort"
+            or row.get("group") not in groups
+        ):
+            continue
+        context = f"stage coverage row {row_number}"
+        threshold = _formal_iou(row, context)
+        if threshold not in thresholds:
+            continue
+        stage = row.get("stage")
+        if stage not in STAGE_COVERAGE_STAGES:
+            raise ValueError(f"{context} has unexpected stage: {stage!r}")
+        epoch = _integer(row, "epoch", context)
+        group = str(row["group"])
+        key = (group, threshold, stage, epoch)
+        if key in selected:
+            raise ValueError(f"duplicate stage coverage cell: {key}")
+
+        n_gt = _integer(row, "n_gt", context)
+        covered = _integer(row, "covered", context)
+        coverage = _finite_float(row, "coverage", context)
+        if n_gt <= 0 or not 0 <= covered <= n_gt:
+            raise ValueError(
+                f"{context} has invalid counts: covered={covered}, n_gt={n_gt}"
+            )
+        expected_coverage = covered / n_gt
+        if not 0.0 <= coverage <= 1.0 or not math.isclose(
+            coverage,
+            expected_coverage,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        ):
+            raise ValueError(
+                f"{context} coverage disagrees with covered/n_gt: "
+                f"{coverage} != {covered}/{n_gt}"
+            )
+        selected[key] = row
+        population[group].add(n_gt)
+
+    _require_exact_keys(set(selected), expected, "stage coverage")
+    for group, values in population.items():
+        if len(values) != 1:
+            raise ValueError(f"stage coverage has inconsistent population for {group}: {values}")
+    return [selected[key] for key in sorted(expected)]
+
+
 def plot_stage_coverage(data_dir: Path, output_dir: Path) -> Path:
     rows = read_csv(data_dir / "stage_coverage.csv")
-    selected = [
-        row
-        for row in rows
-        if row["state"] == "ema"
-        and row["axis"] == "cohort"
-        and row["group"] in {"coco_small", "local_hybrid_small"}
-        and float(row["iou_threshold"]) in {0.5, 0.75}
-    ]
-    epochs = sorted({int(row["epoch"]) for row in selected})
+    selected = select_stage_coverage_rows(rows)
+    epochs = list(FORMAL_EPOCHS)
     index = {
         (row["group"], float(row["iou_threshold"]), row["stage"], int(row["epoch"])): float(row["coverage"])
         for row in selected
     }
-    fig, axes = plt.subplots(2, 2, figsize=(12.0, 8.0), sharex=True)
-    for row_index, cohort in enumerate(("coco_small", "local_hybrid_small")):
+    population = {
+        cohort: {int(row["n_gt"]) for row in selected if row["group"] == cohort}
+        for cohort, _label in STAGE_COVERAGE_COHORTS
+    }
+    fig, axes = plt.subplots(2, 2, figsize=(13.5, 8.3), sharex=True, sharey=True)
+    for row_index, (cohort, cohort_label) in enumerate(STAGE_COVERAGE_COHORTS):
         for column_index, threshold in enumerate((0.5, 0.75)):
             ax = axes[row_index, column_index]
-            for stage in COLORS:
-                if stage not in {"encoder_dense_all", "encoder_top640", "decoder_all640", "decoder_top300"}:
-                    continue
+            for stage in STAGE_COVERAGE_STAGES:
                 values = [index[(cohort, threshold, stage, epoch)] for epoch in epochs]
                 ax.plot(epochs, values, marker="o", linewidth=1.8, color=COLORS[stage], label=stage)
-            ax.set_title(f"{cohort}, IoU≥{threshold:g}")
+            n_gt = next(iter(population[cohort]))
+            ax.set_title(f"{cohort_label}; n={n_gt:,}\nIoU≥{threshold:g}")
             ax.yaxis.set_major_formatter(PercentFormatter(1.0))
             ax.set_xticks(epochs)
             ax.set_ylabel("independent GT coverage")
@@ -345,11 +712,12 @@ def plot_stage_coverage(data_dir: Path, output_dir: Path) -> Path:
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="lower center", ncol=4, bbox_to_anchor=(0.5, 0.005))
     fig.suptitle(
-        "Full-validation EMA stage coverage (independent per GT, not COCO recall)",
+        "EMA stage coverage: evaluator-small versus local hybrid-small\n"
+        "Independent best-IoU coverage per GT; not one-to-one COCO recall",
         fontsize=14,
         fontweight="bold",
     )
-    fig.tight_layout(rect=(0, 0.06, 1, 0.95))
+    fig.tight_layout(rect=(0, 0.06, 1, 0.92))
     path = output_dir / "stage_coverage.png"
     fig.savefig(path, dpi=200, bbox_inches="tight")
     plt.close(fig)
@@ -357,17 +725,11 @@ def plot_stage_coverage(data_dir: Path, output_dir: Path) -> Path:
 
 
 def plot_attribution(data_dir: Path, output_dir: Path) -> Path:
-    rows = read_csv(data_dir / "transition_attribution.csv")
-    selected = [
-        row
-        for row in rows
-        if row["state"] == "ema"
-        and row["match_scope"] == "coco_small_eval"
-        and row["cohort"] == "coco_small_eval"
-        and int(row["max_dets"]) == 300
-    ]
-    thresholds = sorted({float(row["iou_threshold"]) for row in selected})
-    pairs = sorted({(int(row["epoch_start"]), int(row["epoch_end"])) for row in selected})
+    selected = select_attribution_rows(
+        read_csv(data_dir / "transition_attribution.csv"), FORMAL_PAIRS
+    )
+    thresholds = list(FORMAL_THRESHOLDS)
+    pairs = list(FORMAL_PAIRS)
     labels = [f"e{start}→e{end}\ngain" for start, end in pairs] + [f"e{start}→e{end}\nloss" for start, end in pairs]
     keys = [(pair, "gain") for pair in pairs] + [(pair, "loss") for pair in pairs]
     totals = {}
@@ -375,14 +737,17 @@ def plot_attribution(data_dir: Path, output_dir: Path) -> Path:
         key = ((int(row["epoch_start"]), int(row["epoch_end"])), row["transition"], row["cause"])
         totals[key] = totals.get(key, 0.0) + int(row["count"])
     index = {key: value / len(thresholds) for key, value in totals.items()}
-    fig, ax = plt.subplots(figsize=(11.5, 5.2))
+    fig, ax = plt.subplots(figsize=(17.5, 6.2))
     bottom = [0] * len(keys)
     for cause in CAUSES:
         values = [index.get((pair, direction, cause), 0) for pair, direction in keys]
         ax.bar(labels, values, bottom=bottom, color=COLORS[cause], label=cause.replace("_", " "))
         bottom = [left + right for left, right in zip(bottom, values)]
     ax.set_ylabel("mean formal GT transitions per IoU slice")
-    ax.set_title("EMA COCO-small transition endpoints averaged over IoU=.50:.05:.95")
+    ax.set_title("EMA evaluator-small transition endpoints averaged over IoU=.50:.05:.95")
+    ax.tick_params(axis="x", labelrotation=32)
+    for label in ax.get_xticklabels():
+        label.set_horizontalalignment("right")
     ax.legend(loc="upper center", bbox_to_anchor=(0.5, -0.15), ncol=3)
     ax.grid(axis="x", visible=False)
     fig.tight_layout()
@@ -393,17 +758,18 @@ def plot_attribution(data_dir: Path, output_dir: Path) -> Path:
 
 
 def plot_per_iou(data_dir: Path, output_dir: Path) -> Path:
-    rows = read_csv(data_dir / "coco_small_per_iou.csv")
-    selected = [row for row in rows if row["state"] == "ema" and int(row["max_dets"]) == 300]
-    epochs = sorted({int(row["epoch"]) for row in selected})
-    thresholds = sorted({float(row["iou_threshold"]) for row in selected})
+    selected = select_per_iou_rows(read_csv(data_dir / "coco_small_per_iou.csv"))
+    epochs = list(FORMAL_EPOCHS)
+    thresholds = list(FORMAL_THRESHOLDS)
     index = {
-        (int(row["epoch"]), float(row["iou_threshold"])): row
+        (int(row["epoch"]), round(float(row["iou_threshold"]), 2)): row
         for row in selected
     }
-    gap_rows = [row for row in read_csv(data_dir / "coco_small_per_iou_budget_gap.csv") if row["state"] == "ema"]
+    gap_rows = select_per_iou_gap_rows(
+        read_csv(data_dir / "coco_small_per_iou_budget_gap.csv")
+    )
     gap_index = {
-        (int(row["epoch"]), float(row["iou_threshold"])): row
+        (int(row["epoch"]), round(float(row["iou_threshold"]), 2)): row
         for row in gap_rows
     }
     colors = plt.cm.viridis([position / max(len(thresholds) - 1, 1) for position in range(len(thresholds))])
@@ -449,7 +815,11 @@ def plot_per_iou(data_dir: Path, output_dir: Path) -> Path:
     axes[1, 0].set_ylabel("budget gap")
     handles, labels = axes[0, 0].get_legend_handles_labels()
     fig.legend(handles, labels, loc="center right", bbox_to_anchor=(1.10, 0.5), ncol=1)
-    fig.suptitle("EMA COCO-small per-IoU trajectories and maxDets gap", fontsize=14, fontweight="bold")
+    fig.suptitle(
+        "EMA evaluator-small per-IoU trajectories and maxDets gap",
+        fontsize=14,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 0.90, 0.95))
     path = output_dir / "per_iou_trajectory.png"
     fig.savefig(path, dpi=200, bbox_inches="tight")
@@ -458,20 +828,11 @@ def plot_per_iou(data_dir: Path, output_dir: Path) -> Path:
 
 
 def plot_global_pr(data_dir: Path, output_dir: Path) -> Path:
-    pr_rows = read_csv(data_dir / "global_pr_curve.csv")
-    separation = read_csv(data_dir / "tp_fp_score_separation.csv")
-    available_epochs = sorted({int(row["epoch"]) for row in pr_rows})
-    preferred = [epoch for epoch in (28, 29, 30, 34) if epoch in available_epochs]
-    epochs = preferred or available_epochs
-    selected_pr = [
-        row
-        for row in pr_rows
-        if row["state"] == "ema"
-        and row["scope"] == "coco_small_eval"
-        and float(row["iou_threshold"]) == 0.75
-        and int(row["max_dets"]) == 300
-        and int(row["epoch"]) in epochs
-    ]
+    selected_pr = select_global_pr_rows(read_csv(data_dir / "global_pr_curve.csv"))
+    selected_scores = select_score_separation_rows(
+        read_csv(data_dir / "tp_fp_score_separation.csv")
+    )
+    epochs = list(GLOBAL_PR_PLOT_EPOCHS)
     colors = plt.cm.viridis([position / max(len(epochs) - 1, 1) for position in range(len(epochs))])
     fig, axes = plt.subplots(1, 2, figsize=(12.5, 4.8))
     for epoch, color in zip(epochs, colors):
@@ -493,15 +854,8 @@ def plot_global_pr(data_dir: Path, output_dir: Path) -> Path:
     axes[0].yaxis.set_major_formatter(PercentFormatter(1.0))
     axes[0].legend()
 
-    selected_scores = [
-        row
-        for row in separation
-        if row["scope"] == "coco_small_eval"
-        and float(row["iou_threshold"]) == 0.75
-        and int(row["max_dets"]) == 300
-    ]
     score_index = {(int(row["epoch"]), row["state"]): row for row in selected_scores}
-    all_epochs = sorted({key[0] for key in score_index})
+    all_epochs = list(FORMAL_EPOCHS)
     for state in ("raw", "ema"):
         axes[1].plot(
             all_epochs,
@@ -525,39 +879,118 @@ def plot_global_pr(data_dir: Path, output_dir: Path) -> Path:
     return path
 
 
+def select_bucket_recall_rows(
+    rows: Sequence[Mapping[str, str]],
+    axes: Sequence[str],
+) -> list[Mapping[str, str]]:
+    """Select formal evaluator-small TP/FN recall rows for bucket plots."""
+    requested_axes = tuple(axes)
+    if len(set(requested_axes)) != len(requested_axes):
+        raise ValueError(f"duplicate bucket axes requested: {requested_axes}")
+    unknown_axes = set(requested_axes) - set(BUCKET_RECALL_GROUPS)
+    if unknown_axes:
+        raise ValueError(f"unsupported bucket axes requested: {sorted(unknown_axes)}")
+    expected = {
+        (axis, group, epoch)
+        for axis in requested_axes
+        for group in BUCKET_RECALL_GROUPS[axis]
+        for epoch in FORMAL_EPOCHS
+    }
+    selected: dict[tuple[str, str, int], Mapping[str, str]] = {}
+    populations: dict[tuple[str, str], set[tuple[int, int, int]]] = {}
+    for row_number, row in enumerate(rows, start=2):
+        axis = row.get("axis")
+        if (
+            row.get("state") != "ema"
+            or row.get("scope") != BUCKET_RECALL_SCOPE
+            or axis not in requested_axes
+        ):
+            continue
+        context = f"bucket recall row {row_number}"
+        threshold = _formal_iou(row, context)
+        max_dets = _integer(row, "max_dets", context)
+        if threshold != BUCKET_RECALL_IOU or max_dets != BUCKET_RECALL_MAX_DETS:
+            continue
+        group = row.get("group")
+        if group not in BUCKET_RECALL_GROUPS[str(axis)]:
+            # The analysis emits density=0 with an empty evaluator population.
+            # It is deliberately absent from the plotted formal matrix.
+            if row.get("recall") not in {None, ""}:
+                raise ValueError(f"{context} has unexpected non-empty group: {axis}/{group}")
+            continue
+        epoch = _integer(row, "epoch", context)
+        key = (str(axis), str(group), epoch)
+        if key in selected:
+            raise ValueError(f"duplicate bucket recall cell: {key}")
+
+        recall = _finite_float(row, "recall", context)
+        tp = _integer(row, "tp", context)
+        fn = _integer(row, "fn", context)
+        evaluable = _integer(row, "evaluable", context)
+        objects = _integer(row, "objects", context)
+        ignored = _integer(row, "ignored", context)
+        if (
+            tp < 0
+            or fn < 0
+            or ignored < 0
+            or evaluable <= 0
+            or tp + fn != evaluable
+            or objects != evaluable + ignored
+        ):
+            raise ValueError(
+                f"{context} has inconsistent population counts: objects={objects}, "
+                f"tp={tp}, fn={fn}, evaluable={evaluable}, ignored={ignored}"
+            )
+        expected_recall = tp / evaluable
+        if not 0.0 <= recall <= 1.0 or not math.isclose(
+            recall,
+            expected_recall,
+            rel_tol=1e-12,
+            abs_tol=1e-12,
+        ):
+            raise ValueError(
+                f"{context} recall disagrees with tp/evaluable: "
+                f"{recall} != {tp}/{evaluable}"
+            )
+        selected[key] = row
+        populations.setdefault((str(axis), str(group)), set()).add(
+            (objects, evaluable, ignored)
+        )
+
+    _require_exact_keys(set(selected), expected, "bucket recall")
+    for bucket, values in populations.items():
+        if len(values) != 1:
+            raise ValueError(
+                f"bucket recall population changes across epochs for {bucket}: {sorted(values)}"
+            )
+    return [selected[key] for key in sorted(expected)]
+
+
 def plot_buckets(data_dir: Path, output_dir: Path) -> Path:
     rows = read_csv(data_dir / "match_gt_buckets.csv")
-    axes_order = {
-        "domain": ("wired", "wireless", "unknown"),
-        "density": ("1to32", "33to128", "129to300", "ge301"),
-        "input_short": ("lt8", "8to16", "16to32", "32to64", "ge64"),
-    }
-    selected = [
-        row
-        for row in rows
-        if row["state"] == "ema"
-        and row["scope"] == "all"
-        and float(row["iou_threshold"]) == 0.75
-        and int(row["max_dets"]) == 300
-        and row["axis"] in axes_order
-        and row["recall"] != ""
-    ]
-    epochs = sorted({int(row["epoch"]) for row in selected})
+    axes_order = BUCKET_RECALL_GROUPS
+    selected = select_bucket_recall_rows(rows, tuple(axes_order))
+    epochs = list(FORMAL_EPOCHS)
     index = {(row["axis"], row["group"], int(row["epoch"])): float(row["recall"]) for row in selected}
-    fig, panels = plt.subplots(1, 3, figsize=(15.0, 4.8))
+    fig, panels = plt.subplots(1, 3, figsize=(15.0, 4.8), sharey=True)
     epoch_colors = plt.cm.viridis([index / max(len(epochs) - 1, 1) for index in range(len(epochs))])
     for ax, (axis_name, preferred_groups) in zip(panels, axes_order.items()):
-        groups = [group for group in preferred_groups if any((axis_name, group, epoch) in index for epoch in epochs)]
+        groups = list(preferred_groups)
         x = list(range(len(groups)))
         for epoch, color in zip(epochs, epoch_colors):
-            values = [index.get((axis_name, group, epoch), float("nan")) for group in groups]
+            values = [index[(axis_name, group, epoch)] for group in groups]
             ax.plot(x, values, marker="o", linewidth=1.6, color=color, label=f"e{epoch}")
         ax.set_xticks(x, groups, rotation=25, ha="right")
         ax.set_title(axis_name.replace("_", " "))
         ax.yaxis.set_major_formatter(PercentFormatter(1.0))
-        ax.set_ylabel("formal GT recall")
+    panels[0].set_ylabel("evaluator-small GT recall")
     panels[-1].legend(loc="upper left", bbox_to_anchor=(1.02, 1.0))
-    fig.suptitle("EMA all-area IoU≥0.75 GT recall by domain, density and input short side", fontsize=14, fontweight="bold")
+    fig.suptitle(
+        "EMA evaluator-small one-to-one GT recall by domain, density and input short side\n"
+        "Original annotation area <= 32^2; IoU≥0.75; maxDets=300",
+        fontsize=14,
+        fontweight="bold",
+    )
     fig.tight_layout(rect=(0, 0, 1, 0.94))
     path = output_dir / "bucket_recall.png"
     fig.savefig(path, dpi=200, bbox_inches="tight")

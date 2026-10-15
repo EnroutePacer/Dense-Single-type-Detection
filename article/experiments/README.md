@@ -15,13 +15,13 @@
 
 ## 当前顺序
 
-2026-10-15 最新完成项：[EXP-DIAG-005](EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；
-当前执行项为
-[EXP-DIAG-006](EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)。固定 val128
-已将 SGQS AP-small 倒 U 的直接承载位置定位为 Decoder 最终 score/rank 跨越
-Top-300；EXP-DIAG-006 将逐 GT 回放扩展到 e28--e34 raw/EMA 共 14 个唯一状态和
-12,841 张完整 val 图。协议与 CPU/val128 工程门禁已就绪，正式 GPU full-val 数据
-尚未产生，不能把 EXP-DIAG-005 的比例外推为全量结论。
+2026-10-15 最新完成项为
+[EXP-DIAG-006](EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)：已在本地完整
+12,841 图、1,458,060 non-crowd GT 上完成 e28--e34 raw/EMA 共 14 个唯一状态的
+CPU 回放、COCO 一对一匹配和配对归因。EMA AP-small 的前段收益与后段回跌都主要由
+最终 Decoder 合格 query 跨越 Top-300 排名边界承载；变化集中于每图 GT≥301 且
+640 输入短边 8--16 px 的目标。该结论对本地 annotation/CPU 后端有效，不等于服务器
+H20 的位级复现，也没有证明 EMA 或 SGQS 的训练级根因。
 [EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0
 详细日志训练臂均已完成；SGQS 的 val128 回放已完成，B0 回放与两臂探针对照分析
 尚未完成。

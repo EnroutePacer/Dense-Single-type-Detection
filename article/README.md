@@ -5,7 +5,7 @@
 
 ## 最新进度
 
-- [进行中：SGQS 14 状态全验证集回放](experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
+- [已完成（本地全量口径）：SGQS 14 状态全验证集回放](experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
 - [2026-10-15：SGQS/B0 配对探针完成与 Top-300 排名诊断](journal/2026-10-15.md)
 - [2026-10-14：三端校对、探针/C4 中断状态与目录清理](journal/2026-10-14.md)
 - [累计科研进展](docs/research/progress_log.md)
@@ -22,8 +22,9 @@
 
 实体文件通常放在仓库根布局：运行代码与配置位于 `engine/`、`configs/`、
 `tools/`、`tests/`，原始训练结果与大体积派生数据位于 `output/` 或 `outputs/`。
-经明确要求发布、已脱敏且小于普通 Git 门槛的自包含诊断包，可与对应 EXP 记录
-同置于 `article/experiments/`；不得借此复制权重、原始数据或大型 replay 输出。
+经明确要求发布且已脱敏的自包含诊断包，可与对应 EXP 记录同置于
+`article/experiments/`；普通文件必须低于 10 MiB，确需发布的较大派生表使用精确路径
+Git LFS 规则和逐文件 manifest。不得借此复制权重、原始数据或未经筛选的 replay 输出。
 历史但仍需保留的非活跃配置和 launcher 位于
 `outputs/provenance/retired_article_entities_20261014/`。
 

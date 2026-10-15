@@ -19,6 +19,14 @@ B0 目录为 39 文件、3,136,851,452 bytes，digest 为
 
 回放的详细数据、图像和分析见 [EXP-DIAG-005：SGQS Top-300 排名回放](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。固定 val128 上已经定位到 AP-small 倒 U 的直接承载机制：IoU 合格的 Decoder 最终输出仍然存在，但其最终 score/rank 跨越 `maxDets=300` 截断线；不是候选消失，也不是定位几何退化。该结论只在固定 val128 上建立，其中 COCO-small GT 集中在少量图像，不能据此外推完整验证集上的占比或断言参数级根因。当前已有两臂同字段训练探针，可以开展配对分析；但尚未分析这些字段，也没有 B0 的同口径 val128 回放，因此完成训练本身不能证明 SGQS 的参数级因果机制。
 
+后续 [EXP-DIAG-006：SGQS 全验证集回放](../EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
+已在本地 12,841 图上完成 14 个 unique raw/EMA 状态的正式一对一匹配：EMA 前段
+gain 与后段 loss 的十 IoU 转移事件有 87.73%--93.38% 归为 `rank_gt300`，全局 PR
+变化主要位于 recall `.69--.72`，并集中于每图 GT≥301、输入短边 8--16 px 的目标。
+因此 full-val 已确认“输出排名准入”是直接承载位置；本实验的下一任务是用 SGQS/B0
+训练探针解释该 score/rank 轨迹的上游来源，而不是继续把 val128 比例外推。该 full-val
+结论限本地 annotation/Windows CPU 后端，不等于服务器 H20 位级复现。
+
 依据为已归档的 [B0 日志](../../../outputs/resume_control_e28_to_e34_gb64/console.log)、[B1 日志](../../../outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log)、[B3 日志](../../../outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log)。下述 loss 数值取控制台整轮均值，AP 仅有三位小数精度。
 
 ## 首要嫌疑与可证伪条件

@@ -58,10 +58,15 @@ MAX_DETS = (300, 640)
 IOU_THRESHOLDS = tuple(round(0.50 + 0.05 * index, 2) for index in range(10))
 IMAGES_PER_SHARD = 256
 QUERIES_PER_IMAGE = 640
-MATCHER_SCRIPT_SHA256 = "4423bbb6fad325fd1f8f78d24b8cdff9ef921f03a0e9790e036c437b97d8945b"
+MATCHER_SCRIPT_SHA256 = "9dafff504264bb501276f13ed403e45ae9eb98a181885b8255efdb7c9fc9028e"
 MATCH_EXPORT_SHA256 = "8151bf2514e00c171384b0571d8fc645d32c53aae7f3a96d95c293563f931237"
 REPLAY_MATRIX_SCHEMA = "sgqs_full_val_matrix_orchestration_v1"
 MATCH_MATRIX_SCHEMA = "sgqs_coco_match_matrix_orchestration_v1"
+PREDICTION_GEOMETRY_POLICY = (
+    "scores and xywh coordinates must be finite; finite negative width/height values "
+    "are preserved exactly because faster_coco_eval/COCO marks their negative-area "
+    "detections ignored, matching the replay evaluator"
+)
 
 
 @dataclass(frozen=True)
@@ -292,8 +297,19 @@ def _load_json(path: Path, label: str) -> dict:
 
 def _hash_matches(path: Path, expected: str, label: str) -> None:
     require_file(path, label)
-    if len(expected) != 64 or sha256(path) != expected.lower():
+    if (
+        not isinstance(expected, str)
+        or len(expected) != 64
+        or sha256(path) != expected.lower()
+    ):
         raise MatrixError(f"{label} SHA-256 mismatch: {path}")
+
+
+def _nonnegative_json_integer(value: object, label: str, path: Path) -> int:
+    """Require a JSON integer without accepting bool/float/string coercions."""
+    if type(value) is not int or value < 0:
+        raise MatrixError(f"{label} must be a nonnegative integer: {path}")
+    return int(value)
 
 
 def probe_matcher_runtime(args: argparse.Namespace) -> dict:
@@ -368,6 +384,11 @@ def validate_match_complete(
     complete = _load_json(complete_path, "matcher completion marker")
     if complete.get("schema") != "coco_one_to_one_npz_complete_v2":
         raise MatrixError(f"unknown matcher completion schema: {complete_path}")
+    complete_negative_extent_total = _nonnegative_json_integer(
+        complete.get("negative_extent_detections"),
+        "matcher completion negative_extent_detections",
+        complete_path,
+    )
     expected_shards = math.ceil(EXPECTED_IMAGES / IMAGES_PER_SHARD)
     expected_predictions = EXPECTED_IMAGES * QUERIES_PER_IMAGE
     if (
@@ -408,6 +429,8 @@ def validate_match_complete(
     prediction_hash = str(prediction_descriptor.get("sha256", "")).lower()
     if protocol.get("prediction_sha256", "").lower() != prediction_hash:
         raise MatrixError(f"matcher prediction SHA-256 mismatch: {protocol_path}")
+    if protocol.get("prediction_geometry") != PREDICTION_GEOMETRY_POLICY:
+        raise MatrixError(f"matcher prediction-geometry policy mismatch: {protocol_path}")
     if (
         protocol.get("state") != spec.state_id
         or int(protocol.get("images", -1)) != EXPECTED_IMAGES
@@ -446,11 +469,16 @@ def validate_match_complete(
     annotation_total = 0
     prediction_total = 0
     image_total = 0
+    negative_extent_total = 0
     expected_summary_names = set()
     expected_gt_names = set()
     expected_status_names = set()
     for index, manifest_shard in enumerate(manifest_shards):
         gt_manifest_shard = gt_manifest_shards[index]
+        if not isinstance(manifest_shard, dict) or not isinstance(
+            gt_manifest_shard, dict
+        ):
+            raise MatrixError(f"matcher shard manifest entry mismatch at index {index}")
         shard_images = min(IMAGES_PER_SHARD, EXPECTED_IMAGES - index * IMAGES_PER_SHARD)
         summary_path = spec.output / f"summary.part{index:04d}.json"
         gt_path = spec.output / f"gt_matches.part{index:04d}.csv.gz"
@@ -460,6 +488,16 @@ def validate_match_complete(
         expected_status_names.add(status_path.name)
         if not all(path.is_file() for path in (summary_path, gt_path, status_path)):
             return None
+        if (
+            int(gt_manifest_shard.get("index", -1)) != index
+            or gt_manifest_shard.get("summary_file") != summary_path.name
+        ):
+            raise MatrixError(f"GT-shard hash chain mismatch: {summary_path}")
+        _hash_matches(
+            summary_path,
+            gt_manifest_shard.get("summary_sha256", ""),
+            "matcher shard summary",
+        )
         shard = _load_json(summary_path, "matcher shard summary")
         if (
             shard.get("schema") != "coco_one_to_one_match_shard_v2"
@@ -469,6 +507,20 @@ def validate_match_complete(
             or shard.get("detection_status_file") != status_path.name
         ):
             raise MatrixError(f"matcher shard summary mismatch: {summary_path}")
+        shard_negative_extent = _nonnegative_json_integer(
+            shard.get("negative_extent_detections"),
+            "matcher shard negative_extent_detections",
+            summary_path,
+        )
+        manifest_negative_extent = _nonnegative_json_integer(
+            gt_manifest_shard.get("negative_extent_detections"),
+            "GT-shard manifest negative_extent_detections",
+            gt_manifest_path,
+        )
+        if manifest_negative_extent != shard_negative_extent:
+            raise MatrixError(
+                f"GT-shard negative-extent count mismatch: {summary_path}"
+            )
         _hash_matches(gt_path, shard.get("gt_matches_sha256", ""), "GT match shard")
         _hash_matches(
             status_path,
@@ -476,10 +528,7 @@ def validate_match_complete(
             "detection-status shard",
         )
         if (
-            int(gt_manifest_shard.get("index", -1)) != index
-            or gt_manifest_shard.get("summary_file") != summary_path.name
-            or gt_manifest_shard.get("summary_sha256", "") != sha256(summary_path)
-            or gt_manifest_shard.get("gt_matches_file") != gt_path.name
+            gt_manifest_shard.get("gt_matches_file") != gt_path.name
             or gt_manifest_shard.get("gt_matches_sha256", "")
             != shard.get("gt_matches_sha256")
             or gt_manifest_shard.get("detection_status_file") != status_path.name
@@ -508,6 +557,7 @@ def validate_match_complete(
         image_total += int(shard["images"])
         annotation_total += int(shard.get("annotations", -1))
         prediction_total += int(shard.get("predictions", -1))
+        negative_extent_total += shard_negative_extent
 
     actual_summary_names = {path.name for path in spec.output.glob("summary.part*.json")}
     actual_gt_names = {path.name for path in spec.output.glob("gt_matches.part*.csv.gz")}
@@ -526,6 +576,10 @@ def validate_match_complete(
         or prediction_total != expected_predictions
     ):
         raise MatrixError(f"matcher shard totals disagree with completion marker: {spec.output}")
+    if negative_extent_total != complete_negative_extent_total:
+        raise MatrixError(
+            f"matcher negative-extent total disagrees with completion marker: {spec.output}"
+        )
     return complete
 
 

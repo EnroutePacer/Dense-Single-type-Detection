@@ -3,8 +3,8 @@ experiment_id: EXP-DIAG-006
 slug: sgqs_full_val_checkpoint_replay
 title: "SGQS e28-e34 raw/EMA 全验证集逐阶段回放"
 type: diagnostic
-status: partial
-validity: not_run
+status: completed
+validity: valid_with_scope
 paper_role: diagnosis
 question: "完整验证集上的 AP-small 前升后降，有多少来自候选、Encoder selection、Decoder 几何、rank-300 截断、一对一竞争或全局分数排序？"
 hypothesis_ids: [H-001, H-003, H-004, H-006]
@@ -13,9 +13,10 @@ method_ids: [M-002]
 source_experiment_ids: [EXP-TRAIN-006, EXP-DIAG-005]
 control_experiment_id: null
 legacy_ids: []
-runs: []
-artifact_ids: [ART-000081]
-result_status: awaiting_same_backend_gpu_full_validation
+runs: 14
+artifact_ids: [ART-000081, ART-000094]
+result_status: completed_local_full_validation_cpu
+
 checkpoint_matrix:
   epochs: [28, 29, 30, 31, 32, 33, 34]
   states: [raw, ema]
@@ -23,6 +24,7 @@ checkpoint_matrix:
   duplicate_containers_excluded:
     best_stg1.pth: checkpoint0034.pth
     last.pth: checkpoint0034.pth
+
 validation_population:
   total:
     images: 12841
@@ -35,30 +37,85 @@ validation_population:
     images: 6994
     noncrowd_gt: 830121
     annotation_sha256: 9ec7c82d45feacaa13142427bb39106bd2c87fa36ef3991e0f0198a07362390f
-  server_merged_annotation_sha256: a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b
+  local_formal_merged_annotation_sha256: f855dd4b9dded934479a54aad70f01b3c678d0ae1fd91e3f8ca1cd6890bd693e
+  server_training_merged_annotation_sha256: a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b
+  annotation_identity_matches_server: false
   all_referenced_images_present: true
   merged_mapping_gate:
     status: passed_on_val128_only
     images: 128
     noncrowd_gt: 15446
-    limitation: "This mapping gate is not a full-validation scientific result or a full identity proof."
+    limitation: "The mapping gate is not a full-validation identity proof; the formal local annotation hash remains different from the server training hash."
+
 protocol:
   input_size: [640, 640]
   encoder_topk: 640
   decoder_queries: 640
+  decoder_queries_per_state: 8218240
   max_dets: [300, 640]
   iou_thresholds: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
   stages: [encoder_dense_all, encoder_top640, decoder_all640, decoder_top300]
   small_definitions:
-    coco_evaluator: "official COCO small areaRange; used for AP-small/AR-small"
-    local_hybrid: "direct resize to 640x640: area < 32^2 OR short side < 16"
+    coco_evaluator: "original annotation area <= 32^2; formal AP-small/AR-small population"
+    coco_descriptive: "original annotation area < 32^2"
+    local_hybrid: "direct resize to 640x640: area < 32^2 OR short side < 16; no AP is claimed"
   matching: "repository faster_coco_eval score-ordered one-to-one matching"
-execution_gates:
-  compact_replay_cpu_smoke: passed_nonfinal
-  val128_compact_and_matcher: passed_nonfinal
-  same_backend_gpu_val128: pending
-  full_validation_14_states: pending
-  derived_analysis_and_figures: pending
+  transition_sum_unit: "GT x IoU transition events"
+  paired_attribution_in_generated_summary: "IoU=0.75 only"
+
+execution:
+  backend: cpu
+  platform: Windows-10-10.0.26200-SP0
+  batch_size: 1
+  torch_version: 2.14.0+cpu
+  faster_coco_eval_version: 1.8.0
+  scope: local_complete_validation
+
+quality_gates:
+  full_validation_14_states: passed
+  formal_matcher_14_states: passed
+  stage_summary_reconciliations: 3920
+  global_pr_summary_reconciliations: 280
+  transition_detail_rows: 10549440
+  analysis_status: complete
+  query_probe:
+    unique_images: 29
+    epochs: 7
+    manifest_rows: 203
+    encoder_p3_p4_p5_sum_640: passed
+    decoder_query_count_640: passed
+    decoder_replay_exactness: passed
+
+headline_results:
+  ema_ap_small_d300:
+    e28: 0.674440455350104
+    e29: 0.7010834888263385
+    e30: 0.7011793899223134
+    e31: 0.6854043434856395
+    e32: 0.6789009933284552
+    e33: 0.6774109687387943
+    e34: 0.6777566891421092
+  ema_ap_small_d640:
+    e28: 0.9355303046278821
+    e29: 0.8971270533722393
+    e30: 0.9356506692753648
+    e31: 0.944499279543624
+    e32: 0.949415707291367
+    e33: 0.950384336003274
+    e34: 0.9526993718209514
+  rank_gt300_fraction_ten_iou:
+    e28_to_e29_gain: 0.898951933501988
+    e28_to_e30_gain: 0.877330264672037
+    e30_to_e34_loss: 0.933802816901408
+  interpretation: "EMA inverted-U is carried primarily by final Decoder queries crossing the per-image Top-300 score/rank boundary; it is not a rise-then-fall of the full 640-query Decoder capacity."
+
+limitations:
+  - "Local formal annotation SHA-256 differs from the frozen server-training annotation SHA-256."
+  - "Windows CPU replay is not an H20 bit-level reproduction; the local/server metric delta cannot be attributed to hardware alone."
+  - "Hybrid-small recall/coverage/transition is not COCO AP-small."
+  - "Direct stage attribution does not identify the training-level root cause of score/rank reordering."
+  - "The paired attribution table in data/analysis_summary.md is IoU=0.75, whereas ten-IoU totals must be aggregated from transition_attribution.csv."
+
 created_at: 2026-10-15
 updated_at: 2026-10-15
-notes: "Only protocol and engineering gates are complete. No new full-validation mechanism result may be claimed until all 14 unique raw/EMA states finish on a consistent GPU backend."
+notes: "Complete local full-validation diagnosis with an explicit annotation/backend scope; raw shows only a weak curve, so EMA-specific trajectory is descriptive rather than a causal claim about EMA decay."

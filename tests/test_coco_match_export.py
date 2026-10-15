@@ -363,6 +363,83 @@ class CocoMatchExportTest(unittest.TestCase):
             self.assertEqual(protocol["annotation_images"], 2)
             self.assertEqual(protocol["prediction_images"], 1)
 
+    def test_compact_export_preserves_evaluator_handling_of_negative_extent(self):
+        """Finite negative extents are evaluator-ignored, not exporter errors."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            annotation_path = root / "annotations.json"
+            annotation_path.write_text(
+                json.dumps(
+                    dataset(
+                        annotations=[
+                            {
+                                "id": 10,
+                                "image_id": 1,
+                                "category_id": 1,
+                                "bbox": [10, 10, 10, 10],
+                                "area": 100,
+                                "iscrowd": 0,
+                            }
+                        ]
+                    )
+                ),
+                encoding="utf-8",
+            )
+            prediction_path = root / "predictions.npz"
+            np.savez_compressed(
+                prediction_path,
+                image_ids=np.asarray([1], dtype=np.int64),
+                boxes_xywh=np.asarray(
+                    [[[0, 20, 50, -2], [10, 10, 10, 10], [70, 70, 5, 5]]],
+                    dtype=np.float32,
+                ),
+                scores=np.asarray([[0.99, 0.90, 0.80]], dtype=np.float32),
+                category_id=np.asarray(1, dtype=np.int64),
+                input_size=np.asarray([640, 640], dtype=np.int64),
+                state=np.asarray("raw"),
+            )
+            output = root / "matches"
+            complete_path = export_npz_matches(
+                annotation_path,
+                prediction_path,
+                output,
+                max_dets=(2, 3),
+                iou_thresholds=(0.5,),
+                images_per_shard=1,
+            )
+            complete = json.loads(complete_path.read_text(encoding="utf-8"))
+            self.assertEqual(complete["negative_extent_detections"], 1)
+            protocol = json.loads((output / "protocol.json").read_text(encoding="utf-8"))
+            self.assertIn("preserved exactly", protocol["prediction_geometry"])
+            with np.load(
+                output / "detection_status.part0000.npz", allow_pickle=False
+            ) as status:
+                # maxDets=2 / all / IoU=.50, in decoder query-index order.
+                self.assertEqual(status["status"][0, 0, 0, 0].tolist(), [3, 0, 4])
+
+    def test_compact_export_still_rejects_nonfinite_predictions(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            annotation_path = root / "annotations.json"
+            annotation_path.write_text(json.dumps(dataset()), encoding="utf-8")
+            prediction_path = root / "predictions.npz"
+            np.savez_compressed(
+                prediction_path,
+                image_ids=np.asarray([1], dtype=np.int64),
+                boxes_xywh=np.asarray([[[0, 0, 1, 1]]], dtype=np.float32),
+                scores=np.asarray([[np.nan]], dtype=np.float32),
+                category_id=np.asarray(1, dtype=np.int64),
+            )
+            with self.assertRaisesRegex(ValueError, "non-finite score or bbox"):
+                export_npz_matches(
+                    annotation_path,
+                    prediction_path,
+                    root / "matches",
+                    max_dets=(1,),
+                    iou_thresholds=(0.5,),
+                    images_per_shard=1,
+                )
+
     def test_reconstructed_small_pr_matches_coco_for_all_thresholds_and_budgets(self):
         """The compact status shards must reproduce official global COCO PR."""
         with tempfile.TemporaryDirectory() as temp:

@@ -61,6 +61,22 @@ Top-K 索引不可微，query content/reference 在进入 decoder 前被 detach�
 
 另一个重要边界是：这些正文框只有 22/304 按 COCO 面积属于 small，多数实际难点是**短边很小且细长**。论文应报告 short-side/stride 与 aspect-ratio 分桶，不能只用 COCO AP-small 描述问题。
 
+## 本地完整验证集证据
+
+[EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
+已对 12,841 图、1,458,060 non-crowd GT 回放 e28--e34 raw/EMA 14 个唯一状态。
+EMA AP-small@300 呈 `.674440→.701083→.701179→.685404→.678901→.677411→.677757`，
+而 AP-small@640 总体上升到 `.952699`。正式一对一匹配显示，前段 gain 与后段 loss 的
+约 88%--93% 是 Decoder 中仍有 IoU 合格框，但该 query 位于 rank 300 之外；全局 PR
+差异主要在 recall `.69--.72` 打开或关闭。最敏感人群是极密图中的 8--16 px 短边
+evaluator-small，两个域同向。
+
+这回答了“曲线由哪里直接承载”，没有回答“哪项训练机制造成 score/rank 变化”。
+Encoder source P3/P4/P5 是 640 个入选 dense 位置的互斥来源层，单图必须合计 640；
+根据 Decoder 最终框短边计算的 SGQS preferred scale 是另一种事后几何统计，不能与
+来源层混称。Decoder 单图也始终只有 640 个 query；任何 P3/P4/P5 合计超过 640 的表，
+只能是跨图聚合或逐 GT 非互斥 coverage，而不是单图 query 计数。
+
 ## 正式阶段定义
 
 对每个 GT `g` 和 IoU 阈值 `τ`：
@@ -97,4 +113,7 @@ SSR_τ        = P(C_topK=0 | C_dense=1)
 - 同 K 的 coverage-aware selector 改善 unique coverage，并经训练转化为相同 epoch 更高 AP/AR，才可能成为论文贡献。
 - EFGL 若不能同时改善逐边误差和同预算 AP75/AP90，则否定当前逐边权重设计；若统一 IoU 下限达到相同效果，则将 EFGL 降格为工程调整。
 
-当前合规总述是：**先导证据支持验证 selection–survival gap，代码事实确认 FGL 四边共享整框 IoU 权重；SGQS-E 针对两层提出训练设计，但尚未实现或证明指标收益。**
+当前合规总述是：**本地完整集已把 EMA AP-small 倒 U 的直接承载位置定位为 Decoder
+最终 score/rank 的 Top-300 准入，并把变化人群定位到极密、8--16 px 短边目标；代码
+事实确认 FGL 四边共享整框 IoU 权重，SGQS-E 已实现并完成单 seed 续训，但尚未证明
+稳定小目标收益，也未识别排名轨迹的训练级根因。**

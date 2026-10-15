@@ -25,6 +25,7 @@
   resolved config、完整 console、结构化 epoch 日志、8-rank 汇总表与 epoch-34
   checkpoint。两个 canonical 运行目录的全部 101 文件另由 `ART-000041` 逐文件登记；
   支持配对运行身份、完整性和终点指标，不替代尚未完成的机制分析。
+- `ART-000094`：[EXP-DIAG-006 本地完整集发布清单](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/artifact_manifest.csv)，覆盖 14 状态正式指标、COCO 一对一匹配聚合、10,549,440 行压缩转移明细、全局 PR、分桶、定量/代表图、29 图×7 epoch query probe、分析和复算脚本。它支持“EMA 倒 U 主要由 Top-300 admission 承载”的本地全量结论；不支持服务器 H20 位级一致、EMA 训练因果或 SGQS 稳定收益。
 
 ## B：支持行为观察，不能替代 GT 指标
 
@@ -36,8 +37,9 @@
 ## C：待补证据
 
 - 第一版 S 第三 epoch mAP≈0.86：缺原始日志与 checkpoint。
-- 完整 val 的脱敏规模与 annotation 哈希已由 `ART-000081` 登记；私有 annotation JSON
-  与可公开复算许可仍缺，GT 密度分桶须待正式 full-val 派生表落盘。
+- 完整 val 的正式派生表已由 `ART-000094` 登记；私有 annotation JSON、原始图像、
+  权重及其可公开复算许可仍缺。服务器训练 annotation 与本地 annotation 哈希不同，
+  若要位级复现服务器日志仍须取得同一输入和 H20 环境。
 - 旧 probe checkpoint 尚未完整进入 artifact registry；本轮共同 epoch-27 checkpoint 已登记为 `ART-000040`。
 - 当前代码的准确上游 commit/remote：同步目录不是 Git 仓库。
 

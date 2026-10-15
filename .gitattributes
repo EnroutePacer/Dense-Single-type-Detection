@@ -49,6 +49,8 @@ outputs/e35_r7_sgqse/**/server_console.log -text -diff
 # Preserve the completed SGQS/B0 probe evidence byte-for-byte. Checkpoints,
 # TensorBoard events and raw per-rank/per-GT JSONL streams use Git LFS.
 outputs/probes/** -text -diff
+outputs/probes/b0_e28_r7_seed0/probe_steps.csv filter=lfs diff=lfs merge=lfs -text
+outputs/probes/sgqs_e28_r7_seed0/probe_steps.csv filter=lfs diff=lfs merge=lfs -text
 outputs/probes/**/*.pth filter=lfs diff=lfs merge=lfs -text
 outputs/probes/**/events.out.tfevents.* filter=lfs diff=lfs merge=lfs -text
 outputs/probes/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
@@ -78,10 +80,16 @@ article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.yaml text 
 article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.py text eol=lf
 article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.png -text -diff
 article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.csv.gz -text -diff
+# Formal full-val tables above Git's 10 MiB threshold use exact-path LFS rules.
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/data/transition_details.csv.gz filter=lfs diff=lfs merge=lfs -text
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/data/representative_annotations.csv filter=lfs diff=lfs merge=lfs -text
 # The derived curve script is itself a registered reproducibility artifact.
 outputs/e35_r7_sgqse/comparison_sgqs_vs_sgqse/*.py text eol=lf
 
 # Research utilities and their hash manifest must be byte-stable on Windows and Linux.
+engine/**/*.py text eol=lf
+tools/table_cells/*.py text eol=lf
+tests/*.py text eol=lf
 tools/research/**/*.py text eol=lf
 tools/research/**/*.ps1 text eol=lf
 tools/research/**/*.md text eol=lf
