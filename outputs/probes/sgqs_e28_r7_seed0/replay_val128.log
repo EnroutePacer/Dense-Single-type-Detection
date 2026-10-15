@@ -1,0 +1,15 @@
+[2026-10-14 22:19:21 +0800] replay e0028 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0028/summary.json
+[2026-10-14 22:21:28 +0800] replay e0029 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0029/summary.json
+[2026-10-14 22:22:37 +0800] replay e0030 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0030/summary.json
+[2026-10-14 22:23:36 +0800] replay e0031 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0031/summary.json
+[2026-10-14 22:24:35 +0800] replay e0032 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0032/summary.json
+[2026-10-14 22:25:29 +0800] replay e0033 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0033/summary.json
+[2026-10-14 22:26:29 +0800] replay e0034 raw+ema
+/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/replay_val128_e0034/summary.json
+[2026-10-14 22:27:14 +0800] all replay checkpoints complete

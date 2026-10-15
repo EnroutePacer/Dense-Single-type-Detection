@@ -8,7 +8,7 @@
 
 最新方法为 M-002 SGQS-E：用 SGQS 处理候选监督，用 EFGL 处理邻域/短边感知的逐边定位。数学评审、代码实现和 B0--B3 单 seed checkpoint 续训屏选已完成，状态为 `implemented / screened / unvalidated`；保留有效设计和历史 M-001，不以论文重叠为删除理由。
 
-截至 2026-10-15，[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 臂已经完整训练至 epoch 34，固定 val128 的 e28--e34 raw/EMA 回放也已完成；带同一套探针的 B0 对照臂尚未运行。本轮回放已在 val128 上定位 AP-small 倒 U 的直接承载阶段，但还没有完成 full-val 逐 annotation 归因，也没有把该现象归因为 SGQS 相对 B0 的特有效应。
+截至 2026-10-15，[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 详细日志训练臂均已完整训练至 epoch 34；SGQS 固定 val128 的 e28--e34 raw/EMA 回放也已完成，B0 回放尚未执行。SGQS 相对 B0 的最终 mAP 为 `+0.000914788489`，但 AP-small/AR-small 分别为 `-0.001539072145/-0.002718051506`。两臂训练探针尚未完成配对分析；本轮回放只在 val128 上定位 AP-small 倒 U 的直接承载阶段，还没有完成 full-val 逐 annotation 归因或参数级因果判定。
 
 [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
 已冻结 e28--e34 raw/EMA 共 14 个唯一状态的完整 val 回放协议。本地 12,841 图、
@@ -24,6 +24,8 @@
 - 旧 small-VFL/small-reg probes 的目标配置未加载，不能用来评价损失改动。
 - 同一 M checkpoint 在 `maxDets=300` 下复评约为 mAP 0.864247；旧约 0.5669 是 `maxDets=100` 口径。
 - 当前 M 训练脚本已尊重外部 `CONFIG_FILE`；相同口径的 B0--B3 七 epoch 续训 screen 已完成，但正式从头、多 seed 论文训练尚未执行。
+- EXP-TRAIN-006 的 SGQS/B0 同探针单 seed 续训均已完成。最终总 AP 几乎持平，SGQS
+  的 AP-small 与 AR-small 反而较低；这支持继续分析监督链路，不支持宣称小目标收益。
 - SGQS 完整验证集 EMA AP-small 在 e28/e29/e30/e34 分别为 `0.679395/0.705142/0.705554/0.682274`；峰值在 e30，而 overall AP 峰值在 e34。完整曲线与 checkpoint 身份见 [EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。
 - 固定 val128 的 SGQS EMA 回放表明：e28→e29 的 49 个 Decoder Top-300 gain 在 e28 全部已有 IoU≥0.75 的 Decoder 最终框但 rank>300；e30→e34 的 36 个 loss 在 e34 仍全部有 IoU≥0.75 的框，只是跌出前 300。它们是独立 GT coverage，不是 COCO 一对一匹配得到的 recall、TP 或 FN。
 - 同一 val128 上 hybrid-small Top-300 coverage 不呈倒 U；e30→e34 的 `COCO-small∩hybrid-small` 净减 25、`hybrid-only` 净增 61，支持有限输出预算在 small 子群间重分配。raw 权重也没有复现 EMA 倒 U，因此 EMA 是待检验线索，而不是已证唯一根因。
@@ -56,8 +58,9 @@ Decoder 全 640 个输出的 score、rank、IoU、Top-300 截断状态，并补�
    score 排序；AP 不能由局部 TP/FN 转移计数直接相加得到。
 3. 按 wired/wireless、GT 密度、输入短边及 COCO-small/hybrid-small 交并子群量化
    前段收益与后段回跌来源；raw/EMA 差异仍只是相关性诊断，不是 EMA 因果消融。
-4. 完成 full-val 定位后，再运行 EXP-TRAIN-006 的 **B0 带同探针对照**。SGQS 臂与 val128 replay 已完成，B0 尚未运行；历史 B0 没有同一套字段，不能代替。
-5. 只有 full-val 与 B0 对照给出稳定方向，才决定是否对 owner/GO、DN-DDF、EMA 或分类校准做单变量短干预；通过 seed 0 gate 后再执行从头至少 3 seeds。C1/C3 已封存，C4 与旧 DEIM-core 保留为中断历史，不复用 partial checkpoint。
+4. 对已完成的 SGQS/B0 同字段训练探针做配对分析；如需验证 val128 阶段差异，补做
+   B0 同口径回放，不能用历史无探针 B0 代替。
+5. 只有 full-val 与配对探针分析给出稳定方向，才决定是否对 owner/GO、DN-DDF、EMA 或分类校准做单变量短干预；通过 seed 0 gate 后再执行从头至少 3 seeds。C1/C3 已封存，C4 与旧 DEIM-core 保留为中断历史，不复用 partial checkpoint。
 
 ## 研究门槛
 

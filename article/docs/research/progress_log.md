@@ -1,5 +1,24 @@
 # 科研进展日志
 
+## 2026-10-15 — 完成 SGQS/B0 详细日志配对探针归档
+
+- EXP-TRAIN-006 的 SGQS 与 B0 两臂均以同一 epoch-27 checkpoint、8×8 global
+  batch 64、seed 0 和 fixed-640 口径完成 epoch 28--34；两组 console/log 均有
+  `Training time` 终态，无 Traceback/OOM。
+- SGQS 最终 mAP/AP-small/AR-small 为
+  `0.867590136526/0.682273543005/0.686312560739`；B0 为
+  `0.866675348037/0.683812615150/0.689030612245`。SGQS 总 AP 仅高
+  `0.000914788489`，AP-small/AR-small 分别低
+  `0.001539072145/0.002718051506`，不支持小目标收益主张。
+- 服务器证据归档到 `outputs/probes/sgqs_e28_r7_seed0/`（62 文件，
+  3,348,759,669 bytes）和 `outputs/probes/b0_e28_r7_seed0/`（39 文件，
+  3,136,851,452 bytes）；101 个文件逐项 bytes/SHA-256 与服务器一致。
+- 两臂各 8 个 rank JSONL 均为 424 行且全部可解析，checkpoint0034、last、
+  best_stg1 均为 `last_epoch=34`。运行源码 revision 为 `42b07d...`；冻结的 86 个
+  runtime 文件至本地同步基线未变化，因此没有用服务器旧源码覆盖本地开发改动。
+- 当前只完成证据归档，尚未做两臂训练探针的机制比较；B0 val128 回放与 SGQS
+  14 状态 full-val 回放仍待执行，不能由终点差值推出具体损失或 selector 因果。
+
 ## 2026-10-15 — 建立 SGQS 14 状态 full-val 回放协议
 
 - 新增
@@ -20,7 +39,8 @@
 ## 2026-10-15 — 定位 SGQS AP-small 倒 U 的 Top-300 排名机制
 
 - 最终核实 SGQS 探针已完整到 epoch 34，旧“epoch 32 中断”来自中途快照；
-  fixed val128 的 e28--e34 raw/EMA 回放也已完成，B0 带探针对照仍未运行。
+  fixed val128 的 e28--e34 raw/EMA 回放也已完成。本日稍后 B0 同探针训练亦完成，
+  其最终证据以上方新记录为准。
 - full-val EMA AP-small 在 e29/e30 达到 `0.705142/0.705554`，e34 回落至
   `0.682274`；`best_stg1`、`last`、`checkpoint0034` 的 raw/EMA 参数状态相同，
   overall-best 文件不能替代 small 峰值 checkpoint。

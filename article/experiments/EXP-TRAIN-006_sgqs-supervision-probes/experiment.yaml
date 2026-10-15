@@ -7,7 +7,7 @@ title: SGQS 28+7 监督来源与固定子集回放探针
 method_ids: [M-002]
 control_experiment_id: EXP-TRAIN-005
 updated_at: '2026-10-15'
-implementation_status: sgqs_arm_and_val_replay_completed_b0_not_run
+implementation_status: paired_training_completed_sgqs_val_replay_completed_b0_replay_pending
 arms: [b0_e28_r7, sgqs_e28_r7]
 initialization: checkpoint0027.pth from configs/e35_r7/frozen_inputs.yml
 epochs: [28, 29, 30, 31, 32, 33, 34]
@@ -21,8 +21,13 @@ checkpoint_frequency: 1
 probe_interval: 100
 early_probe: {epoch: 28, steps: 200, interval: 10}
 fixed_subset: {train_images: 128, val_images: 128, seed: 20261014}
-completed_replay: {split: val, images: 128, epochs: [28, 29, 30, 31, 32, 33, 34]}
+completed_training_arms: [b0_e28_r7, sgqs_e28_r7]
+completed_replay: {arm: sgqs_e28_r7, split: val, images: 128, epochs: [28, 29, 30, 31, 32, 33, 34]}
 inference_states: [raw, ema]
 evaluation_max_dets: [300, 640]
 related_diagnostic_id: EXP-DIAG-005
-notes: 'Final server console/log verification shows that the SGQS arm completed epochs 28-34 with a Training time marker, and all seven fixed-val128 raw/EMA replays completed. The earlier epoch-32 interruption report was based on an unstable intermediate snapshot. The instrumented B0 control was not run, so the training observations cannot establish SGQS-vs-B0 attribution; val128 replay conclusions remain subset-scoped.'
+results:
+  sgqs_e28_r7: {map: 0.867590136526, ap50: 0.880926457884, ap_small: 0.682273543005, ar_small: 0.686312560739}
+  b0_e28_r7: {map: 0.866675348037, ap50: 0.880900096992, ap_small: 0.683812615150, ar_small: 0.689030612245}
+  sgqs_minus_b0: {map: 0.000914788489, ap50: 0.000026360892, ap_small: -0.001539072145, ar_small: -0.002718051506}
+notes: 'Final server and local byte/hash verification shows that both instrumented arms completed epochs 28-34. SGQS has a small single-seed overall AP delta but lower AP-small and AR-small than B0. The paired training traces have not yet been analyzed, B0 fixed-val replay was not run, and SGQS val128 conclusions remain subset-scoped.'

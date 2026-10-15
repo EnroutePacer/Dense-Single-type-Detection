@@ -1,0 +1,416 @@
+{
+  "checkpoint": "/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0/checkpoint0029.pth",
+  "checkpoint_sha256": "c17ee1cfa6845e4f4c0ec388362607b4f02ec17e1ca7d817ff1284022f6437c6",
+  "last_epoch": 29,
+  "subset_sha256": "3986784e3ec476a1d4e8ed308a0637e6a4ac195f3cf764293c822695e63426b3",
+  "config": {
+    "task": "detection",
+    "evaluator": {
+      "type": "CocoEvaluator",
+      "iou_types": [
+        "bbox"
+      ]
+    },
+    "num_classes": 1,
+    "remap_mscoco_category": false,
+    "train_dataloader": {
+      "type": "DataLoader",
+      "dataset": {
+        "type": "CocoDetection",
+        "img_folder": "/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/images",
+        "ann_file": "/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/annotations/instance_train.json",
+        "return_masks": false,
+        "transforms": {
+          "type": "Compose",
+          "ops": [
+            {
+              "type": "RandomPhotometricDistort",
+              "p": 0.25
+            },
+            {
+              "type": "RandomHorizontalFlip",
+              "p": 0.5
+            },
+            {
+              "type": "Resize",
+              "size": [
+                640,
+                640
+              ]
+            },
+            {
+              "type": "SanitizeBoundingBoxes",
+              "min_size": 1
+            },
+            {
+              "type": "ConvertPILImage",
+              "dtype": "float32",
+              "scale": true
+            },
+            {
+              "type": "ConvertBoxes",
+              "fmt": "cxcywh",
+              "normalize": true
+            }
+          ],
+          "policy": {
+            "name": "default",
+            "epoch": 0,
+            "ops": []
+          }
+        }
+      },
+      "shuffle": true,
+      "num_workers": 4,
+      "drop_last": true,
+      "collate_fn": {
+        "type": "BatchImageCollateFunction",
+        "base_size": 640,
+        "base_size_repeat": null,
+        "scales": null,
+        "scale_weights": null,
+        "stop_epoch": 105,
+        "final_size": null,
+        "mixup_prob": 0.0,
+        "mixup_epochs": [
+          0,
+          0
+        ]
+      },
+      "total_batch_size": 64
+    },
+    "val_dataloader": {
+      "type": "DataLoader",
+      "dataset": {
+        "type": "CocoDetection",
+        "img_folder": "/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/images",
+        "ann_file": "/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged/annotations/instance_val.json",
+        "return_masks": false,
+        "transforms": {
+          "type": "Compose",
+          "ops": [
+            {
+              "type": "Resize",
+              "size": [
+                640,
+                640
+              ]
+            },
+            {
+              "type": "ConvertPILImage",
+              "dtype": "float32",
+              "scale": true
+            }
+          ]
+        }
+      },
+      "shuffle": false,
+      "num_workers": 4,
+      "drop_last": false,
+      "collate_fn": {
+        "type": "BatchImageCollateFunction",
+        "base_size": 640,
+        "base_size_repeat": null,
+        "scales": null,
+        "scale_weights": null,
+        "stop_epoch": null,
+        "final_size": null
+      },
+      "total_batch_size": 64
+    },
+    "print_freq": 100,
+    "output_dir": "/aicamera-mlp/zhuyouwei/code/DEIM/outputs/probes/sgqs_e28_r7_seed0",
+    "checkpoint_freq": 1,
+    "sync_bn": true,
+    "find_unused_parameters": false,
+    "use_amp": true,
+    "scaler": {
+      "type": "GradScaler",
+      "enabled": true
+    },
+    "use_ema": true,
+    "ema": {
+      "type": "ModelEMA",
+      "decay": 0.9999,
+      "warmups": 1000,
+      "start": 0
+    },
+    "epoches": 35,
+    "clip_max_norm": 0.1,
+    "optimizer": {
+      "type": "AdamW",
+      "params": [
+        {
+          "params": "^(?=.*backbone)(?!.*norm).*$",
+          "lr": 1.25e-05
+        },
+        {
+          "params": "^(?=.*(?:encoder|decoder))(?=.*(?:norm|bn)).*$",
+          "weight_decay": 0.0
+        }
+      ],
+      "lr": 0.00025,
+      "betas": [
+        0.9,
+        0.999
+      ],
+      "weight_decay": 0.000125
+    },
+    "lr_scheduler": {
+      "type": "MultiStepLR",
+      "milestones": [
+        500
+      ],
+      "gamma": 0.1
+    },
+    "lr_warmup_scheduler": {
+      "type": "LinearWarmup",
+      "warmup_duration": 500
+    },
+    "model": "DEIM",
+    "criterion": "SupervisionProbeCriterion",
+    "postprocessor": "PostProcessor",
+    "use_focal_loss": true,
+    "eval_spatial_size": [
+      640,
+      640
+    ],
+    "DEIM": {
+      "backbone": "HGNetv2",
+      "encoder": "HybridEncoder",
+      "decoder": "DFINETransformer"
+    },
+    "lrsheduler": "flatcosine",
+    "lr_gamma": 1,
+    "warmup_iter": 500,
+    "flat_epoch": 4000000,
+    "no_aug_epoch": 0,
+    "HGNetv2": {
+      "pretrained": false,
+      "local_model_dir": "../RT-DETR-main/D-FINE/weight/hgnetv2/",
+      "name": "B2",
+      "return_idx": [
+        1,
+        2,
+        3
+      ],
+      "freeze_at": -1,
+      "freeze_norm": false,
+      "use_lab": true
+    },
+    "HybridEncoder": {
+      "in_channels": [
+        384,
+        768,
+        1536
+      ],
+      "feat_strides": [
+        8,
+        16,
+        32
+      ],
+      "hidden_dim": 256,
+      "use_encoder_idx": [
+        2
+      ],
+      "num_encoder_layers": 1,
+      "nhead": 8,
+      "dim_feedforward": 1024,
+      "dropout": 0.0,
+      "enc_act": "gelu",
+      "expansion": 1.0,
+      "depth_mult": 0.67,
+      "act": "silu"
+    },
+    "DFINETransformer": {
+      "feat_channels": [
+        256,
+        256,
+        256
+      ],
+      "feat_strides": [
+        8,
+        16,
+        32
+      ],
+      "hidden_dim": 256,
+      "num_levels": 3,
+      "num_layers": 4,
+      "eval_idx": -1,
+      "num_queries": 640,
+      "num_denoising": 100,
+      "label_noise_ratio": 0.5,
+      "box_noise_scale": 1.0,
+      "reg_max": 32,
+      "reg_scale": 4,
+      "layer_scale": 1,
+      "num_points": [
+        3,
+        6,
+        3
+      ],
+      "cross_attn_method": "default",
+      "query_select_method": "default",
+      "activation": "relu",
+      "mlp_act": "relu",
+      "sgqs_supervisor": {
+        "type": "SGQSQuerySupervisor",
+        "scale_priors": [
+          32.0,
+          64.0,
+          128.0
+        ],
+        "initial_radius": 1,
+        "max_radius": 4,
+        "ignore_radius": 1
+      }
+    },
+    "PostProcessor": {
+      "num_top_queries": 640
+    },
+    "DEIMCriterion": {
+      "weight_dict": {
+        "loss_vfl": 1,
+        "loss_bbox": 5,
+        "loss_giou": 2,
+        "loss_fgl": 0.15,
+        "loss_ddf": 1.5
+      },
+      "losses": [
+        "vfl",
+        "boxes",
+        "local"
+      ],
+      "alpha": 0.75,
+      "gamma": 2.0,
+      "reg_max": 32,
+      "matcher": {
+        "type": "HungarianMatcher",
+        "weight_dict": {
+          "cost_class": 2,
+          "cost_bbox": 5,
+          "cost_giou": 2
+        },
+        "alpha": 0.25,
+        "gamma": 2.0
+      },
+      "small_object_weight": 1.0,
+      "small_object_area_threshold": 0.0025,
+      "small_object_box_weight": 1.0,
+      "small_object_local_weight": 1.0
+    },
+    "SGQSCriterion": {
+      "base_criterion": "DEIMCriterion",
+      "weight_dict": {
+        "loss_sgqs_dense": 1.0,
+        "loss_sgqs_bbox": 2.5,
+        "loss_sgqs_giou": 1.0,
+        "loss_sgqs_survival": 0.25
+      },
+      "q_min": 0.25,
+      "dense_alpha": 0.75,
+      "dense_gamma": 2.0,
+      "negative_weight": 1.0,
+      "survival_margin": 0.2,
+      "survival_temperature": 0.1,
+      "survival_quality_power": 1.0,
+      "survival_start_epoch": 28.0,
+      "survival_ramp_epochs": 1.0,
+      "survival_threshold": "non_owner_budget",
+      "protect_encoder_supervision": true
+    },
+    "efgl": {
+      "enabled": false
+    },
+    "SupervisionProbeCriterion": {
+      "base_criterion": "SGQSCriterion",
+      "enabled": true,
+      "interval": 100,
+      "early_epoch": 28,
+      "early_steps": 200,
+      "early_interval": 10,
+      "max_gt_rows": 64,
+      "corner_gradients": true
+    },
+    "seed": 0,
+    "resume": "/aicamera-mlp/zhuyouwei/code/DEIM/output/dfine_hgnetv2_m_table_cell/checkpoint0027.pth",
+    "quick_probe": false,
+    "max_train_steps": null
+  },
+  "results": {
+    "val/raw": {
+      "coco_maxdets300": [
+        0.8595475388354169,
+        0.8711526319700613,
+        0.870976118457542,
+        0.6075333864855833,
+        0.8514450586897356,
+        0.927279243092667,
+        0.008267512624627734,
+        0.08219603780914152,
+        0.8650589149294315,
+        0.6123255813953489,
+        0.8570496738585047,
+        0.9319162851536953
+      ],
+      "coco_maxdets640": [
+        0.9556905170782104,
+        0.970084042525357,
+        0.9675424530733951,
+        0.9624806396995862,
+        0.9592213938738589,
+        0.9436295751664016,
+        0.008267512624627734,
+        0.08219603780914152,
+        0.9620549009452286,
+        0.9672093023255812,
+        0.9652199364442214,
+        0.9489535644211904
+      ],
+      "gt_counts": {
+        "small": 430,
+        "medium": 11958,
+        "large": 3058
+      },
+      "images": 128,
+      "coverage_note": "per-GT best-IoU rows are coverage, not one-to-one COCO recall"
+    },
+    "val/ema": {
+      "coco_maxdets300": [
+        0.8614555391679422,
+        0.8711195976981091,
+        0.8703847498568773,
+        0.6873266447396607,
+        0.851381571093257,
+        0.9261928157354326,
+        0.008280460960766541,
+        0.08224783115369674,
+        0.8657840217532048,
+        0.6886046511627907,
+        0.8551931761164073,
+        0.932112491824722
+      ],
+      "coco_maxdets640": [
+        0.9171670094390114,
+        0.9303736757035014,
+        0.9204439992747052,
+        0.8816373607491603,
+        0.9112339328703281,
+        0.9464649380185939,
+        0.008280460960766541,
+        0.08224783115369674,
+        0.9234105917389617,
+        0.8906976744186045,
+        0.917210235825389,
+        0.9522563767168084
+      ],
+      "gt_counts": {
+        "small": 430,
+        "medium": 11958,
+        "large": 3058
+      },
+      "images": 128,
+      "coverage_note": "per-GT best-IoU rows are coverage, not one-to-one COCO recall"
+    }
+  }
+}

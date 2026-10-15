@@ -21,6 +21,10 @@
 - `ART-000070`、`ART-000071`：C1/C3 的 at-start manifest；与 resolved config 和输出清单共同支持运行身份复核。
 - `ART-000081`：EXP-DIAG-006 的脱敏 full-val 输入清单；支持 12,841 图、1,458,060 GT、
   逐域 annotation 哈希、图像存在性及 14 状态去重矩阵，不是模型输出或 full-val 结果。
+- `ART-000082`～`ART-000093`：EXP-TRAIN-006 的 SGQS/B0 同探针运行 manifest、
+  resolved config、完整 console、结构化 epoch 日志、8-rank 汇总表与 epoch-34
+  checkpoint。两个 canonical 运行目录的全部 101 文件另由 `ART-000041` 逐文件登记；
+  支持配对运行身份、完整性和终点指标，不替代尚未完成的机制分析。
 
 ## B：支持行为观察，不能替代 GT 指标
 

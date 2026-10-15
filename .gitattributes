@@ -46,6 +46,12 @@ outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log -text -diff
 # evidence, so whitespace diagnostics and EOL rewriting must not touch them.
 outputs/e35_r7_sgqse/**/console.log -text -diff
 outputs/e35_r7_sgqse/**/server_console.log -text -diff
+# Preserve the completed SGQS/B0 probe evidence byte-for-byte. Checkpoints,
+# TensorBoard events and raw per-rank/per-GT JSONL streams use Git LFS.
+outputs/probes/** -text -diff
+outputs/probes/**/*.pth filter=lfs diff=lfs merge=lfs -text
+outputs/probes/**/events.out.tfevents.* filter=lfs diff=lfs merge=lfs -text
+outputs/probes/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
 # Keep registered derived-artifact bytes reproducible across Windows/Linux.
 article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/*.md text eol=lf
 outputs/e35_r7_sgqse/analysis/20261013_b1_b2/*.csv text eol=lf

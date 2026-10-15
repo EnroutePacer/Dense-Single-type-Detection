@@ -20,9 +20,12 @@ B3 相对 B0 为 `+0.001020272` mAP，但 AP-small 为 `-0.003389557`；C2
 [早期 B1/B2 诊断](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
 和[数学说明](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
 
-2026-10-14：新增 [SGQS 28+7 监督来源探针与运行命令](article/experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)。
-优先区分第一层 DN-DDF 停滞、GO/owner 选择性监督、候选排名与小框泛化；
-提供 B0/B1 配对日志采集及固定 train/val 的 raw/EMA 回放。诊断代码已做 CPU 检查，真实实验未运行。
+2026-10-15：[SGQS 28+7 监督来源探针](article/experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)
+的 SGQS 与 B0 两臂均已完成 epoch 28--34。最终 mAP 分别为
+`0.867590137` 与 `0.866675348`，但 SGQS 的 AP-small 为 `0.682273543`，
+低于 B0 的 `0.683812615`。完整 checkpoint、8-rank 详细日志、resolved config、
+运行 manifest 与 TensorBoard 已归档到 `outputs/probes/`；单 seed 短续训结果不等于
+正式方法收益。
 
 研究问题、实验记录、证据链和候选方法集中维护在 [`article/`](article/README.md)。仓库结构如下：
 

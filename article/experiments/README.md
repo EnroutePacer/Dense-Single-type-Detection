@@ -22,8 +22,9 @@
 Top-300；EXP-DIAG-006 将逐 GT 回放扩展到 e28--e34 raw/EMA 共 14 个唯一状态和
 12,841 张完整 val 图。协议与 CPU/val128 工程门禁已就绪，正式 GPU full-val 数据
 尚未产生，不能把 EXP-DIAG-005 的比例外推为全量结论。
-[EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 臂与 val128
-回放已完成，带同一探针的 B0 臂仍未运行。
+[EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0
+详细日志训练臂均已完成；SGQS 的 val128 回放已完成，B0 回放与两臂探针对照分析
+尚未完成。
 
 1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：B0/B1/B2/B3 与 C2 核心屏选矩阵及完整证据已归档；
 2. [EXP-TRAIN-002](EXP-TRAIN-002_clean-deim-mal/README.md)：运行 fixed-640/query-640/global-batch-64 的 controlled DEIM-core 35e 基线；

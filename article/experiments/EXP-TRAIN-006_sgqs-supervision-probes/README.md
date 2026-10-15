@@ -2,9 +2,22 @@
 
 ## 最终状态更新（2026-10-15）
 
-最终核实状态：**SGQS 臂已完整完成 epoch 28--34，固定 val128 的 raw 与 EMA 七轮回放也已完成；带同一套探针的 B0 对照臂仍未运行**。服务器最终 console/log 同时包含 epoch 28--34 的完整记录和 `Training time` 完成标记。先前“epoch 32 step 1400/5631 中断”的说法来自尚未稳定的中途快照，是过早判断，不代表该作业的最终状态。
+最终核实状态：**SGQS 与 B0 两个详细日志训练臂均完整完成 epoch 28--34；SGQS 的固定 val128 raw/EMA 七轮回放也已完成，B0 回放尚未执行**。两臂服务器 console/log 均包含 epoch 28--34 的完整记录和 `Training time` 完成标记。先前“SGQS 在 epoch 32 step 1400/5631 中断”的说法来自尚未稳定的中途快照，是过早判断，不代表最终状态。
 
-回放的详细数据、图像和分析见 [EXP-DIAG-005：SGQS Top-300 排名回放](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。固定 val128 上已经定位到 AP-small 倒 U 的直接承载机制：IoU 合格的 Decoder 最终输出仍然存在，但其最终 score/rank 跨越 `maxDets=300` 截断线；不是候选消失，也不是定位几何退化。该结论只在固定 val128 上建立，其中 COCO-small GT 集中在少量图像，不能据此外推完整验证集上的占比或断言参数级根因。由于 B0 带探针对照尚未运行，当前仍不能把这些训练观测归因为 SGQS 相对 B0 的特有变化。
+| arm | 最终 mAP | AP50 | AP-small | AR-small | canonical evidence |
+|---|---:|---:|---:|---:|---|
+| SGQS | 0.867590136526 | 0.880926457884 | 0.682273543005 | 0.686312560739 | `outputs/probes/sgqs_e28_r7_seed0/` |
+| B0 | 0.866675348037 | 0.880900096992 | 0.683812615150 | 0.689030612245 | `outputs/probes/b0_e28_r7_seed0/` |
+| SGQS−B0 | +0.000914788489 | +0.000026360892 | −0.001539072145 | −0.002718051506 | seed 0，epoch-27 checkpoint continuation |
+
+SGQS 目录为 62 文件、3,348,759,669 bytes，canonical digest 为
+`33587934133dd2ec54fb0a51cb0db362544e07c28b37133372a2cfb4862f396c`；
+B0 目录为 39 文件、3,136,851,452 bytes，digest 为
+`d6035db742ce8b7176c1db5e9d5e46afcb0a09558fdedf6643dcf962b7806d5d`。
+两组目录均按服务器逐文件 bytes/SHA-256 复核；digest 输入格式为
+`sha256<TAB>bytes<TAB>relative_posix_path<LF>`，路径按 ordinal 排序。
+
+回放的详细数据、图像和分析见 [EXP-DIAG-005：SGQS Top-300 排名回放](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。固定 val128 上已经定位到 AP-small 倒 U 的直接承载机制：IoU 合格的 Decoder 最终输出仍然存在，但其最终 score/rank 跨越 `maxDets=300` 截断线；不是候选消失，也不是定位几何退化。该结论只在固定 val128 上建立，其中 COCO-small GT 集中在少量图像，不能据此外推完整验证集上的占比或断言参数级根因。当前已有两臂同字段训练探针，可以开展配对分析；但尚未分析这些字段，也没有 B0 的同口径 val128 回放，因此完成训练本身不能证明 SGQS 的参数级因果机制。
 
 依据为已归档的 [B0 日志](../../../outputs/resume_control_e28_to_e34_gb64/console.log)、[B1 日志](../../../outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log)、[B3 日志](../../../outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log)。下述 loss 数值取控制台整轮均值，AP 仅有三位小数精度。
 
@@ -68,7 +81,7 @@ teacher为同次末层预测，正样本w为当前IoU，负样本w为teacher分�
 | 小框GO零覆盖增加、质量权重份额下降 | 选择性监督不足 | 全部小框没有监督，DN仍在 |
 | 仅EMA出现峰值、raw没有 | 参数混合/时间滞后值得检查 | 训练过拟合已证实 |
 
-SGQS 的对应 checkpoint 已取得并完成上述 val128 回放；带同一探针的 B0 配对臂和第二阶段短干预尚未运行。后续短干预仍应只比较原样继续、暂停SGQS新增项、改变第一层DN-DDF，并保持数据顺序、优化器和步数相同；不同时改owner、Matcher和小框权重。
+SGQS 与 B0 的完整 checkpoint 和训练探针均已取得；SGQS 已完成上述 val128 回放，B0 回放及第二阶段短干预尚未运行。下一步先对两臂同字段日志做配对分析；后续短干预仍应只比较原样继续、暂停SGQS新增项、改变第一层DN-DDF，并保持数据顺序、优化器和步数相同；不同时改owner、Matcher和小框权重。
 
 ## 服务器命令
 
@@ -95,7 +108,9 @@ CUDA_VISIBLE_DEVICES=0,1,2,3,4,5,6,7 "$PY" -m torch.distributed.run \
 "$PY" tools/table_cells/summarize_probe.py --run "$RUN" --output "$RUN/probe_steps.csv"
 ```
 
-B0配对：把arm改为`b0`、RUN改为新目录`outputs/probes/b0_e28_r7_seed0`，另选端口；保留其余数据、batch、seed和GPU类型。SGQS 臂已经完成，仍需运行 B0 同探针对照；历史B0缺这些字段，不能代替。
+B0 配对已按相同入口、数据、batch、seed 与 GPU 口径完成，canonical 目录为
+`outputs/probes/b0_e28_r7_seed0`。下面的命令继续保留作复现记录；现有输出目录不得
+覆盖或重复启动。历史无探针 B0 不能替代本次详细日志对照。
 
 ```bash
 # 子集只创建一次，两臂和所有epoch复用同一manifest。

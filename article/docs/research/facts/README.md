@@ -24,5 +24,6 @@
 | F-018 | FACT | val128 中 430 个 COCO-small GT 只分布在 17 张图，跨 epoch 的 COCO-small Top-300 状态变化又集中在两张分别含 480/320 个 GT 的密集图。 | 代表性审计见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；该子集足以建立配对机制证据，但不能估计这一机制解释 full-val AP-small 变化的比例。 |
 | F-019 | FACT | 本地完整 val 资产含 12,841 图、1,458,060 个 non-crowd GT：wired 5,847 图/627,939 GT，wireless 6,994 图/830,121 GT，annotation 引用的图像全部存在。 | 脱敏输入清单 `ART-000081` 登记 annotation SHA-256、数量与门禁范围；这证明输入资产可用，不是 14 状态 full-val 结果。 |
 | F-020 | FACT | e28--e34 每轮 raw/EMA 状态互异，共 14 个唯一参数状态；`best_stg1` 与 `last` 的 raw/EMA 状态均等同 e34，不需重复推理。 | 参数状态哈希属于 `ART-000073` 清单覆盖的 [checkpoint_identity.csv](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/data/checkpoint_identity.csv)；执行矩阵由 `ART-000081` 冻结。 |
+| F-021 | FACT | EXP-TRAIN-006 的同初始化、同预算 SGQS/B0 详细日志训练臂均完成 epoch 28--34；最终 SGQS−B0 为 mAP `+0.000914788489`、AP-small `−0.001539072145`、AR-small `−0.002718051506`。 | `ART-000082`～`ART-000093` 支持运行身份、日志和终点；单 seed checkpoint continuation 不能证明稳定收益，两臂训练探针尚未完成机制分析。 |
 
 新增事实必须给出代码位置、run ID 或 artifact ID；目录名和口述不构成事实证据。

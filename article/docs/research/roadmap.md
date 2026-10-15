@@ -1,6 +1,6 @@
 # 研究路线图
 
-当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，B0--B3/C2 单 seed checkpoint 续训屏选已经完成；[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 臂已完整训练至 epoch 34，固定 val128 的 e28--e34 raw/EMA 回放也已完成，带同一套探针的 B0 臂尚未运行。当前由 [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md) 对 e28--e34 的 raw/EMA 14 个唯一状态做 full-val 逐 annotation、score/rank 和 COCO 一对一匹配回放，再执行 B0 带探针对照；之后才依据证据决定是否修订损失或进入正式从头多 seed 对照。[EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md) 的 val128 结果是有范围限制的阶段定位，不等于已经完成全数据归因。
+当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，B0--B3/C2 单 seed checkpoint 续训屏选已经完成；[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 同探针训练臂均已完整训练至 epoch 34，SGQS 固定 val128 的 e28--e34 raw/EMA 回放也已完成。当前并行完成两项归因：由 [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md) 对 SGQS e28--e34 的 raw/EMA 14 个唯一状态做 full-val 逐 annotation、score/rank 和 COCO 一对一匹配回放，并对两臂详细训练探针做配对分析；之后才依据证据决定是否补 B0 回放、修订损失或进入正式从头多 seed 对照。[EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md) 的 val128 结果是有范围限制的阶段定位，不等于已经完成全数据归因。
 
 ## Gate 0：资产与口径
 
@@ -39,7 +39,7 @@ COCO-small 只分布在 17 张图、状态变化集中于两张极密图，这�
 
 ## Gate 2：selector 诊断对照
 
-状态：**尚未开始干预对照**。固定 val128 已把直接变化定位到最终 Decoder score/rank，但还没有证明应修改 Encoder selector；先完成 Gate 1 full-val 与 B0 带探针对照，再决定是否保留以下比较。
+状态：**尚未开始干预对照**。固定 val128 已把直接变化定位到最终 Decoder score/rank，但还没有证明应修改 Encoder selector；先完成 Gate 1 full-val 与 SGQS/B0 训练探针配对分析，再决定是否保留以下比较。
 
 在不训练、同一冻结输出、同 K 下比较：
 
@@ -54,7 +54,7 @@ COCO-small 只分布在 17 张图、状态变化集中于两张极密图，这�
 
 ## Gate 3：确定单一方法分支
 
-状态：**等待 full-val 与 B0 证据**。当前不能仅凭 val128 排名跨界就选择 selector、分类校准、EMA 或 SGQS owner/GO 中的任一分支。
+状态：**等待 full-val 与配对探针分析**。当前不能仅凭 val128 排名跨界或两臂终点指标就选择 selector、分类校准、EMA 或 SGQS owner/GO 中的任一分支。
 
 - generation 主导：研究 P2/形状先验/表示；
 - selection 主导：研究 level-calibrated 或 coverage-aware initialization；
@@ -65,6 +65,6 @@ COCO-small 只分布在 17 张图、状态变化集中于两张极密图，这�
 
 ## Gate 4：训练与论文验证（屏选完成，正式验证待修订）
 
-状态：**单 seed checkpoint 续训屏选完成；正式验证未开始**。EXP-TRAIN-006 的 SGQS 臂和 val128 replay 已完成，但 B0 带同探针对照、参数级单变量干预及从头多 seed 训练均未完成。
+状态：**单 seed checkpoint 续训屏选与 SGQS/B0 同探针训练已完成；正式验证未开始**。B0 val128 回放、参数级单变量干预及从头多 seed 训练均未完成。
 
 相同初始化、global batch、epoch/steps、seed 和 `maxDets=300` 下比较 baseline 与方法。先 seed 0 验证方向，再三 seed；报告早期同 epoch、最终指标、wall-clock、GPU-hours、参数/FLOPs 和固定延迟协议。
