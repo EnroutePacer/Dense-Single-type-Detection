@@ -19,6 +19,8 @@
 - `ART-000063`、`ART-000064`、`ART-000066`、`ART-000067`：C1 small-reg 与 C3 Mosaic-only 的完整 console 和结构化日志，支持 epoch-34 精确结果。
 - `ART-000068`、`ART-000069`：[一阶段常规方法总结](../../experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261014_phase1_conventional_methods/README.md)及精确指标表。支持“小框加权近似无效、MAL 收益不在小框、当前 Mosaic 为负”的单 seed 屏选结论。
 - `ART-000070`、`ART-000071`：C1/C3 的 at-start manifest；与 resolved config 和输出清单共同支持运行身份复核。
+- `ART-000081`：EXP-DIAG-006 的脱敏 full-val 输入清单；支持 12,841 图、1,458,060 GT、
+  逐域 annotation 哈希、图像存在性及 14 状态去重矩阵，不是模型输出或 full-val 结果。
 
 ## B：支持行为观察，不能替代 GT 指标
 
@@ -30,7 +32,8 @@
 ## C：待补证据
 
 - 第一版 S 第三 epoch mAP≈0.86：缺原始日志与 checkpoint。
-- 数据规模和 GT 密度统计：缺对应 annotation JSON 与复算脚本快照。
+- 完整 val 的脱敏规模与 annotation 哈希已由 `ART-000081` 登记；私有 annotation JSON
+  与可公开复算许可仍缺，GT 密度分桶须待正式 full-val 派生表落盘。
 - 旧 probe checkpoint 尚未完整进入 artifact registry；本轮共同 epoch-27 checkpoint 已登记为 `ART-000040`。
 - 当前代码的准确上游 commit/remote：同步目录不是 Git 仓库。
 

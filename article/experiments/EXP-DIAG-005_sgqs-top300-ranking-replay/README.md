@@ -228,11 +228,13 @@ COCO-small 只出现在 17 张图，所有跨 epoch 的 COCO-small Top-300 状�
 - coverage 净变化是一对一 query 预算交换，或 hybrid-small 的 custom AP 同步提升；
 - raw 与 EMA 的差异等价于过拟合，或 13 图定性现象具有统计代表性。
 
-下一步应在完全相同的验证预处理下，至少对 epoch 28、29、30、34 做 full-val EMA
-逐 GT 回放，并同时保存 Decoder 全 640 的 score/rank、Top-300 截断结果和 COCO
-一对一匹配；最好同步跑 full-val raw，比较 `maxDets=300/640`，并独立计算统一定义的
-hybrid-small custom AP。只有 full-val 配对结果确认同样的 rank 转移占主导后，才应
-进一步用冻结 checkpoint/batch 对 EMA、SGQS 监督来源或分类校准做单变量干预。
+下一步已登记为
+[EXP-DIAG-006](../EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)：在完全相同的
+验证预处理与 GPU 后端下，对 epoch 28--34 的 raw/EMA 共 14 个唯一状态做 full-val
+逐 GT 回放，同时保存 Decoder 全 640 的 score/rank、Top-300 截断、COCO 一对一匹配、
+十个 IoU 阈值、`maxDets=300/640` 与全局 PR/score 排序。只有 full-val 配对结果确认
+同样的 rank 转移占主导后，才应进一步用冻结 checkpoint/batch 对 EMA、SGQS 监督来源
+或分类校准做单变量干预。
 
 ## 归档入口与未入库材料
 

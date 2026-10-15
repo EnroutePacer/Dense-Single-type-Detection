@@ -22,5 +22,7 @@
 | F-016 | FACT | 固定 val128 的 hybrid-small Decoder Top-300 独立 coverage 从 e28 到 e34 为 `75.21%→75.02%→75.09%→75.36%→75.46%→75.53%→75.58%`，不呈倒 U；e30→e34 时 `COCO-small∩hybrid-small` 净减 25，而 `hybrid-only` 净增 61，符合有限排名预算在 small 子群间重分配。 | 分桶定义、交集和转移表见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；净变化不是守恒的一对一 query 流量，也不能替代 hybrid-small custom AP。 |
 | F-017 | FACT | 固定 val128 上 raw 权重没有复现 EMA 的 AP-small 倒 U。 | raw/EMA 七轮配对见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；这只是把 EMA 参数混合、时间滞后或分类校准列为上游线索，尚无受控干预，不能认定 EMA 是唯一根因。 |
 | F-018 | FACT | val128 中 430 个 COCO-small GT 只分布在 17 张图，跨 epoch 的 COCO-small Top-300 状态变化又集中在两张分别含 480/320 个 GT 的密集图。 | 代表性审计见 [EXP-DIAG-005](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；该子集足以建立配对机制证据，但不能估计这一机制解释 full-val AP-small 变化的比例。 |
+| F-019 | FACT | 本地完整 val 资产含 12,841 图、1,458,060 个 non-crowd GT：wired 5,847 图/627,939 GT，wireless 6,994 图/830,121 GT，annotation 引用的图像全部存在。 | 脱敏输入清单 `ART-000081` 登记 annotation SHA-256、数量与门禁范围；这证明输入资产可用，不是 14 状态 full-val 结果。 |
+| F-020 | FACT | e28--e34 每轮 raw/EMA 状态互异，共 14 个唯一参数状态；`best_stg1` 与 `last` 的 raw/EMA 状态均等同 e34，不需重复推理。 | 参数状态哈希属于 `ART-000073` 清单覆盖的 [checkpoint_identity.csv](../../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/data/checkpoint_identity.csv)；执行矩阵由 `ART-000081` 冻结。 |
 
 新增事实必须给出代码位置、run ID 或 artifact ID；目录名和口述不构成事实证据。

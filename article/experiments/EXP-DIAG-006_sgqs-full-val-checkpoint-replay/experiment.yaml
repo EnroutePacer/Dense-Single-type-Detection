@@ -1,0 +1,64 @@
+schema_version: 1
+experiment_id: EXP-DIAG-006
+slug: sgqs_full_val_checkpoint_replay
+title: "SGQS e28-e34 raw/EMA 全验证集逐阶段回放"
+type: diagnostic
+status: partial
+validity: not_run
+paper_role: diagnosis
+question: "完整验证集上的 AP-small 前升后降，有多少来自候选、Encoder selection、Decoder 几何、rank-300 截断、一对一竞争或全局分数排序？"
+hypothesis_ids: [H-001, H-003, H-004, H-006]
+protocol_ids: [P-001, P-002, P-003, P-006]
+method_ids: [M-002]
+source_experiment_ids: [EXP-TRAIN-006, EXP-DIAG-005]
+control_experiment_id: null
+legacy_ids: []
+runs: []
+artifact_ids: [ART-000081]
+result_status: awaiting_same_backend_gpu_full_validation
+checkpoint_matrix:
+  epochs: [28, 29, 30, 31, 32, 33, 34]
+  states: [raw, ema]
+  unique_parameter_states: 14
+  duplicate_containers_excluded:
+    best_stg1.pth: checkpoint0034.pth
+    last.pth: checkpoint0034.pth
+validation_population:
+  total:
+    images: 12841
+    noncrowd_gt: 1458060
+  wired:
+    images: 5847
+    noncrowd_gt: 627939
+    annotation_sha256: 9ae3c0166315f185805420e0a73b23f2200a924aa87986fcf3b928c8d03fd9cd
+  wireless:
+    images: 6994
+    noncrowd_gt: 830121
+    annotation_sha256: 9ec7c82d45feacaa13142427bb39106bd2c87fa36ef3991e0f0198a07362390f
+  server_merged_annotation_sha256: a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b
+  all_referenced_images_present: true
+  merged_mapping_gate:
+    status: passed_on_val128_only
+    images: 128
+    noncrowd_gt: 15446
+    limitation: "This mapping gate is not a full-validation scientific result or a full identity proof."
+protocol:
+  input_size: [640, 640]
+  encoder_topk: 640
+  decoder_queries: 640
+  max_dets: [300, 640]
+  iou_thresholds: [0.50, 0.55, 0.60, 0.65, 0.70, 0.75, 0.80, 0.85, 0.90, 0.95]
+  stages: [encoder_dense_all, encoder_top640, decoder_all640, decoder_top300]
+  small_definitions:
+    coco_evaluator: "official COCO small areaRange; used for AP-small/AR-small"
+    local_hybrid: "direct resize to 640x640: area < 32^2 OR short side < 16"
+  matching: "repository faster_coco_eval score-ordered one-to-one matching"
+execution_gates:
+  compact_replay_cpu_smoke: passed_nonfinal
+  val128_compact_and_matcher: passed_nonfinal
+  same_backend_gpu_val128: pending
+  full_validation_14_states: pending
+  derived_analysis_and_figures: pending
+created_at: 2026-10-15
+updated_at: 2026-10-15
+notes: "Only protocol and engineering gates are complete. No new full-validation mechanism result may be claimed until all 14 unique raw/EMA states finish on a consistent GPU backend."

@@ -1,5 +1,22 @@
 # 科研进展日志
 
+## 2026-10-15 — 建立 SGQS 14 状态 full-val 回放协议
+
+- 新增
+  [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)：
+  执行矩阵为 e28--e34 × raw/EMA 共 14 个唯一参数状态；`best_stg1`、`last` 与
+  e34 参数重复，不重复推理。
+- 本地完整 val 盘点为 wired 5,847 图/627,939 GT、wireless 6,994 图/830,121 GT，
+  合计 12,841 图/1,458,060 个 non-crowd GT，所有 annotation 引用图像均存在；
+  两份 annotation SHA-256 和服务器 merged 参考哈希已登记。
+- compact batch replay、断点恢复、十 IoU 阈值、`maxDets=300/640`、正式一对一
+  matcher 与配对分析链已实现，并通过真实图 CPU 冒烟及 val128 工程门禁。CPU/GPU
+  候选并列排序不能逐项等同，因此 CPU 结果不作为正式机制证据。
+- 最终分析将分开保存独立 GT coverage 与正式 TP/FP/FN，并补全局 PR/score 排序、
+  raw/EMA、wired/wireless、密度、短边、COCO-small/hybrid-small 交并分桶。
+- 当前没有 14 状态同后端 GPU full-val 输出，也没有新增 full-val 机制结论；
+  val128 的 rank-300 观察不得外推为解释比例。
+
 ## 2026-10-15 — 定位 SGQS AP-small 倒 U 的 Top-300 排名机制
 
 - 最终核实 SGQS 探针已完整到 epoch 34，旧“epoch 32 中断”来自中途快照；

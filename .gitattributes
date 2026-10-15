@@ -64,6 +64,14 @@ article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.json text eol=l
 article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.yaml text eol=lf
 article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.py text eol=lf
 article/experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/**/*.png -text -diff
+# Keep the full-validation replay bundle and its audit hashes portable.
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.md text eol=lf
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.csv text eol=lf
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.json text eol=lf
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.yaml text eol=lf
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.py text eol=lf
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.png -text -diff
+article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.csv.gz -text -diff
 # The derived curve script is itself a registered reproducibility artifact.
 outputs/e35_r7_sgqse/comparison_sgqs_vs_sgqse/*.py text eol=lf
 

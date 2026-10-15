@@ -15,9 +15,13 @@
 
 ## 当前顺序
 
-2026-10-15 最新完成项：[EXP-DIAG-005](EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。
-固定 val128 已将 SGQS AP-small 倒 U 的直接承载位置定位为 Decoder 最终
-score/rank 跨越 Top-300；下一步将同样的逐 GT 回放扩展到 full-val。
+2026-10-15 最新完成项：[EXP-DIAG-005](EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)；
+当前执行项为
+[EXP-DIAG-006](EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)。固定 val128
+已将 SGQS AP-small 倒 U 的直接承载位置定位为 Decoder 最终 score/rank 跨越
+Top-300；EXP-DIAG-006 将逐 GT 回放扩展到 e28--e34 raw/EMA 共 14 个唯一状态和
+12,841 张完整 val 图。协议与 CPU/val128 工程门禁已就绪，正式 GPU full-val 数据
+尚未产生，不能把 EXP-DIAG-005 的比例外推为全量结论。
 [EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 臂与 val128
 回放已完成，带同一探针的 B0 臂仍未运行。
 

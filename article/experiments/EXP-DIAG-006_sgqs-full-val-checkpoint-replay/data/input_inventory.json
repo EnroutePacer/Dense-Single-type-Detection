@@ -1,0 +1,48 @@
+{
+  "schema": "sgqs_full_val_input_inventory_v1",
+  "created_at": "2026-10-15",
+  "validation_population": {
+    "wired": {
+      "images": 5847,
+      "annotations": 627939,
+      "noncrowd_annotations": 627939,
+      "annotation_sha256": "9ae3c0166315f185805420e0a73b23f2200a924aa87986fcf3b928c8d03fd9cd",
+      "missing_referenced_images": 0
+    },
+    "wireless": {
+      "images": 6994,
+      "annotations": 830121,
+      "noncrowd_annotations": 830121,
+      "annotation_sha256": "9ec7c82d45feacaa13142427bb39106bd2c87fa36ef3991e0f0198a07362390f",
+      "missing_referenced_images": 0
+    },
+    "total": {
+      "images": 12841,
+      "annotations": 1458060,
+      "noncrowd_annotations": 1458060,
+      "missing_referenced_images": 0
+    }
+  },
+  "server_reference": {
+    "merged_val_annotation_sha256": "a6d107322285595d968f63b4cd6d9ccf2442ac844a6875685a2aa16f3b9dd72b"
+  },
+  "mapping_gate": {
+    "scope": "fixed_val128_only",
+    "images": 128,
+    "noncrowd_annotations": 15446,
+    "fixed_annotation_sha256": "8a2d2d954f77c4825d37cdf6eb38a9bef5dd5dfff98492237a676137a05af5a7",
+    "status": "matched_after_id_and_path_remap",
+    "limitation": "This subset gate is not a full-validation identity proof or a scientific result."
+  },
+  "checkpoint_matrix": {
+    "epochs": [28, 29, 30, 31, 32, 33, 34],
+    "states": ["raw", "ema"],
+    "unique_parameter_states": 14,
+    "duplicate_containers_excluded": {
+      "best_stg1.pth": "checkpoint0034.pth",
+      "last.pth": "checkpoint0034.pth"
+    },
+    "identity_table": "../../EXP-DIAG-005_sgqs-top300-ranking-replay/data/checkpoint_identity.csv"
+  },
+  "result_status": "no_same_backend_gpu_full_validation_results"
+}
