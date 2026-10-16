@@ -1,5 +1,5 @@
 schema_version: 1
-updated_at: 2026-10-15
+updated_at: 2026-10-17
 
 claims:
   - id: C-001
@@ -31,12 +31,12 @@ claims:
     statement: "改进没有把错误从 selection 转移至 decoder 或 output。"
     facts: [F-022, F-023]
     hypotheses: [H-004]
-    experiments: [EXP-DIAG-003, EXP-DIAG-004, EXP-DIAG-006]
+    experiments: [EXP-DIAG-003, EXP-DIAG-004, EXP-DIAG-006, EXP-DIAG-007]
     protocols: [P-002]
-    artifacts: [ART-000094]
+    artifacts: [ART-000094, ART-000095, ART-000096]
     paper_locations: ["fig:stage-survival"]
     admission: "报告 generation、selection、各 decoder layer、output 的逐阶段 GT coverage，并检查重复框、FP 和校准。"
-    limitation: "本地 SGQS full-val 已显示倒 U 主要由 output Top-300 admission 承载，但缺同口径受控 baseline 和多 seed；该观察不能满足‘没有转移错误’的主张。"
+    limitation: "本地 SGQS full-val 已显示倒 U 主要由 output Top-300 admission 承载；配对 loss 审计又支持代理脱节，但缺末端监督单变量、同口径 baseline replay 和多 seed，仍不能满足‘没有转移错误’的主张。"
 
   - id: C-004
     status: target

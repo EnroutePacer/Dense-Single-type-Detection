@@ -5,7 +5,9 @@
 
 ## 最新进度
 
+- [已完成：SGQS 损失假说与实例证据审计](experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)
 - [已完成（本地全量口径）：SGQS 14 状态全验证集回放](experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
+- [2026-10-17：启动冲击、监督链路与尺度归一化审计](journal/2026-10-17.md)
 - [2026-10-15：SGQS/B0 配对探针完成与 Top-300 排名诊断](journal/2026-10-15.md)
 - [2026-10-14：三端校对、探针/C4 中断状态与目录清理](journal/2026-10-14.md)
 - [累计科研进展](docs/research/progress_log.md)

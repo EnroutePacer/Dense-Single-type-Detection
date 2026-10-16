@@ -1,6 +1,6 @@
 # 研究路线图
 
-当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，B0--B3/C2 单 seed checkpoint 续训屏选已经完成；[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 同探针训练臂均已完整训练至 epoch 34。[EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md) 又在本地完整 12,841 图上完成 SGQS e28--e34 raw/EMA 14 个唯一状态的逐 annotation、score/rank、全局 PR 和 COCO 一对一匹配回放。当前主线转为两臂详细训练探针配对分析及单变量因果验证；之后才依据证据决定是否补 B0 回放、修订损失或进入正式从头多 seed 对照。
+当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，B0--B3/C2 单 seed checkpoint 续训屏选已经完成；[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 同探针训练臂均已完整训练至 epoch 34。[EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md) 在本地完整 12,841 图上定位最终 Top-300 承载阶段；[EXP-DIAG-007](../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md) 又完成两臂训练 loss/代理配对审计。当前主线已经从相关性分析进入单变量因果验证：先测试启动升温、尺度归一化和末端跟进三条线索，再决定是否修订方法或进入从头多 seed 对照。
 
 ## Gate 0：资产与口径
 
@@ -39,9 +39,9 @@ e30→34 loss 的十 IoU 正式 evaluator-small 转移事件中，`rank_gt300` �
 
 ## Gate 2：selector 诊断对照
 
-状态：**尚未开始干预对照**。完整集已把直接变化定位到最终 Decoder score/rank，但
-还没有证明应修改 Encoder selector；先完成 SGQS/B0 训练探针配对分析，再决定是否
-保留以下比较。
+状态：**训练探针配对审计已完成，尚未开始 selector 干预对照**。完整集已把直接变化
+定位到最终 Decoder score/rank；EXP-DIAG-007 又确认强启动冲击与代理脱节，但仍没有
+证明应修改 Encoder selector。以下冻结输出对照降为次级，优先执行 Gate 3 的单变量测试。
 
 在不训练、同一冻结输出、同 K 下比较：
 
@@ -56,9 +56,17 @@ e30→34 loss 的十 IoU 正式 evaluator-small 转移事件中，`rank_gt300` �
 
 ## Gate 3：确定单一方法分支
 
-状态：**等待配对探针与单变量干预**。full-val 支持 Top-300 admission 是直接承载阶段，
-但不能仅凭排名跨界或两臂终点指标就选择 selector、分类校准、EMA 或 SGQS owner/GO
-中的任一分支。
+状态：**配对探针已审计，等待单变量干预**。当前证据把优先级排为：无升温启动冲击、
+pre-TopK 代理缺少最终 Top-300 跟进、P3/P4/P5 等层均值放大稀少 P5。三者仍是竞争或
+组合解释，不能仅凭 loss 标量和排名跨界指定唯一分支。
+
+单变量顺序固定为：
+
+1. 只给 dense+owner 1 epoch `0→1` 升温；
+2. 只将等层均值改为全局 owner-count 归一化，并记录逐层共享参数梯度；
+3. 只选择“e30 后停 SGQS”或“增加最终 owner/rank 跟进”其中一个。
+
+任何实验不得同时改两项，否则无法区分启动冲击、尺度归一化和末端链路。
 
 - generation 主导：研究 P2/形状先验/表示；
 - selection 主导：研究 level-calibrated 或 coverage-aware initialization；

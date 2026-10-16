@@ -17,14 +17,15 @@ B0 目录为 39 文件、3,136,851,452 bytes，digest 为
 两组目录均按服务器逐文件 bytes/SHA-256 复核；digest 输入格式为
 `sha256<TAB>bytes<TAB>relative_posix_path<LF>`，路径按 ordinal 排序。
 
-回放的详细数据、图像和分析见 [EXP-DIAG-005：SGQS Top-300 排名回放](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。固定 val128 上已经定位到 AP-small 倒 U 的直接承载机制：IoU 合格的 Decoder 最终输出仍然存在，但其最终 score/rank 跨越 `maxDets=300` 截断线；不是候选消失，也不是定位几何退化。该结论只在固定 val128 上建立，其中 COCO-small GT 集中在少量图像，不能据此外推完整验证集上的占比或断言参数级根因。当前已有两臂同字段训练探针，可以开展配对分析；但尚未分析这些字段，也没有 B0 的同口径 val128 回放，因此完成训练本身不能证明 SGQS 的参数级因果机制。
+回放的详细数据、图像和分析见 [EXP-DIAG-005：SGQS Top-300 排名回放](../EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)。固定 val128 上已经定位到 AP-small 倒 U 的直接承载机制：IoU 合格的 Decoder 最终输出仍然存在，但其最终 score/rank 跨越 `maxDets=300` 截断线；不是候选消失，也不是定位几何退化。该结论只在固定 val128 上建立，其中 COCO-small GT 集中在少量图像，不能据此外推完整验证集上的占比或断言参数级根因。两臂同字段 loss/代理指标的配对审计已由 [EXP-DIAG-007](../EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md) 完成；B0 同口径 checkpoint replay 仍未执行，因而训练级唯一因果机制仍开放。
 
 后续 [EXP-DIAG-006：SGQS 全验证集回放](../EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
 已在本地 12,841 图上完成 14 个 unique raw/EMA 状态的正式一对一匹配：EMA 前段
 gain 与后段 loss 的十 IoU 转移事件有 87.73%--93.38% 归为 `rank_gt300`，全局 PR
 变化主要位于 recall `.69--.72`，并集中于每图 GT≥301、输入短边 8--16 px 的目标。
-因此 full-val 已确认“输出排名准入”是直接承载位置；本实验的下一任务是用 SGQS/B0
-训练探针解释该 score/rank 轨迹的上游来源，而不是继续把 val128 比例外推。该 full-val
+因此 full-val 已确认“输出排名准入”是直接承载位置；后续 EXP-DIAG-007 已用 SGQS/B0
+训练探针确认强启动目标冲击与代理/末端排名脱节，并把等层归一化列为待干预机制，而不再
+把 val128 比例外推。该 full-val
 结论限本地 annotation/Windows CPU 后端，不等于服务器 H20 位级复现。
 
 依据为已归档的 [B0 日志](../../../outputs/resume_control_e28_to_e34_gb64/console.log)、[B1 日志](../../../outputs/e35_r7_sgqse/resume_b1_sgqs_seed0/console.log)、[B3 日志](../../../outputs/e35_r7_sgqse/resume_b3_sgqs_e_seed0/console.log)。下述 loss 数值取控制台整轮均值，AP 仅有三位小数精度。
@@ -89,7 +90,10 @@ teacher为同次末层预测，正样本w为当前IoU，负样本w为teacher分�
 | 小框GO零覆盖增加、质量权重份额下降 | 选择性监督不足 | 全部小框没有监督，DN仍在 |
 | 仅EMA出现峰值、raw没有 | 参数混合/时间滞后值得检查 | 训练过拟合已证实 |
 
-SGQS 与 B0 的完整 checkpoint 和训练探针均已取得；SGQS 已完成上述 val128 回放，B0 回放及第二阶段短干预尚未运行。下一步先对两臂同字段日志做配对分析；后续短干预仍应只比较原样继续、暂停SGQS新增项、改变第一层DN-DDF，并保持数据顺序、优化器和步数相同；不同时改owner、Matcher和小框权重。
+SGQS 与 B0 的完整 checkpoint 和训练探针均已取得；SGQS 已完成上述 val128 回放，
+B0 回放及第二阶段短干预尚未运行。两臂同字段日志配对分析已归档于 EXP-DIAG-007；
+后续优先单变量比较 dense+owner 升温、全局 owner-count 归一化及末端 owner/rank 跟进，
+并保持数据顺序、优化器、EMA 和步数相同，不同时改 owner、Matcher 和小框权重。
 
 ## 服务器命令
 

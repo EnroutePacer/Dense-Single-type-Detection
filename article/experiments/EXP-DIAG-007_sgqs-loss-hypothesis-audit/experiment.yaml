@@ -1,0 +1,68 @@
+schema_version: 1
+experiment_id: EXP-DIAG-007
+slug: sgqs_loss_hypothesis_audit
+title: "SGQS 启动冲击、链路脱节与尺度归一化假说审计"
+type: diagnostic
+status: completed
+validity: valid_with_scope
+paper_role: diagnosis
+question: "SGQS AP-small 倒 U 是否可由强启动损失、缺少末端跟进监督和 P3/P4/P5 等层归一化解释？"
+hypothesis_ids: [H-003, H-004, H-006]
+protocol_ids: [P-001, P-002, P-003, P-006]
+method_ids: [M-002]
+source_experiment_ids: [EXP-TRAIN-006, EXP-DIAG-006]
+control_experiment_id: EXP-TRAIN-006
+runs: 2
+artifact_ids: [ART-000095, ART-000096]
+result_status: completed_training_evidence_audit
+
+scope:
+  arms: [sgqs_e28_r7_seed0, b0_e28_r7_seed0]
+  epochs: [28, 29, 30, 31, 32, 33, 34]
+  seed: 0
+  training_type: checkpoint_continuation
+  full_val_reference: EXP-DIAG-006
+  baseline_test_images: 13
+  query_probe_images: 29
+
+verdicts:
+  aggressive_loss_overfit:
+    status: partially_supported
+    supported: "Large unsmoothed step-0 objective shock and rapid early ranking changes."
+    rejected_or_open: "Overfitting and persistent overall erosion are not established."
+  missing_end_to_end_supervision:
+    status: supported_as_proxy_mismatch
+    supported: "SGQS proxies improve while final Top-300 AP-small falls."
+    rejected_or_open: "No e31 base-loss rebound; validation AP-large cannot trigger training loss."
+  equal_level_dense_normalization:
+    status: mechanism_confirmed_causality_open
+    supported: "Per-level means are averaged equally; rare P5 positives have larger explicit per-positive normalizers."
+    rejected_or_open: "Per-level shared-parameter gradients and optimizer updates were not measured."
+
+headline_results:
+  step0:
+    b0_total_loss: 8.468863598653115
+    sgqs_total_loss: 13.53994549869094
+    sgqs_added_total: 5.071081900037825
+    sgqs_dense: 4.702854961156845
+  epoch30_to_34:
+    ap_small: [0.7055535182845548, 0.6822735430050265]
+    sgqs_owner_coverage: [0.26360510701693685, 0.45313670952088075]
+    sgqs_pre_topk_survival: [0.9342598149903903, 0.978141605102493]
+    full_val_ap_small_d300: [0.7011793899223134, 0.6777566891421092]
+    full_val_ap_small_d640: [0.9356506692753648, 0.9526993718209514]
+    full_val_rank_gt300_loss_fraction_ten_iou: 0.9338028169014084
+  dense_level_normalization:
+    p3_to_p5_owner_ratio_e28: 69.84647863393084
+    p3_to_p5_owner_ratio_e34: 134.80436059110545
+    sampled_p5_large_input_fraction: 0.9890951959917477
+
+limitations:
+  - "Single seed and seven-epoch checkpoint continuation; not from-scratch multi-seed validation."
+  - "Loss magnitudes and count normalizers do not identify shared-parameter gradient or AdamW update shares."
+  - "Training probes are sampled; epoch 28 early steps are intentionally oversampled."
+  - "P3/P4/P5 source levels, augmented input-area groups, and COCO evaluator size groups are distinct."
+  - "Full-validation carrier evidence inherits EXP-DIAG-006 local annotation and Windows CPU scope."
+
+created_at: 2026-10-17
+updated_at: 2026-10-17

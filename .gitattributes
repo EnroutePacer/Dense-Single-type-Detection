@@ -83,6 +83,13 @@ article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/**/*.csv.gz -te
 # Formal full-val tables above Git's 10 MiB threshold use exact-path LFS rules.
 article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/data/transition_details.csv.gz filter=lfs diff=lfs merge=lfs -text
 article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/data/representative_annotations.csv filter=lfs diff=lfs merge=lfs -text
+# Keep the training-loss hypothesis audit, copied qualitative evidence and
+# deterministic manifests byte-stable across Windows/Linux.
+article/experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/**/*.md text eol=lf
+article/experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/**/*.csv text eol=lf
+article/experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/**/*.yaml text eol=lf
+article/experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/**/*.py text eol=lf
+article/experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/**/*.png -text -diff
 # The derived curve script is itself a registered reproducibility artifact.
 outputs/e35_r7_sgqse/comparison_sgqs_vs_sgqse/*.py text eol=lf
 

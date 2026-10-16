@@ -1,0 +1,25 @@
+epoch,input_area_group,sampled_p3_kept,sampled_p4_kept,sampled_p5_kept,p5_group_share_within_epoch,sampling_scope
+28,small_input,84627,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+28,medium_input,45171,14006,1,0.0007468259895444362,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+28,large_input,1644,2692,1338,0.9992531740104555,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+29,small_input,68575,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+29,medium_input,11074,15032,9,0.005909389363099146,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+29,large_input,176,4262,1514,0.9940906106369009,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+30,small_input,96870,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+30,medium_input,8259,15545,16,0.010796221322537112,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+30,large_input,151,4708,1466,0.9892037786774629,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+31,small_input,126728,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+31,medium_input,16276,15621,15,0.01056338028169014,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+31,large_input,132,4630,1405,0.9894366197183099,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+32,small_input,127577,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+32,medium_input,29464,14735,31,0.020195439739413682,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+32,large_input,117,4868,1504,0.9798045602605863,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+33,small_input,144451,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+33,medium_input,38674,15047,21,0.013392857142857142,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+33,large_input,123,5094,1547,0.9866071428571429,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+34,small_input,150328,0,0,0.0,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+34,medium_input,51811,15072,18,0.013719512195121951,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+34,large_input,134,4865,1294,0.9862804878048781,sampled augmented training batches; e28 first 200 steps are oversampled; area group is not COCO evaluation size
+all_sampled,small_input,,,0,0.0,pooled sampled augmented training batches; e28 first 200 steps are oversampled; descriptive association only
+all_sampled,medium_input,,,111,0.010904804008252285,pooled sampled augmented training batches; e28 first 200 steps are oversampled; descriptive association only
+all_sampled,large_input,,,10068,0.9890951959917477,pooled sampled augmented training batches; e28 first 200 steps are oversampled; descriptive association only

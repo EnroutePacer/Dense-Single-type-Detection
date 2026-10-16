@@ -1,0 +1,4 @@
+transition,candidate_absence,encoder_selection,decoder_geometry,rank_gt300,one_to_one_competition,ten_iou_transition_events,rank_gt300_fraction,unit
+e28_to_e29_gain,488,780,130,12437,0,13835,0.8989519335019878,GT x IoU transition events; IoU=.50:.05:.95; not unique GT or additive AP
+e28_to_e30_gain,603,827,169,11436,0,13035,0.8773302646720368,GT x IoU transition events; IoU=.50:.05:.95; not unique GT or additive AP
+e30_to_e34_loss,510,159,177,11934,0,12780,0.9338028169014084,GT x IoU transition events; IoU=.50:.05:.95; not unique GT or additive AP

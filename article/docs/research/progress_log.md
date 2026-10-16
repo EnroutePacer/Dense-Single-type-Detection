@@ -1,5 +1,29 @@
 # 科研进展日志
 
+## 2026-10-17 — 完成 SGQS 训练损失假说与实例证据审计
+
+- 新增 [EXP-DIAG-007](../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)，
+  配对 SGQS/B0 e28--e34 结构化日志与 sampled probe，并接入 EXP-DIAG-006 full-val
+  正式归因、image 5367 及 Baseline_test 全部 13 张 contact sheet。
+- 同 batch 的 epoch-28 step 0，B0/SGQS 总 loss 为 `8.468864/13.539945`；差值
+  `5.071082` 与 SGQS 四项之和完全一致，其中 dense 为 `4.702855`、survival 为 0。
+  dense/owner 没有升温，因此确认强启动目标冲击；loss 标量仍不能替代共享参数梯度。
+- e29/e30 SGQS 相对 B0 的 AP-small 为 `+0.024128/+0.025399`，AP-large 为
+  `-0.008860/-0.010534`，属于明显的尺度/Top-300 预算交换；e34 总 AP 反而
+  `+0.000915`，不支持“整体性能被持续侵蚀”。没有配对 train-set AP，不能称过拟合。
+- e30→34 owner coverage `.26361→.45314`、survival `.93426→.97814`、owner IoU
+  `.94727→.96349`，SGQS/base Encoder/base main Decoder loss 均下降，但 AP-small
+  `.705554→.682274`。这支持 pre-TopK/Encoder 代理与最终 Decoder Top-300 脱节；
+  不支持“e31 基础 loss 回升”或“验证大框 AP 触发训练 loss”。
+- 代码审计确认 dense 对 P3/P4/P5 分别归一化再三层等权；P3/P5 kept-owner 数比从
+  `69.85×` 增至 `134.80×`。采样 P5 owner 的 98.91% 位于增强后 large-input 组，
+  因而稀少 P5 高单样本杠杆是优先嫌疑，但缺逐层 loss/共享参数梯度，未登记为根因。
+- image 5367 的 e29 Decoder 始终有 640 query；近似唯一框 `623→498`、尾部与
+  Top-300 高重叠 `8→113`、rank-500 score `.9839→.2969`，而 rank-300 仍 `.9859`。
+  “看起来漏框”来自尾部分数/重复，正式 Top-300 可同时取得更高 AP-small。
+- 下一步按单变量顺序验证：dense+owner 1 epoch 升温、全局 owner-count 归一化、末端
+  owner/rank 跟进或 e30 后停用 SGQS；每次只改一项并补共享参数梯度与 train/val 回放。
+
 ## 2026-10-15 — 完成 SGQS 14 状态本地全验证集归因
 
 - 对 e28--e34 × raw/EMA 共 14 个唯一参数状态完成 12,841 张本地 val 图回放；每状态

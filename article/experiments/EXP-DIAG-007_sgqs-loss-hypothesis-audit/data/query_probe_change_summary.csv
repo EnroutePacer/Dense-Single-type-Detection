@@ -1,0 +1,4 @@
+transition,selected_probe_images,images_with_approx_unique_decrease,images_with_tail_overlap_increase,images_with_score_gt_0_5_count_decrease,selection_warning
+e28_to_e29,29,28,27,16,"29 transition-selected probes; qualitative mechanism set, not a prevalence sample"
+e28_to_e30,29,26,28,15,"29 transition-selected probes; qualitative mechanism set, not a prevalence sample"
+e28_to_e34,29,18,21,13,"29 transition-selected probes; qualitative mechanism set, not a prevalence sample"

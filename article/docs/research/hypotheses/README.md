@@ -15,3 +15,13 @@ evaluator-small 转移有约 88%--93% 由 Decoder 合格 query 跨越 Top-300 �
 退化”不受支持。该结果没有证明 H-001/H-003 是本次曲线的上游原因，也没有区分
 H-006、EMA 轨迹与 SGQS 训练项。下一步以训练探针和单变量干预区分这些竞争解释；
 在此之前仍不建立“已验证方法”。
+
+EXP-DIAG-007 进一步把三个训练级解释分级：恢复训练 step 0 的 SGQS 新增 loss 为
+`5.071082`，其中 dense 为 `4.702855`，所以“无升温启动冲击”获得直接支持；但最终总
+AP 高于配对 B0，且没有 train/val 同口径泛化曲线，不能称“几近过拟合或整体性能被
+侵蚀”。SGQS owner coverage、IoU、pre-TopK survival 在 e30→34 继续改善，而正式
+AP-small 回跌，支持 H-004 的末端代理脱节分支；基础 Encoder/Decoder loss 同期继续
+下降，否定“e31 基础 loss 明确回升”的叙事。dense 的确按 P3/P4/P5 层均值固定等权，
+P3/P5 kept-owner 数比由约 70× 增至 135×，是高优先级可证伪机制，但尚无分层共享参数
+梯度证明它造成回跌。详细边界见
+[EXP-DIAG-007](../../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)。

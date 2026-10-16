@@ -1,6 +1,6 @@
 # 研究状态
 
-更新时间：2026-10-15
+更新时间：2026-10-17
 
 ## 当前主线
 
@@ -8,7 +8,7 @@
 
 最新方法为 M-002 SGQS-E：用 SGQS 处理候选监督，用 EFGL 处理邻域/短边感知的逐边定位。数学评审、代码实现和 B0--B3 单 seed checkpoint 续训屏选已完成，状态为 `implemented / screened / unvalidated`；保留有效设计和历史 M-001，不以论文重叠为删除理由。
 
-截至 2026-10-15，[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 详细日志训练臂均已完整训练至 epoch 34；SGQS 固定 val128 与本地完整 val 的 e28--e34 raw/EMA 回放均已完成，B0 回放尚未执行。SGQS 相对 B0 的最终 mAP 为 `+0.000914788489`，但 AP-small/AR-small 分别为 `-0.001539072145/-0.002718051506`。两臂训练探针尚未完成配对分析，因而现有证据定位了 AP-small 倒 U 的直接输出承载阶段，但没有判定哪个训练项造成该排名轨迹。
+截至 2026-10-17，[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 详细日志训练臂均已完整训练至 epoch 34；SGQS 固定 val128 与本地完整 val 的 e28--e34 raw/EMA 回放均已完成，B0 回放尚未执行。SGQS 相对 B0 的最终 mAP 为 `+0.000914788489`，但 AP-small/AR-small 分别为 `-0.001539072145/-0.002718051506`。[EXP-DIAG-007](../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md) 已完成两臂 loss/代理指标配对审计：确认无升温启动冲击与末端代理脱节，排除 e31 基础 loss 明确回升；尚未用单变量干预判定唯一训练根因。
 
 [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
 已在本地 12,841 图、1,458,060 non-crowd GT 上完成 e28--e34 raw/EMA 共 14 个唯一
@@ -49,6 +49,15 @@
 - raw 的 AP-small 七轮范围约 `0.008`，EMA 约 `0.027`；可写成 EMA-specific
   transient/rank trajectory，但没有受控证据把 EMA decay、resume 初始化或 SGQS
   某个损失项认定为训练级根因。
+- SGQS/B0 step-0 基础 loss 完全相同，新增 SGQS 项为 `5.071082`，其中 dense
+  `4.702855`；dense/owner 没有升温，确认强启动目标冲击。但 e34 总 AP 高于 B0，
+  且没有 train-set checkpoint replay，不能称已证过拟合或整体性能被侵蚀。
+- e30→34 SGQS owner coverage、IoU、pre-TopK survival 全部继续改善，基础 Encoder、
+  main Decoder 与 pre loss 同期继续下降，AP-small 却回跌；这支持 SGQS 代理止于
+  pre-TopK/Encoder、未约束最终 Top-300 的链路缺口，不支持“e31 基础 loss 回升”。
+- dense positive/negative 逐层归一化后固定三层等权；P3/P5 kept-owner 数比由约
+  `69.85×` 增至 `134.80×`。该实现会提高稀少 P5 单样本显式系数，但没有逐层共享
+  参数梯度，尚不能登记为后期回跌原因。
 - AP-small/AR-small 必须沿用 COCO evaluator areaRange；本地 small 机制分析使用
   640 输入下 `area < 32² OR short side < 16` 的 hybrid-small。两种 cohort 并列
   报告，不能互相替代。
@@ -63,14 +72,15 @@
 
 最高优先级从“确认倒 U 在哪里发生”转为“解释为什么最终 score/rank 会这样变化”。
 本地 full-val 已把前段收益和后段回跌都定位到 Decoder Top-300 admission，并确定最敏感
-人群是极密图中的 8--16 px 短边 evaluator-small；下一步必须用训练探针或受控干预查找
-上游原因，不能继续从更多相关性分桶直接跳到损失因果。
+人群是极密图中的 8--16 px 短边 evaluator-small。配对训练探针已完成相关性审计，
+现阶段必须进入受控单变量干预，不能再从更多分桶相关性直接跳到损失因果。
 
-1. 对已完成的 SGQS/B0 同字段训练探针做配对分析，重点检查 owner/GO、浅层
-   DN-DDF、分类校准与 EMA raw/EMA 差异是否与密集 8--16 px 子群同向。
-2. 如需验证模型特异性，补做 B0 同口径回放；历史无探针 B0 不能代替。
-3. 对最高优先级线索做单变量短干预：EMA 冻结/替换、暂停 SGQS 新增项或改变浅层
-   DN-DDF 三者一次只改一项，保持数据顺序、优化器、步数和 Top-300 评估不变。
+1. 做启动冲击单变量：只给 dense+owner 增加 1 epoch `0→1` 升温，保持数据顺序、
+   optimizer、EMA 和步数完全相同；同步记录共享参数梯度与 train/val AP。
+2. 做归一化单变量：只把 P3/P4/P5 等层均值改为全局 owner-count 归一化，记录逐层
+   positive/negative loss、clip 前后共享参数梯度；不同时改 owner 分配。
+3. 做链路单变量：e30 后停用 SGQS，或增加最终 Decoder/Top-300 owner/rank 约束，
+   二者只选其一；另补 B0 同口径 checkpoint replay 作为模型特异性复核。
 4. 若要消除后端/annotation 身份疑点，再以服务器训练 annotation 和同一 H20 环境复跑
    关键 e28/e30/e34；当前本地结果本身已构成完整集 scoped diagnosis。
 5. 通过 seed 0 gate 后再执行从头至少 3 seeds。C1/C3 已封存，C4 与旧 DEIM-core

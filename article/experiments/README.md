@@ -15,7 +15,14 @@
 
 ## 当前顺序
 
-2026-10-15 最新完成项为
+2026-10-17 最新完成项为
+[EXP-DIAG-007](EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)：已把 SGQS/B0
+整轮日志、step-level sampled probe、full-val Top-300 归因、image 5367 与 Baseline_test
+13 图放入同一证据链。它确认恢复训练 step 0 存在由 dense 主导的强新增目标冲击，且
+SGQS owner/survival 代理继续改善时最终 AP-small 仍回跌，支持缺少末端 Top-300 跟进
+监督；当前三层等均值归一化确有稀少 P5 单样本高杠杆，但尚缺梯度级因果证据。
+
+此前完成项
 [EXP-DIAG-006](EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)：已在本地完整
 12,841 图、1,458,060 non-crowd GT 上完成 e28--e34 raw/EMA 共 14 个唯一状态的
 CPU 回放、COCO 一对一匹配和配对归因。EMA AP-small 的前段收益与后段回跌都主要由
@@ -23,8 +30,8 @@ CPU 回放、COCO 一对一匹配和配对归因。EMA AP-small 的前段收益�
 640 输入短边 8--16 px 的目标。该结论对本地 annotation/CPU 后端有效，不等于服务器
 H20 的位级复现，也没有证明 EMA 或 SGQS 的训练级根因。
 [EXP-TRAIN-006](EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0
-详细日志训练臂均已完成；SGQS 的 val128 回放已完成，B0 回放与两臂探针对照分析
-尚未完成。
+详细日志训练臂均已完成；两臂 loss/代理指标配对审计已由 EXP-DIAG-007 完成，B0
+checkpoint 回放与固定 train-subset 回放仍未完成。
 
 1. [EXP-TRAIN-005](EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md)：B0/B1/B2/B3 与 C2 核心屏选矩阵及完整证据已归档；
 2. [EXP-TRAIN-002](EXP-TRAIN-002_clean-deim-mal/README.md)：运行 fixed-640/query-640/global-batch-64 的 controlled DEIM-core 35e 基线；

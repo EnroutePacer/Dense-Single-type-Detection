@@ -26,6 +26,7 @@
   checkpoint。两个 canonical 运行目录的全部 101 文件另由 `ART-000041` 逐文件登记；
   支持配对运行身份、完整性和终点指标，不替代尚未完成的机制分析。
 - `ART-000094`：[EXP-DIAG-006 本地完整集发布清单](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/artifact_manifest.csv)，覆盖 14 状态正式指标、COCO 一对一匹配聚合、10,549,440 行压缩转移明细、全局 PR、分桶、定量/代表图、29 图×7 epoch query probe、分析和复算脚本。它支持“EMA 倒 U 主要由 Top-300 admission 承载”的本地全量结论；不支持服务器 H20 位级一致、EMA 训练因果或 SGQS 稳定收益。
+- `ART-000095`、`ART-000096`：[EXP-DIAG-007 损失假说审计与发布清单](../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)。覆盖 SGQS/B0 step/epoch loss、owner 代理指标、P3/P4/P5 归一化审计、full-val 承载摘要、image 5367 和 Baseline_test 全 13 图。它支持“强无升温启动冲击”和“pre-TopK 代理与最终 Top-300 脱节”；不支持已证过拟合、验证 AP 触发训练 loss 或 P5 梯度已导致回跌。
 
 ## B：支持行为观察，不能替代 GT 指标
 
