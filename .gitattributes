@@ -105,4 +105,7 @@ tests/test_sgqs*.py text eol=lf
 article/docs/reproducibility/research_scripts.sha256 text eol=lf
 
 # These are frozen historical bytes, not active executable files.
+configs/sgqs_v2/** text eol=lf
+outputs/sgqs_v2/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
+outputs/sgqs_v2/**/probe_steps.csv filter=lfs diff=lfs merge=lfs -text
 outputs/provenance/retired_article_entities_20261014/** -text -diff

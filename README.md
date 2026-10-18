@@ -4,6 +4,10 @@
 
 ## 当前研究方向
 
+2026-10-18：新增 [SGQS v2 单因素分支](configs/sgqs_v2/README.md)，
+包含原 SGQS、基线、仅质量目标修正、仅正样本归一化修正。
+已实现待运行；[服务器启动命令](configs/sgqs_v2/SERVER_COMMANDS.md)。
+
 我们以表格单元格检测作为验证基座，研究两个训练层问题：固定 query 预算下的 **query selection–survival gap**，以及整框 IoU 共享权重无法按边表达短边尺度与同类邻域歧义。
 
 当前 M-002 SGQS-E 已完成数学评审、代码实现和一次 epoch-27 单 seed

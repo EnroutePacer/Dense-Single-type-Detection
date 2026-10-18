@@ -15,6 +15,10 @@
 
 ## 当前顺序
 
+2026-10-18 新增 [EXP-TRAIN-007](EXP-TRAIN-007_sgqs-v2-single-factor/README.md)：
+SGQS v2 四臂单因素续训已实现，尚未运行。R0 原 SGQS、R1 基线、R2 仅 BCE 质量目标、
+R3 仅正样本全局归一化；从同一个 epoch-27 checkpoint 续训到 epoch 34。
+
 2026-10-17 最新完成项为
 [EXP-DIAG-007](EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)：已把 SGQS/B0
 整轮日志、step-level sampled probe、full-val Top-300 归因、image 5367 与 Baseline_test

@@ -1,0 +1,25 @@
+__include__: ['r0_original_e28_r7.yml']
+
+SupervisionProbeCriterion:
+  base_criterion: SGQSV2Criterion
+
+# Explicitly mirror the inherited v1 constructor settings. Tests enforce parity;
+# the upstream registry cannot alias a registered class across Python modules.
+SGQSV2Criterion:
+  base_criterion: DEIMCriterion
+  weight_dict:
+    loss_sgqs_dense: 1.0
+    loss_sgqs_bbox: 2.5
+    loss_sgqs_giou: 1.0
+    loss_sgqs_survival: 0.25
+  q_min: 0.25
+  dense_alpha: 0.75
+  dense_gamma: 2.0
+  negative_weight: 1.0
+  survival_margin: 0.2
+  survival_temperature: 0.1
+  survival_quality_power: 1.0
+  survival_start_epoch: 28.0
+  survival_ramp_epochs: 1.0
+  survival_threshold: non_owner_budget
+  protect_encoder_supervision: True

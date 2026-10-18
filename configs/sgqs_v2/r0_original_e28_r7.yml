@@ -1,0 +1,2 @@
+__include__: ['../probes/sgqs_e28_r7.yml']
+output_dir: ./outputs/sgqs_v2/r0_original_e28_r7_seed0

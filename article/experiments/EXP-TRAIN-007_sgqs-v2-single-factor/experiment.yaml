@@ -1,0 +1,25 @@
+experiment_id: EXP-TRAIN-007
+slug: sgqs_v2_single_factor
+type: train
+status: planned
+validity: not_run
+title: SGQS v2 目标一致性与正样本归一化单因素续训
+method_ids: [M-002]
+control_experiment_id: EXP-TRAIN-006
+updated_at: '2026-10-18'
+implementation_status: implemented_unvalidated
+arms: [r0, r1, r2, r3]
+initialization: checkpoint0027.pth from configs/e35_r7/frozen_inputs.yml
+epochs: [28, 29, 30, 31, 32, 33, 34]
+world_size: 8
+batch_per_gpu: 8
+global_batch: 64
+seed: 0
+input_size: [640, 640]
+queries: 640
+checkpoint_frequency: 1
+probe_interval: 100
+early_probe: {epoch: 28, steps: 200, interval: 10}
+inference_states: [raw, ema]
+evaluation_max_dets: [300, 640]
+completed_training_arms: []
