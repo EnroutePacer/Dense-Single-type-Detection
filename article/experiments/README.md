@@ -15,6 +15,10 @@
 
 ## 当前顺序
 
+2026-10-19：[EXP-TRAIN-007](EXP-TRAIN-007_sgqs-v2-single-factor/README.md) 扩充为
+R0--R5 六臂，增加升温与最终 Decoder admission 干预；主指标改为本地 hybrid-small
+一对一 AP，完整验证集 84 状态/168 预算行。仍未运行，不宣称因果链已经闭合。
+
 2026-10-18 新增 [EXP-TRAIN-007](EXP-TRAIN-007_sgqs-v2-single-factor/README.md)：
 SGQS v2 四臂单因素续训已实现，尚未运行。R0 原 SGQS、R1 基线、R2 仅 BCE 质量目标、
 R3 仅正样本全局归一化；从同一个 epoch-27 checkpoint 续训到 epoch 34。

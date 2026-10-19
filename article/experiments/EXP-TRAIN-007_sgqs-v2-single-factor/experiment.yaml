@@ -6,9 +6,9 @@ validity: not_run
 title: SGQS v2 目标一致性与正样本归一化单因素续训
 method_ids: [M-002]
 control_experiment_id: EXP-TRAIN-006
-updated_at: '2026-10-18'
+updated_at: '2026-10-19'
 implementation_status: implemented_unvalidated
-arms: [r0, r1, r2, r3]
+arms: [r0, r1, r2, r3, r4, r5]
 initialization: checkpoint0027.pth from configs/e35_r7/frozen_inputs.yml
 epochs: [28, 29, 30, 31, 32, 33, 34]
 world_size: 8
@@ -23,3 +23,11 @@ early_probe: {epoch: 28, steps: 200, interval: 10}
 inference_states: [raw, ema]
 evaluation_max_dets: [300, 640]
 completed_training_arms: []
+protocol_revision: '2026-10-19'
+primary_metric: local_hybrid_small_AP_50_95_maxDets300_epoch34_ema
+required_budget_control: local_hybrid_small_AP_50_95_maxDets640
+historical_secondary_metric: coco_small_AP_50_95_maxDets300
+local_small_definition: '640-input bbox area < 1024 OR short side < 16; strict inequalities'
+full_val_states: 84
+full_val_budget_rows: 168
+claim_scope: single_seed_continuation_screen_not_causal_closure

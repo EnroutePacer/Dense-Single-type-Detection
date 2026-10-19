@@ -5,6 +5,7 @@
 
 ## 最新进度
 
+- [2026-10-19：升温/末端干预、本地 small AP 与全验证集矩阵](journal/2026-10-19.md)
 - [已实现待运行：SGQS v2 单因素续训](experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md)
 - [已完成：SGQS 损失假说与实例证据审计](experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)
 - [已完成（本地全量口径）：SGQS 14 状态全验证集回放](experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)

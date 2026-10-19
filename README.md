@@ -4,6 +4,10 @@
 
 ## 当前研究方向
 
+2026-10-19：[SGQS v2 协议修订](article/experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md)
+补充 R4 升温、R5 末端 admission 单因素分支，以及本地 hybrid-small 一对一 AP 与
+84 状态全验证集矩阵；仍为已实现、未运行的单 seed 筛选。
+
 2026-10-18：新增 [SGQS v2 单因素分支](configs/sgqs_v2/README.md)，
 包含原 SGQS、基线、仅质量目标修正、仅正样本归一化修正。
 已实现待运行；[服务器启动命令](configs/sgqs_v2/SERVER_COMMANDS.md)。

@@ -147,7 +147,9 @@ class V2DeploymentTest(unittest.TestCase):
     def test_config_differences_are_single_factor(self):
         original = arm_config('r0')
         for arm, key, value in [('r2', 'dense_positive_target', 'iou'),
-                                ('r3', 'dense_positive_normalization', 'global')]:
+                                ('r3', 'dense_positive_normalization', 'global'),
+                                ('r4', 'dense_owner_ramp_epochs', 1.),
+                                ('r5', 'admission_weight', .25)]:
             actual, expected = arm_config(arm), copy.deepcopy(original)
             for config in (actual, expected):
                 config.pop('output_dir', None)
@@ -158,7 +160,7 @@ class V2DeploymentTest(unittest.TestCase):
         baseline = arm_config('r1')
         self.assertIsNone(baseline['DFINETransformer']['sgqs_supervisor'])
         self.assertEqual(baseline['SupervisionProbeCriterion']['base_criterion'], 'DEIMCriterion')
-        for arm in ('r0', 'r1', 'r2', 'r3'):
+        for arm in ('r0', 'r1', 'r2', 'r3', 'r4', 'r5'):
             config = arm_config(arm)
             self.assertEqual(config['epoches'], 35)
             self.assertEqual(config['checkpoint_freq'], 1)
@@ -170,7 +172,7 @@ class V2DeploymentTest(unittest.TestCase):
         for arm, name in ARMS.items():
             config = YAMLConfig(str(ROOT / 'configs/sgqs_v2' / f'{name}.yml'))
             wrapped = config.criterion.base_criterion
-            if arm in ('r2', 'r3'):
+            if arm in ('r2', 'r3', 'r4', 'r5'):
                 self.assertIsInstance(wrapped, SGQSV2Criterion)
                 self.assertEqual(wrapped.survival_start_epoch, 28.)
                 self.assertTrue(wrapped.protect_encoder_supervision)

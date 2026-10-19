@@ -20,6 +20,8 @@ ARMS = {
     'r1': 'r1_baseline_e28_r7',
     'r2': 'r2_iou_target_e28_r7',
     'r3': 'r3_global_positive_e28_r7',
+    'r4': 'r4_resume_ramp_e28_r7',
+    'r5': 'r5_decoder_admission_e28_r7',
 }
 RUNTIME_FILES = Path('configs/sgqs_v2/runtime_files.sha256')
 

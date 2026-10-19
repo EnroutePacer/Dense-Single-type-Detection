@@ -1,9 +1,11 @@
-"""Dense-only interventions, inheriting owner/guard/survival unchanged from v1."""
+"""Independent SGQS interventions; preserve v1 matching and inference code."""
 import torch
 import torch.nn.functional as F
 
 from ..core import register
 from ..sgqs.criterion import SGQSCriterion
+from ..misc.dist_utils import get_world_size
+from .admission import admission_loss
 
 
 @register()
@@ -16,7 +18,8 @@ class SGQSV2Criterion(SGQSCriterion):
                  survival_quality_power=1.0, survival_start_epoch=0.0,
                  survival_ramp_epochs=1.0, survival_threshold='topk',
                  protect_encoder_supervision=False, dense_positive_target='quality',
-                 dense_positive_normalization='per_level'):
+                 dense_positive_normalization='per_level', dense_owner_ramp_epochs=0.,
+                 admission_weight=0.):
         super().__init__(
             base_criterion, weight_dict, q_min, dense_alpha, dense_gamma,
             negative_weight, survival_margin, survival_temperature,
@@ -26,10 +29,54 @@ class SGQSV2Criterion(SGQSCriterion):
             raise ValueError('dense_positive_target must be quality or iou')
         if dense_positive_normalization not in ('per_level', 'global'):
             raise ValueError('dense_positive_normalization must be per_level or global')
-        if dense_positive_target == 'iou' and dense_positive_normalization == 'global':
+        if dense_owner_ramp_epochs < 0 or admission_weight < 0:
+            raise ValueError('Ramp duration and admission weight must be non-negative')
+        if sum([dense_positive_target == 'iou', dense_positive_normalization == 'global',
+                dense_owner_ramp_epochs > 0, admission_weight > 0]) > 1:
             raise ValueError('This single-factor screen must not combine both interventions')
         self.dense_positive_target = dense_positive_target
         self.dense_positive_normalization = dense_positive_normalization
+        self.dense_owner_ramp_epochs = float(dense_owner_ramp_epochs)
+        self.admission_weight = float(admission_weight)
+
+    def loss_sgqs(self, payload, targets, **metadata):
+        losses = super().loss_sgqs(payload, targets, **metadata)
+        if self.dense_owner_ramp_epochs:
+            if not {'epoch', 'step', 'epoch_step'} <= metadata.keys():
+                raise ValueError('Dense/owner ramp requires absolute epoch and step metadata')
+            progress = metadata['epoch'] + metadata['step'] / max(metadata['epoch_step'], 1)
+            ramp = max(0., min(1., (progress - self.survival_start_epoch) / self.dense_owner_ramp_epochs))
+            for name in ('loss_sgqs_dense', 'loss_sgqs_bbox', 'loss_sgqs_giou'):
+                self._logging_metrics[f'sgqs_before_ramp_{name.removeprefix("loss_sgqs_")}'] = (
+                    self._distributed_sum((losses[name] * self.weight_dict[name]).detach()) / get_world_size())
+                losses[name] = losses[name] * ramp
+            self._logging_metrics['sgqs_dense_owner_ramp'] = payload['dense_logits'].new_tensor(ramp)
+        return losses
+
+    def forward(self, outputs, targets, **metadata):
+        if not self.admission_weight:
+            return super().forward(outputs, targets, **metadata)
+        if 'input_size' not in metadata:
+            raise ValueError('Admission probe requires augmented input_size')
+        # Observe the already-existing FIRST matcher call (final decoder layer).
+        # No extra matching, no edits to frozen DEIM, and hook removed even on error.
+        captured = []
+        def capture(_module, _args, result):
+            if not captured:
+                captured.append(result['indices'])
+        handle = self.base_criterion.matcher.register_forward_hook(capture)
+        try:
+            losses = super().forward(outputs, targets, **metadata)
+        finally:
+            handle.remove()
+        if not captured:
+            raise RuntimeError('Final-layer matching was not observed')
+        loss, count = admission_loss(outputs, targets, captured[0], metadata['input_size'],
+                                     self._distributed_average_denominator)
+        losses['loss_sgqs_admission'] = self.admission_weight * loss
+        self._logging_metrics['sgqs_admission_pairs_per_rank'] = (
+            self._distributed_average_denominator(count, outputs['pred_logits'].device, minimum=0.))
+        return losses
 
     def _dense_loss(self, payload, targets, qualities):
         # Retain v1 arithmetic and reduction order in the unchanged configuration.

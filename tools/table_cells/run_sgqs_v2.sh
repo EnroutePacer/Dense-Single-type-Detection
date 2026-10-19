@@ -7,9 +7,9 @@ DATA="${DATA:-/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged}"
 CKPT="${CKPT:-$PWD/output/dfine_hgnetv2_m_table_cell/checkpoint0027.pth}"
 RUN_ROOT="${RUN_ROOT:-$PWD/outputs/sgqs_v2}"
 export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
-if [[ $# -eq 0 ]]; then set -- r0 r1 r2 r3; fi
+if [[ $# -eq 0 ]]; then set -- r0 r1 r2 r3 r4 r5; fi
 for arm in "$@"; do
-  case "$arm" in r0|r1|r2|r3) ;; *) echo "Unknown arm: $arm" >&2; exit 2;; esac
+  case "$arm" in r0|r1|r2|r3|r4|r5) ;; *) echo "Unknown arm: $arm" >&2; exit 2;; esac
 done
 for arm in "$@"; do
   run="$RUN_ROOT/${arm}_e28_r7_seed0"
