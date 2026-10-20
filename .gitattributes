@@ -109,3 +109,16 @@ configs/sgqs_v2/** text eol=lf
 outputs/sgqs_v2/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
 outputs/sgqs_v2/**/probe_steps.csv filter=lfs diff=lfs merge=lfs -text
 outputs/provenance/retired_article_entities_20261014/** -text -diff
+
+# baseline_test is a reproducible chain-restoration bundle. Diagnostic CSV and
+# image files are large immutable evidence; keep them in LFS with stable bytes.
+baseline_test/output/** filter=lfs diff=lfs merge=lfs -text
+baseline_test/DATA/** -text -diff
+baseline_test/**/*.png -text -diff
+baseline_test/**/*.jpg -text -diff
+baseline_test/**/*.md text eol=lf
+baseline_test/**/*.txt text eol=lf
+
+# Repository documentation uses LF in the index on Windows and Linux.
+README.md text eol=lf
+.gitattributes text eol=lf

@@ -53,9 +53,12 @@ article/
 ├── methods/                     候选方法推导及状态
 └── docs/                        研究问题、证据索引与论文记录
 output/, outputs/                日志、权重、派生数据与来源快照
+baseline_test/                   链路还原、Encoder/Top-K 诊断与可视化测试包
 ```
 
 `output/` 与 `outputs/` 是开发阶段的持久实验记录，日志、指标、配置快照和清单进入普通 Git，checkpoint、evaluator、TensorBoard 与归档等二进制由 Git LFS 管理。数据集及临时材料仍只放在 `_local/` 或外部存储；每项关键产物同时记录文件哈希和 Artifact ID。
+
+`baseline_test/` 是用于还原和可视化检测链路问题的固定测试包，重点观察 Encoder 候选生成、Top-K 截断和 Decoder 查询分布。它不是第二套训练源码；正式模型、损失和配置仍以仓库根目录为准。该目录中的图像、CSV 和 JSON 只提供链路证据，没有 GT 指标结论，使用方式见 [`baseline_test/README.md`](baseline_test/README.md)。
 
 ---
 
