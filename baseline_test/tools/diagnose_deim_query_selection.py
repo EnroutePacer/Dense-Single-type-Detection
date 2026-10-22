@@ -216,6 +216,12 @@ def count_by_level(records: list[dict[str, Any]]) -> dict[str, int]:
     return {name: int(counts.get(name, 0)) for name in ("P3", "P4", "P5")}
 
 
+def ordered_xyxy(box: Iterable[float]) -> tuple[float, float, float, float]:
+    """Return a Pillow-safe rectangle without changing exported raw geometry."""
+    x1, y1, x2, y2 = (float(value) for value in box)
+    return min(x1, x2), min(y1, y2), max(x1, x2), max(y1, y2)
+
+
 def draw_all_queries(
     image: Any,
     records: list[dict[str, Any]],
@@ -235,7 +241,7 @@ def draw_all_queries(
         score = float(record["final_score"])
         rgb = colors[str(record["size_proxy"])]
         alpha = int(35 + 190 * max(0.0, min(1.0, score)))
-        draw.rectangle(record["final_xyxy"], outline=(*rgb, alpha), width=1)
+        draw.rectangle(ordered_xyxy(record["final_xyxy"]), outline=(*rgb, alpha), width=1)
     Image.alpha_composite(canvas, overlay).convert("RGB").save(output_path)
 
 
@@ -254,12 +260,16 @@ def draw_small_queries(
     for record in sorted(small, key=lambda item: float(item["final_score"])):
         score = float(record["final_score"])
         alpha = int(45 + 210 * max(0.0, min(1.0, score)))
-        draw.rectangle(record["final_xyxy"], outline=(255, 25, 25, alpha), width=2)
+        draw.rectangle(
+            ordered_xyxy(record["final_xyxy"]),
+            outline=(255, 25, 25, alpha),
+            width=2,
+        )
     font = ImageFont.load_default()
     for record in sorted(
         small, key=lambda item: float(item["final_score"]), reverse=True
     )[:25]:
-        x1, y1, _, _ = record["final_xyxy"]
+        x1, y1, _, _ = ordered_xyxy(record["final_xyxy"])
         label = (
             f"q{record['query_index']} r{record['encoder_rank']} "
             f"{float(record['final_score']):.2f}"
