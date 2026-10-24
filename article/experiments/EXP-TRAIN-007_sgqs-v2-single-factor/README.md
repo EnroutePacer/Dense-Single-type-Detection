@@ -1,5 +1,7 @@
 # EXP-TRAIN-007：SGQS v2 单因素分支
 
+> 2026-10-24：用户暂停旧根因探针，本实验已被 [EXP-TRAIN-008](../EXP-TRAIN-008_sgqs-v2-coverage-allocation/README.md) 取代。以下为历史协议，六臂运行入口已退出活跃配置；如需复现，请使用提交 `119bfe2`。本文中的旧代码链接和命令仅适用于该历史提交。
+
 状态：`implemented / not_run / unvalidated`。本次只实现续训筛选，没有训练结果。
 依据 [EXP-DIAG-007](../EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)
 与全验证集排名诊断，检验目标不一致、等层均值、resume 升温及末端 admission 四项机制。

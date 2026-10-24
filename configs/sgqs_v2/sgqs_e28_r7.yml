@@ -1,0 +1,23 @@
+__include__: ['../e35_r7/resume_b1_sgqs.yml']
+
+# Optional original-v1 reference: its dense/owner terms retain NO ramp.
+# It is not the causal control for allocation; compare v2 against support.
+output_dir: ./outputs/sgqs_v2/sgqs_e28_r7_seed0
+epoches: 35
+checkpoint_freq: 1
+seed: 0
+use_amp: True
+use_ema: True
+quick_probe: False
+max_train_steps: null
+DFINETransformer:
+  num_queries: 640
+  learn_query_content: False
+PostProcessor:
+  num_top_queries: 640
+evaluator:
+  max_dets: 640
+train_dataloader:
+  total_batch_size: 64
+val_dataloader:
+  total_batch_size: 64

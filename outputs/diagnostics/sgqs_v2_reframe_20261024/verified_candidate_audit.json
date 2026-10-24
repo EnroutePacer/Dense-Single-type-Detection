@@ -1,0 +1,185 @@
+{
+  "commit": "119bfe2508c4913fa1ac0d10a55c98f77d9b9f84",
+  "scope": "13 fixed images without GT; epoch34 EMA; full640 existing outputs; no pruning rerun",
+  "box_space": "normalized final cxcywh converted to unclipped xyxy",
+  "source_distance": "feature grid centers in 640x640 input pixels, not regressed encoder box centers",
+  "rank_retention_definition": "fraction of original final_score>=0.5 queries whose encoder_rank<=K",
+  "b0": {
+    "state_source": "ema.module",
+    "files_sha256": {
+      "decoder_queries_without_post_topk.csv": "6b2940c339c393d38e8425c21673c6a5289e16ad13860b40cd86551c9bce009d",
+      "encoder_candidates_before_topk.csv": "001fc3e77a7ac687415cdd44c3aee611a5e9291c6fba33036e9afa09ec55cfc7"
+    },
+    "images": 13,
+    "queries": 8320,
+    "encoder_score_mean": 0.19205706656267957,
+    "encoder_score_median": 0.0203830190002918,
+    "encoder_score_p90": 0.9043597638607025,
+    "decoder_score_mean": 0.22757740208561208,
+    "encoder_cutoff_mean": 0.009962468766249101,
+    "high_final_queries": 1446,
+    "rank_retention": {
+      "64": 0.5283540802213001,
+      "128": 0.8699861687413555,
+      "192": 0.9882434301521439,
+      "256": 0.9951590594744122,
+      "384": 0.9993084370677732,
+      "512": 0.9993084370677732,
+      "640": 1.0
+    },
+    "encoder_threshold": {
+      "0.1": {
+        "queries_per_image": 173.6153846153846,
+        "high_final_retained": 0.995850622406639
+      },
+      "0.2": {
+        "queries_per_image": 142.84615384615384,
+        "high_final_retained": 0.9930843706777317
+      },
+      "0.3": {
+        "queries_per_image": 130.6153846153846,
+        "high_final_retained": 0.9889349930843707
+      },
+      "0.4": {
+        "queries_per_image": 122.0,
+        "high_final_retained": 0.979253112033195
+      },
+      "0.5": {
+        "queries_per_image": 116.46153846153847,
+        "high_final_retained": 0.9681881051175657
+      }
+    },
+    "suspect_duplicates": {
+      "encoder_ge": 0.3,
+      "decoder_lt": 0.1,
+      "keeper_decoder_ge": 0.5,
+      "final_iou_ge": 0.7,
+      "suspect_count": 51,
+      "overlapping_suspect_count": 39
+    },
+    "overlap": [
+      {
+        "score_ge": null,
+        "iou_ge": 0.7,
+        "queries": 8320,
+        "pairs": 16644,
+        "pair_fraction": 0.006261285662694113,
+        "participating_queries": 6490,
+        "participating_query_fraction": 0.7800480769230769,
+        "mean_source_grid_distance_px": 50.741111555812154,
+        "same_level_fraction": 0.6696707522230233
+      },
+      {
+        "score_ge": 0.3,
+        "iou_ge": 0.7,
+        "queries": 1689,
+        "pairs": 108,
+        "pair_fraction": 0.0007940942913443722,
+        "participating_queries": 151,
+        "participating_query_fraction": 0.08940201302545885,
+        "mean_source_grid_distance_px": 23.19769920288762,
+        "same_level_fraction": 0.9351851851851852
+      },
+      {
+        "score_ge": 0.5,
+        "iou_ge": 0.7,
+        "queries": 1446,
+        "pairs": 13,
+        "pair_fraction": 0.00013640703860319192,
+        "participating_queries": 26,
+        "participating_query_fraction": 0.017980636237897647,
+        "mean_source_grid_distance_px": 20.20210899984381,
+        "same_level_fraction": 1.0
+      }
+    ]
+  },
+  "sgqs": {
+    "state_source": "ema.module",
+    "files_sha256": {
+      "decoder_queries_without_post_topk.csv": "95828fb174ebc30c9a653ffa7dc31b1bd3a821cb895afc25a9e24f0fc81b989d",
+      "encoder_candidates_before_topk.csv": "56620d9817c2987292cb72a6767c9996b9f8930475453a90e7937418fdcdfbd6"
+    },
+    "images": 13,
+    "queries": 8320,
+    "encoder_score_mean": 0.328136374953185,
+    "encoder_score_median": 0.20620240271091456,
+    "encoder_score_p90": 0.8995997309684755,
+    "decoder_score_mean": 0.2292269103504413,
+    "encoder_cutoff_mean": 0.1290581510044061,
+    "high_final_queries": 1422,
+    "rank_retention": {
+      "64": 0.5253164556962026,
+      "128": 0.8431786216596343,
+      "192": 0.9416315049226441,
+      "256": 0.9634317862165963,
+      "384": 0.9845288326300985,
+      "512": 0.9922644163150492,
+      "640": 1.0
+    },
+    "encoder_threshold": {
+      "0.1": {
+        "queries_per_image": 570.9230769230769,
+        "high_final_retained": 1.0
+      },
+      "0.2": {
+        "queries_per_image": 330.61538461538464,
+        "high_final_retained": 0.9943741209563994
+      },
+      "0.3": {
+        "queries_per_image": 216.46153846153845,
+        "high_final_retained": 0.9767932489451476
+      },
+      "0.4": {
+        "queries_per_image": 163.30769230769232,
+        "high_final_retained": 0.9613220815752461
+      },
+      "0.5": {
+        "queries_per_image": 135.46153846153845,
+        "high_final_retained": 0.9360056258790436
+      }
+    },
+    "suspect_duplicates": {
+      "encoder_ge": 0.3,
+      "decoder_lt": 0.1,
+      "keeper_decoder_ge": 0.5,
+      "final_iou_ge": 0.7,
+      "suspect_count": 853,
+      "overlapping_suspect_count": 768
+    },
+    "overlap": [
+      {
+        "score_ge": null,
+        "iou_ge": 0.7,
+        "queries": 8320,
+        "pairs": 31581,
+        "pair_fraction": 0.011880417118093175,
+        "participating_queries": 7652,
+        "participating_query_fraction": 0.9197115384615384,
+        "mean_source_grid_distance_px": 64.58305357912644,
+        "same_level_fraction": 0.6680282448307526
+      },
+      {
+        "score_ge": 0.3,
+        "iou_ge": 0.7,
+        "queries": 1595,
+        "pairs": 58,
+        "pair_fraction": 0.0004970903075960541,
+        "participating_queries": 95,
+        "participating_query_fraction": 0.05956112852664577,
+        "mean_source_grid_distance_px": 27.183278717383903,
+        "same_level_fraction": 0.7586206896551724
+      },
+      {
+        "score_ge": 0.5,
+        "iou_ge": 0.7,
+        "queries": 1422,
+        "pairs": 12,
+        "pair_fraction": 0.00012894213721592436,
+        "participating_queries": 24,
+        "participating_query_fraction": 0.016877637130801686,
+        "mean_source_grid_distance_px": 20.0,
+        "same_level_fraction": 1.0
+      }
+    ]
+  }
+}

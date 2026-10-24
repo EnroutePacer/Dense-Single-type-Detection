@@ -20,8 +20,12 @@ __all__ = ['CocoEvaluator',]
 
 @register()
 class CocoEvaluator(object):
-    def __init__(self, coco_gt, iou_types):
+    def __init__(self, coco_gt, iou_types, max_dets=300):
         assert isinstance(iou_types, (list, tuple))
+        if isinstance(max_dets, bool) or not isinstance(max_dets, int) or max_dets < 10:
+            raise ValueError('max_dets must be an integer >= 10')
+        # Default historical budget remains [1, 10, 300]. Keep it across cleanup.
+        self.max_dets = max_dets
         coco_gt = copy.deepcopy(coco_gt)
         self.coco_gt : COCO = coco_gt
         self.iou_types = iou_types
@@ -29,7 +33,7 @@ class CocoEvaluator(object):
         self.coco_eval = {}
         for iou_type in iou_types:
             self.coco_eval[iou_type] = COCOeval_faster(coco_gt, iouType=iou_type, print_function=print, separate_eval=True)
-            self.coco_eval[iou_type].params.maxDets = [1, 10, 300]
+            self.coco_eval[iou_type].params.maxDets = [1, 10, self.max_dets]
 
         self.img_ids = []
         self.eval_imgs = {k: [] for k in iou_types}
@@ -38,7 +42,7 @@ class CocoEvaluator(object):
         self.coco_eval = {}
         for iou_type in self.iou_types:
             self.coco_eval[iou_type] = COCOeval_faster(self.coco_gt, iouType=iou_type, print_function=print, separate_eval=True)
-            self.coco_eval[iou_type].params.maxDets = [1, 10, 300]
+            self.coco_eval[iou_type].params.maxDets = [1, 10, self.max_dets]
         self.img_ids = []
         self.eval_imgs = {k: [] for k in self.iou_types}
 

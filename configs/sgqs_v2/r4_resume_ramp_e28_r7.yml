@@ -1,4 +1,0 @@
-__include__: ['base_v2.yml']
-output_dir: ./outputs/sgqs_v2/r4_resume_ramp_e28_r7_seed0
-SGQSV2Criterion:
-  dense_owner_ramp_epochs: 1.0

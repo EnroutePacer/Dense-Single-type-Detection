@@ -1,142 +1,171 @@
-"""Independent SGQS interventions; preserve v1 matching and inference code."""
+"""Geometry support and detached, GT-constrained Encoder budget allocation."""
+import math
+
 import torch
 import torch.nn.functional as F
 
 from ..core import register
-from ..sgqs.criterion import SGQSCriterion
 from ..misc.dist_utils import get_world_size
-from .admission import admission_loss
+from ..sgqs.criterion import SGQSCriterion
+from .allocation import STAT_NAMES, allocation_loss, build_allocation
 
 
 @register()
 class SGQSV2Criterion(SGQSCriterion):
     __inject__ = ['base_criterion']
 
-    def __init__(self, base_criterion, weight_dict, q_min=0.25,
-                 dense_alpha=0.75, dense_gamma=2.0, negative_weight=1.0,
-                 survival_margin=0.2, survival_temperature=0.1,
-                 survival_quality_power=1.0, survival_start_epoch=0.0,
-                 survival_ramp_epochs=1.0, survival_threshold='topk',
-                 protect_encoder_supervision=False, dense_positive_target='quality',
-                 dense_positive_normalization='per_level', dense_owner_ramp_epochs=0.,
-                 admission_weight=0.):
-        super().__init__(
-            base_criterion, weight_dict, q_min, dense_alpha, dense_gamma,
-            negative_weight, survival_margin, survival_temperature,
-            survival_quality_power, survival_start_epoch, survival_ramp_epochs,
-            survival_threshold, protect_encoder_supervision)
-        if dense_positive_target not in ('quality', 'iou'):
-            raise ValueError('dense_positive_target must be quality or iou')
-        if dense_positive_normalization not in ('per_level', 'global'):
-            raise ValueError('dense_positive_normalization must be per_level or global')
-        if dense_owner_ramp_epochs < 0 or admission_weight < 0:
-            raise ValueError('Ramp duration and admission weight must be non-negative')
-        if sum([dense_positive_target == 'iou', dense_positive_normalization == 'global',
-                dense_owner_ramp_epochs > 0, admission_weight > 0]) > 1:
-            raise ValueError('This single-factor screen must not combine both interventions')
-        self.dense_positive_target = dense_positive_target
-        self.dense_positive_normalization = dense_positive_normalization
-        self.dense_owner_ramp_epochs = float(dense_owner_ramp_epochs)
-        self.admission_weight = float(admission_weight)
+    def __init__(self, base_criterion, weight_dict, q_min=.25,
+                 dense_alpha=.75, dense_gamma=2., negative_weight=1.,
+                 start_epoch=28., ramp_epochs=1., allocation_weight=.25,
+                 iou_threshold=.5, ambiguity_gap=.05, teacher_score=.5,
+                 background_score=.1, margin=.2, iou_chunk_size=512):
+        required = {'loss_sgqs_dense', 'loss_sgqs_bbox', 'loss_sgqs_giou'}
+        if set(weight_dict) != required:
+            raise ValueError('v2 requires exactly dense/bbox/giou weights; no owner survival')
+        scalars = [*weight_dict.values(), q_min, dense_alpha, dense_gamma,
+                   negative_weight, start_epoch, ramp_epochs, allocation_weight,
+                   iou_threshold, ambiguity_gap, teacher_score, background_score, margin]
+        if not all(math.isfinite(float(v)) and float(v) >= 0 for v in scalars):
+            raise ValueError('SGQS v2 parameters must be finite and non-negative')
+        if not 0 < iou_threshold <= 1 or not 0 < ambiguity_gap <= 1:
+            raise ValueError('IoU and ambiguity thresholds must be in (0, 1]')
+        if not 0 <= background_score < teacher_score <= 1:
+            raise ValueError('Require 0 <= background_score < teacher_score <= 1')
+        if isinstance(iou_chunk_size, bool) or int(iou_chunk_size) != iou_chunk_size or iou_chunk_size < 1:
+            raise ValueError('iou_chunk_size must be a positive integer')
+        super().__init__(base_criterion, {**weight_dict, 'loss_sgqs_survival': 0.},
+                         q_min=q_min, dense_alpha=dense_alpha, dense_gamma=dense_gamma,
+                         negative_weight=negative_weight, protect_encoder_supervision=True)
+        self.weight_dict = dict(weight_dict)
+        self.start_epoch, self.ramp_epochs = float(start_epoch), float(ramp_epochs)
+        self.allocation_weight, self.margin = float(allocation_weight), float(margin)
+        self.allocation_options = dict(iou_threshold=float(iou_threshold),
+            ambiguity_gap=float(ambiguity_gap), teacher_score=float(teacher_score),
+            background_score=float(background_score), margin=self.margin,
+            iou_chunk_size=int(iou_chunk_size))
+
+    def _ramp(self, metadata):
+        if not {'epoch', 'step', 'epoch_step'} <= metadata.keys():
+            raise ValueError('SGQS v2 requires absolute epoch/step/epoch_step metadata')
+        epoch, step, length = (float(metadata[k]) for k in ('epoch', 'step', 'epoch_step'))
+        if not all(math.isfinite(x) for x in (epoch, step, length)) or length <= 0 or not 0 <= step < length:
+            raise ValueError('Invalid absolute epoch/step metadata')
+        progress = epoch + step / length
+        if self.ramp_epochs == 0:
+            return float(progress >= self.start_epoch)
+        return max(0., min(1., (progress - self.start_epoch) / self.ramp_epochs))
+
+    def _dense_loss(self, payload, targets, qualities):
+        """IoU targets, a global owner mean and the original per-level negatives.
+
+        Rescue receivers leave both auxiliary classification sets this step;
+        their original geometry supervision stays in owner_boxes unchanged.
+        """
+        logits = payload['dense_logits'].float()
+        if logits.shape[-1] != 1:
+            raise ValueError('SGQS v2 dense supervision requires one class')
+        valid, ignore = payload['valid_mask'].bool(), payload['ignore_mask'].bool()
+        skip = payload.get('classification_skip', torch.zeros_like(valid))
+        shapes = payload['spatial_shapes'].detach().cpu().tolist()
+        positive, count = logits.sum() * 0., 0
+        owner_mask = torch.zeros_like(valid)
+        for batch, owners in enumerate(payload['owner_indices']):
+            owner_mask[batch, owners] = True
+            keep = ~skip[batch, owners]
+            iou = qualities[batch][keep].detach()
+            z = logits[batch, owners[keep], 0]
+            positive = positive + (self._quality_target(iou) * F.binary_cross_entropy_with_logits(
+                z, iou, reduction='none')).sum()
+            count += len(z)
+        result = positive / self._distributed_average_denominator(count, logits.device)
+        negatives = valid & ~ignore & ~owner_mask & ~skip
+        offset = 0
+        for height, width in shapes:
+            end = offset + int(height) * int(width)
+            z = logits[:, offset:end, 0][negatives[:, offset:end]]
+            numerator = (self.dense_alpha * z.sigmoid().pow(self.dense_gamma)
+                         * F.binary_cross_entropy_with_logits(z, torch.zeros_like(z), reduction='none')).sum()
+            denominator = self._distributed_average_denominator(z.numel(), logits.device)
+            result = result + self.negative_weight * numerator / denominator / len(shapes)
+            offset = end
+        if offset != logits.shape[1]:
+            raise ValueError('Spatial shapes do not cover the dense candidate axis')
+        return result
 
     def loss_sgqs(self, payload, targets, **metadata):
-        losses = super().loss_sgqs(payload, targets, **metadata)
-        if self.dense_owner_ramp_epochs:
-            if not {'epoch', 'step', 'epoch_step'} <= metadata.keys():
-                raise ValueError('Dense/owner ramp requires absolute epoch and step metadata')
-            progress = metadata['epoch'] + metadata['step'] / max(metadata['epoch_step'], 1)
-            ramp = max(0., min(1., (progress - self.survival_start_epoch) / self.dense_owner_ramp_epochs))
-            for name in ('loss_sgqs_dense', 'loss_sgqs_bbox', 'loss_sgqs_giou'):
-                self._logging_metrics[f'sgqs_before_ramp_{name.removeprefix("loss_sgqs_")}'] = (
-                    self._distributed_sum((losses[name] * self.weight_dict[name]).detach()) / get_world_size())
-                losses[name] = losses[name] * ramp
-            self._logging_metrics['sgqs_dense_owner_ramp'] = payload['dense_logits'].new_tensor(ramp)
-        return losses
+        qualities, l1, giou = self._owner_quality_and_regression(payload, targets)
+        self._owner_iou_sum = sum((x.detach().sum() for x in qualities), l1.detach() * 0.)
+        return {'loss_sgqs_dense': self._dense_loss(payload, targets, qualities),
+                'loss_sgqs_bbox': l1, 'loss_sgqs_giou': giou}
 
     def forward(self, outputs, targets, **metadata):
-        if not self.admission_weight:
-            return super().forward(outputs, targets, **metadata)
-        if 'input_size' not in metadata:
-            raise ValueError('Admission probe requires augmented input_size')
-        # Observe the already-existing FIRST matcher call (final decoder layer).
-        # No extra matching, no edits to frozen DEIM, and hook removed even on error.
+        self._logging_metrics = {}
+        payload = outputs.get('sgqs_aux_outputs')
+        if payload is None:
+            if self.training:
+                raise ValueError('Training SGQS v2 requires SGQSV2Supervisor payload')
+            return self.base_criterion(outputs, targets, **metadata)
+        ramp = self._ramp(metadata)
         captured = []
-        def capture(_module, _args, result):
+
+        def capture(_module, args, result):
             if not captured:
+                if args[0]['pred_logits'] is not outputs['pred_logits']:
+                    raise ValueError('Expected final Decoder matching before auxiliary matches')
                 captured.append(result['indices'])
+
         handle = self.base_criterion.matcher.register_forward_hook(capture)
         try:
-            losses = super().forward(outputs, targets, **metadata)
+            losses = self.base_criterion(outputs, targets, **metadata)
         finally:
             handle.remove()
         if not captured:
-            raise RuntimeError('Final-layer matching was not observed')
-        loss, count = admission_loss(outputs, targets, captured[0], metadata['input_size'],
+            raise RuntimeError('The base criterion did not produce final matching')
+        payload = self._guard_encoder_supervision(payload)
+        records = self.base_criterion.get_encoder_supervision()
+        pairs, stats = build_allocation(payload, outputs, targets, captured[0], records[0],
+                                       enabled=self.allocation_weight > 0, **self.allocation_options)
+        payload = dict(payload)
+        payload['classification_skip'] = torch.zeros_like(payload['valid_mask'], dtype=torch.bool)
+        for batch, (_, receivers, rescue) in enumerate(pairs):
+            payload['classification_skip'][batch, receivers[rescue]] = True
+        auxiliary = self.loss_sgqs(payload, targets, **metadata)
+        allocate, _ = allocation_loss(payload['dense_logits'], pairs, self.margin,
                                      self._distributed_average_denominator)
-        losses['loss_sgqs_admission'] = self.admission_weight * loss
-        self._logging_metrics['sgqs_admission_pairs_per_rank'] = (
-            self._distributed_average_denominator(count, outputs['pred_logits'].device, minimum=0.))
+        for key, value in auxiliary.items():
+            losses[key] = value * self.weight_dict[key] * ramp
+        losses['loss_sgqs_allocation'] = allocate * self.allocation_weight * ramp
+        if not all(torch.isfinite(value).all() for value in (*auxiliary.values(), allocate)):
+            raise FloatingPointError('Non-finite SGQS v2 auxiliary loss')
+        self._record_metrics(payload, stats, auxiliary, allocate, ramp)
         return losses
 
-    def _dense_loss(self, payload, targets, qualities):
-        # Retain v1 arithmetic and reduction order in the unchanged configuration.
-        if (self.dense_positive_target == 'quality'
-                and self.dense_positive_normalization == 'per_level'):
-            return super()._dense_loss(payload, targets, qualities)
-        logits = payload['dense_logits'].float()
-        valid = payload['valid_mask'].to(dtype=torch.bool, device=logits.device)
-        ignore = payload['ignore_mask'].to(dtype=torch.bool, device=logits.device)
-        shapes = payload['spatial_shapes'].detach().cpu().tolist()
-        levels, classes = len(shapes), logits.shape[-1]
-        positive = [logits.sum() * 0.0 for _ in shapes]
-        negative = [logits.sum() * 0.0 for _ in shapes]
-        pos_count, neg_count = [0] * levels, [0] * levels
-        ranges, offset = [], 0
-        for height, width in shapes:
-            end = offset + int(height) * int(width)
-            ranges.append((offset, end))
-            offset = end
-        for batch in range(logits.shape[0]):
-            owners = payload['owner_indices'][batch]
-            owner_levels = payload['owner_levels'][batch]
-            labels = targets[batch]['labels'][payload['target_indices'][batch]].long()
-            if labels.numel() and ((labels < 0).any() or (labels >= classes).any()):
-                raise ValueError('SGQS owner label is outside dense_logits class range')
-            for level, (start, end) in enumerate(ranges):
-                local = logits[batch, start:end]
-                neg_mask = (valid[batch, start:end, None]
-                            & ~ignore[batch, start:end, None]).expand(-1, classes).clone()
-                chosen = owner_levels == level
-                if chosen.any():
-                    indices, owner_labels = owners[chosen] - start, labels[chosen]
-                    iou = qualities[batch][chosen].detach()
-                    q = self._quality_target(iou)
-                    target = iou if self.dense_positive_target == 'iou' else q
-                    pos_logits = local[indices, owner_labels]
-                    positive[level] = positive[level] + (q * F.binary_cross_entropy_with_logits(
-                        pos_logits, target, reduction='none')).sum()
-                    pos_count[level] += pos_logits.numel()
-                    neg_mask[indices, owner_labels] = False
-                neg_logits = local[neg_mask]
-                if neg_logits.numel():
-                    negative[level] = negative[level] + (
-                        self.dense_alpha * neg_logits.sigmoid().pow(self.dense_gamma)
-                        * F.binary_cross_entropy_with_logits(
-                            neg_logits, torch.zeros_like(neg_logits), reduction='none')).sum()
-                    neg_count[level] += neg_logits.numel()
-        loss = logits.sum() * 0.0
-        if self.dense_positive_normalization == 'global':
-            # One global owner mean, NOT another division by the number of levels.
-            denominator = self._distributed_average_denominator(sum(pos_count), logits.device)
-            loss = sum(positive) / denominator
-            for level in range(levels):
-                denominator = self._distributed_average_denominator(neg_count[level], logits.device)
-                loss = loss + self.negative_weight * negative[level] / denominator / max(levels, 1)
-        else:
-            for level in range(levels):
-                pos_den = self._distributed_average_denominator(pos_count[level], logits.device)
-                neg_den = self._distributed_average_denominator(neg_count[level], logits.device)
-                loss = loss + positive[level] / pos_den
-                loss = loss + self.negative_weight * negative[level] / neg_den
-            loss = loss / max(levels, 1)
-        return loss
+    @torch.no_grad()
+    def _record_metrics(self, payload, stats, auxiliary, allocate, ramp):
+        device = payload['dense_logits'].device
+        owner_count = sum(len(x) for x in payload['owner_indices'])
+        local_extra = torch.tensor([owner_count, float(payload['classification_skip'].sum())], device=device)
+        vector = torch.stack([stats[name] for name in STAT_NAMES] + [
+            local_extra[0], local_extra[1], payload['supervision_conflicts'], self._owner_iou_sum,
+            *[x.detach() for x in auxiliary.values()], allocate.detach()])
+        totals = self._distributed_sum(vector)
+        values = dict(zip(STAT_NAMES, totals[:len(STAT_NAMES)]))
+        owners, masked, conflicts, owner_iou, *raw_losses = totals[len(STAT_NAMES):]
+        images = values['images'].clamp_min(1.)
+        pair_count = values['rescue_pairs'] + values['prefix_pairs']
+        # Global sums give interpretable denominators, not per-rank mean-of-means.
+        metrics = {f'v2_{name}': value for name, value in values.items() if not name.endswith('_sum')}
+        metrics.update(v2_ramp=torch.tensor(ramp, device=device),
+            v2_pair_count=pair_count, v2_pairs_per_image=pair_count / images,
+            v2_donor_utilization=pair_count / values['donor_available'].clamp_min(1.),
+            v2_selected_gt_coverage=values['selected_covered_gt'] / values['gt'].clamp_min(1.),
+            v2_pair_logit_gap=values['pair_gap_sum'] / pair_count.clamp_min(1.),
+            v2_donor_score=values['donor_score_sum'] / pair_count.clamp_min(1.),
+            v2_rescue_score=values['rescue_score_sum'] / values['rescue_pairs'].clamp_min(1.),
+            v2_prefix_score=values['prefix_score_sum'] / values['prefix_pairs'].clamp_min(1.),
+            v2_keeper_score=values['keeper_score_sum'] / values['reliable_representatives'].clamp_min(1.),
+            v2_owners=owners, v2_owner_iou=owner_iou / owners.clamp_min(1.),
+            v2_owner_conflicts=conflicts, v2_rescue_classification_masked=masked)
+        for name, value in zip(('dense', 'bbox', 'giou', 'allocation'), raw_losses):
+            metrics[f'v2_raw_{name}'] = value / get_world_size()
+        self._logging_metrics = metrics

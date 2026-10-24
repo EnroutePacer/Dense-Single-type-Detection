@@ -1,4 +1,4 @@
-"""Training-only, budget-feasible final Decoder boundary exchange probe."""
+"""Legacy Top-300 diagnostic helpers; not used by the active SGQS v2 loss."""
 import torch
 import torch.nn.functional as F
 

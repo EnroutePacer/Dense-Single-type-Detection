@@ -1,0 +1,2 @@
+__include__: ['base_v2.yml']
+output_dir: ./outputs/sgqs_v2/v2_e28_r7_seed0

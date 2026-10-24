@@ -5,8 +5,11 @@
 
 ## 最新进度
 
+- [2026-10-24：SGQS v2 转向实例覆盖与候选预算](journal/2026-10-24.md)
+- [活跃设计 M-003](methods/M-003_sgqs_v2/README.md) / [新协议 EXP-TRAIN-008](experiments/EXP-TRAIN-008_sgqs-v2-coverage-allocation/README.md)
+
 - [2026-10-19：升温/末端干预、本地 small AP 与全验证集矩阵](journal/2026-10-19.md)
-- [已实现待运行：SGQS v2 单因素续训](experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md)
+- [已取代的历史方案：SGQS v2 单因素续训](experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md)
 - [已完成：SGQS 损失假说与实例证据审计](experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)
 - [已完成（本地全量口径）：SGQS 14 状态全验证集回放](experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
 - [2026-10-17：启动冲击、监督链路与尺度归一化审计](journal/2026-10-17.md)

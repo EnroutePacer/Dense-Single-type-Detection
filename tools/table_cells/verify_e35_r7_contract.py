@@ -64,7 +64,8 @@ def verify_method_snapshot(project_root: Path, provenance: dict[str, Any]) -> No
         require(path.is_file(), f"method snapshot file is missing: {relative}")
         actual_hash = canonical_lf_sha256(path)
         expected_hash = (delta["runtime_sha256"]
-                         if relative == delta_path else reference_hash)
+                         if relative == delta_path else provenance.get("compatible_runtime_deltas", {}).get(
+                             relative, {}).get("runtime_sha256", reference_hash))
         require_equal(actual_hash, expected_hash,
                       f"canonical method SHA-256 for {relative}")
 

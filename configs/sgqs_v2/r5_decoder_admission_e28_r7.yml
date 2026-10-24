@@ -1,4 +1,0 @@
-__include__: ['base_v2.yml']
-output_dir: ./outputs/sgqs_v2/r5_decoder_admission_e28_r7_seed0
-SGQSV2Criterion:
-  admission_weight: 0.25

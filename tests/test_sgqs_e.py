@@ -432,7 +432,7 @@ class SGQSEIntegrationTest(unittest.TestCase):
         self.assertEqual(deim_retrofit['train_dataloader']['collate_fn']['mixup_epochs'],
                          [28, 35])
 
-    def test_e35_r7_method_provenance_allows_only_resume_time_adapter(self):
+    def test_e35_r7_method_provenance_tracks_documented_compatible_adapters(self):
         root = Path(__file__).resolve().parents[1]
         provenance = yaml.safe_load(
             (root / 'configs/e35_r7/method_provenance.yml').read_text(encoding='utf-8'))
@@ -445,7 +445,9 @@ class SGQSEIntegrationTest(unittest.TestCase):
         for relative, reference_hash in provenance['reference_files'].items():
             data = (root / relative).read_bytes().replace(b'\r\n', b'\n').replace(b'\r', b'\n')
             actual_hash = hashlib.sha256(data).hexdigest()
-            expected_hash = delta['runtime_sha256'] if relative == delta['path'] else reference_hash
+            expected_hash = (delta['runtime_sha256'] if relative == delta['path'] else
+                             provenance.get('compatible_runtime_deltas', {}).get(
+                                 relative, {}).get('runtime_sha256', reference_hash))
             self.assertEqual(actual_hash, expected_hash, relative)
 
     def test_loading_joint_config_does_not_contaminate_a_later_legacy_config(self):

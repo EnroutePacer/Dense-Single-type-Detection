@@ -1,0 +1,5 @@
+__include__: ['common.yml']
+output_dir: ./outputs/sgqs_v2/b0_e28_r7_seed0
+criterion: DEIMCriterion
+DFINETransformer:
+  sgqs_supervisor: null

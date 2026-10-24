@@ -1,0 +1,55 @@
+experiment_id: EXP-TRAIN-008
+slug: sgqs_v2_coverage_allocation
+type: train
+status: planned
+validity: not_run
+title: SGQS v2 实例覆盖驱动的候选预算分配
+method_ids:
+- M-003
+control_experiment_id: EXP-TRAIN-006
+updated_at: '2026-10-24'
+implementation_status: implemented_cpu_checked
+arms:
+- b0
+- support
+- v2
+optional_arms:
+- sgqs
+initialization: checkpoint0027.pth from configs/e35_r7/frozen_inputs.yml
+epochs:
+- 28
+- 29
+- 30
+- 31
+- 32
+- 33
+- 34
+world_size: 8
+batch_per_gpu: 8
+global_batch: 64
+seed: 0
+input_size:
+- 640
+- 640
+queries: 640
+inference_states:
+- raw
+- ema
+evaluation_max_dets:
+- 300
+- 640
+primary_metric: dense_scene_local_hybrid_small_AP_50_95_maxDets640_epoch34_ema_K640
+overall_noninferiority_tolerance: 0.001
+local_small_definition: 640-input area < 1024 OR short side < 16; strict one-to-one
+  evaluation
+fixed_dense_scene_definition: non-crowd GT count >= 301 per image
+query_budget_sweep:
+- 640
+- 512
+- 384
+- 256
+full_val_states: 42
+full_val_budget_rows: 84
+completed_training_arms: []
+claim_scope: single_seed_continuation_screen_not_validated_method
+secondary_efficiency_endpoint: minimum_actual_K_preserving_overall_and_dense_scene_local_AP_within_0.001_of_own_K640

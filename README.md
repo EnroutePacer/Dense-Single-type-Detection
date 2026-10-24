@@ -4,43 +4,25 @@
 
 ## 当前研究方向
 
-2026-10-19：[SGQS v2 协议修订](article/experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md)
-补充 R4 升温、R5 末端 admission 单因素分支，以及本地 hybrid-small 一对一 AP 与
-84 状态全验证集矩阵；仍为已实现、未运行的单 seed 筛选。
+2026-10-24：活跃方案已转为 **SGQS v2：实例覆盖驱动的候选分配**。先完成 [完整设计 M-003](article/methods/M-003_sgqs_v2/README.md)，再覆盖原 `engine/sgqs_v2`、`configs/sgqs_v2` 和对应运行入口。
 
-2026-10-18：新增 [SGQS v2 单因素分支](configs/sgqs_v2/README.md)，
-包含原 SGQS、基线、仅质量目标修正、仅正样本归一化修正。
-已实现待运行；[服务器启动命令](configs/sgqs_v2/SERVER_COMMANDS.md)。
+目标是在密集单类别场景中提高有限 query 预算对不同实例的覆盖，并通过实际减少 Decoder 输入验证性能—计算量取舍。@640 的既有结果不支持继续以“小框整体难收敛”作为已成立前提；Encoder 升分、分布规整或静态过滤也不等于 AP 改善与推理加速。
 
-我们以表格单元格检测作为验证基座，研究两个训练层问题：固定 query 预算下的 **query selection–survival gap**，以及整框 IoU 共享权重无法按边表达短边尺度与同类邻域歧义。
+新方法保留兼容的 owner 几何辅助，将 dense 分类目标改为 IoU、采用全局正样本均值和统一升温；跨阶段 GT 归属用于识别冗余与补位，替换唯一 owner survival。Matcher、DN/DDF、网络模块及训练 K=640 保持原样；不新增推理头。
 
-当前 M-002 SGQS-E 已完成数学评审、代码实现和一次 epoch-27 单 seed
-续训屏选：保留 SGQS 的候选监督，修正生存门槛与监督冲突，并加入邻域感知
-的逐边 EFGL。当前状态为 `implemented / screened / unvalidated`；短续训信号
-不等于正式数据集收益，M-001 和既有训练设计继续保留。
+主比较是 `b0 / support / v2`，其中 support 仅关闭新分配项，原 SGQS 可选作参照。训练及主评价预算明确为640；完整 val 对每轮 raw/EMA 输出严格 local-small、COCO各尺度和固定高密度场景指标；额外 K=640/512/384/256 必须真实重跑。
 
-直接入口：[数学评审](article/methods/M-002_sgqs_e/math_review.md)、[修订公式](article/methods/M-002_sgqs_e/README.md)、[配置与验证](article/methods/M-002_sgqs_e/implementation.md)。四组配置位于 `configs/sgqs_e/`。
+直接入口：[设计与公式](article/methods/M-003_sgqs_v2/README.md)、[实验协议 EXP-TRAIN-008](article/experiments/EXP-TRAIN-008_sgqs-v2-coverage-allocation/README.md)、[配置](configs/sgqs_v2/README.md)、[服务器命令](configs/sgqs_v2/SERVER_COMMANDS.md)。当前未开展新训练，方法收益与加速均未验证。
 
-2026-10-13：B0--B3 七 epoch 核心矩阵及 C2 MAL-only 已完整归档。
-B3 相对 B0 为 `+0.001020272` mAP，但 AP-small 为 `-0.003389557`；C2
-总 mAP 最高但 AP-small 更低。单 seed、已收敛 checkpoint 续训不能证明稳定
-收益、small-object 改善或方法互补性。见[完整结果跟进](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b0_b3_c2_followup/README.md)、
-[早期 B1/B2 诊断](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/README.md)
-和[数学说明](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/diagnostics/20261013_b1_b2/math_diagnosis.md)。
-
-2026-10-15：[SGQS 28+7 监督来源探针](article/experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md)
-的 SGQS 与 B0 两臂均已完成 epoch 28--34。最终 mAP 分别为
-`0.867590137` 与 `0.866675348`，但 SGQS 的 AP-small 为 `0.682273543`，
-低于 B0 的 `0.683812615`。完整 checkpoint、8-rank 详细日志、resolved config、
-运行 manifest 与 TensorBoard 已归档到 `outputs/probes/`；单 seed 短续训结果不等于
-正式方法收益。
+此前 [EXP-TRAIN-007 单因素探针](article/experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md) 已暂停并由新协议取代。M-001/M-002 的源码与 [历史实验](article/experiments/EXP-TRAIN-005_epoch27-sgqs-e-resume-screen/README.md) 保留；[完整验证回放](article/experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md) 和 [损失诊断](article/experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md) 是新设计依据，不再无限扩展旧探针。
 
 研究问题、实验记录、证据链和候选方法集中维护在 [`article/`](article/README.md)。仓库结构如下：
 
 ```text
 train.py                         DEIM 风格的训练入口
 engine/                          当前实际运行的模型、损失与数据链路
-engine/sgqs/                     我们的训练期候选监督与损失实现
+engine/sgqs/                     保留的 SGQS v1 候选监督
+engine/sgqs_v2/                  新训练期实例覆盖与候选分配
 configs/                         当前实际运行的训练和评估配置
 configs/sgqs/                    SGQS 正式配置与 checkpoint probe 配置
 configs/sgqs_e/                  B0/B1/B2/B3 配对消融配置

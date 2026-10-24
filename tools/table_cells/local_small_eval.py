@@ -26,7 +26,15 @@ def extract_metrics(evaluator, area_index, budget_index):
             'AR': _mean_valid(r), 'AR75': _mean_valid(r[5]), 'AR95': _mean_valid(r[9])}
 
 
-def evaluate_predictions(coco, predictions, budgets=(300, 640)):
+def dense_image_ids(coco, minimum_gt=301):
+    """Predeclared scene cohort, selected only from non-crowd annotations."""
+    if minimum_gt < 1:
+        raise ValueError('minimum_gt must be positive')
+    return sorted(image_id for image_id in coco.imgs
+                  if sum(not a.get('iscrowd', 0) for a in coco.imgToAnns[image_id]) >= minimum_gt)
+
+
+def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None):
     """Accept every prediction, including duplicates and background detections.
 
     Returns AP@[.50:.05:.95], 101-point interpolation, one-to-one non-crowd
@@ -37,6 +45,26 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640)):
     budgets = tuple(sorted(set(budgets)))
     if not budgets or min(budgets) < 1:
         raise ValueError('Budgets must be positive')
+    population = sorted(coco.imgs) if image_ids is None else list(image_ids)
+    if len(population) != len(set(population)) or set(population) - set(coco.imgs):
+        raise ValueError('Image cohort contains duplicate or unknown IDs')
+    selected = set(population)
+    annotations = [a for image_id in population for a in coco.imgToAnns[image_id]]
+    result = {'protocol': 'hybrid640_coco_slice_v1',
+              'images': len(population),
+              'noncrowd_gt': sum(not a.get('iscrowd', 0) for a in annotations),
+              'local_small_gt': sum(is_local_small(a['bbox'], coco.imgs[a['image_id']])
+                                    and not a.get('iscrowd', 0) for a in annotations),
+              'budgets': {}}
+    if not population:
+        names = ('coco_all', 'coco_small', 'coco_medium', 'coco_large', 'local_hybrid_small')
+        keys = ('AP', 'AP50', 'AP75', 'AP95', 'AR', 'AR75', 'AR95')
+        result['budgets'] = {str(b): {name: dict.fromkeys(keys) for name in names} for b in budgets}
+        return result
+    if image_ids is not None:
+        predictions = (predictions[np.isin(predictions[:, 0], population)]
+                       if isinstance(predictions, np.ndarray)
+                       else [p for p in predictions if p['image_id'] in selected])
     if len(predictions):
         dt = coco.loadRes(predictions)
     else:
@@ -44,11 +72,8 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640)):
         dt.dataset = {'images': list(coco.imgs.values()),
                       'categories': list(coco.cats.values()), 'annotations': []}
         dt.createIndex()
-    result = {'protocol': 'hybrid640_coco_slice_v1',
-              'images': len(coco.imgs), 'local_small_gt': sum(
-                  is_local_small(a['bbox'], coco.imgs[a['image_id']])
-                  and not a.get('iscrowd', 0) for a in coco.anns.values()), 'budgets': {}}
     ev = COCOeval_faster(coco, dt, iouType='bbox', print_function=lambda *a: None)
+    ev.params.imgIds = population
     ev.params.maxDets = list(budgets)
     ev.params.iouThrs = np.linspace(.5, .95, 10)
     ev.params.recThrs = np.linspace(0., 1., 101)
@@ -59,12 +84,13 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640)):
                 ('coco_all', 'coco_small', 'coco_medium', 'coco_large'))}
     # loadRes computes real areas. Change only the temporary evaluator areas,
     # after loadRes, and restore every original annotation even on exceptions.
-    gt_areas = [a['area'] for a in coco.anns.values()]
+    gt_areas = [a['area'] for a in annotations]
     try:
-        for database in (coco, dt):
-            for ann in database.anns.values():
+        for members in (annotations, dt.anns.values()):
+            for ann in members:
                 ann['area'] = 1. if is_local_small(ann['bbox'], coco.imgs[ann['image_id']]) else 2.
         local = COCOeval_faster(coco, dt, iouType='bbox', print_function=lambda *a: None)
+        local.params.imgIds = population
         local.params.maxDets = list(budgets)
         local.params.iouThrs = np.linspace(.5, .95, 10)
         local.params.recThrs = np.linspace(0., 1., 101)
@@ -74,7 +100,7 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640)):
         for index, budget in enumerate(budgets):
             result['budgets'][str(budget)]['local_hybrid_small'] = extract_metrics(local, 0, index)
     finally:
-        for ann, area in zip(coco.anns.values(), gt_areas):
+        for ann, area in zip(annotations, gt_areas):
             ann['area'] = area
     return result
 

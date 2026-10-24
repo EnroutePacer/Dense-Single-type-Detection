@@ -1,4 +1,4 @@
-"""Prepare EXP-TRAIN-007 with the same frozen inputs and 8 x 8 topology as v1."""
+"""Prepare EXP-TRAIN-008 coverage-allocation runs from one frozen epoch-27 state."""
 import argparse
 import hashlib
 import json
@@ -16,13 +16,13 @@ from tools.table_cells.prepare_probe_run import (
 from tools.table_cells.prepare_probe_subset import sha256
 
 ARMS = {
-    'r0': 'r0_original_e28_r7',
-    'r1': 'r1_baseline_e28_r7',
-    'r2': 'r2_iou_target_e28_r7',
-    'r3': 'r3_global_positive_e28_r7',
-    'r4': 'r4_resume_ramp_e28_r7',
-    'r5': 'r5_decoder_admission_e28_r7',
+    'b0': 'b0_e28_r7',
+    'support': 'support_e28_r7',
+    'v2': 'v2_e28_r7',
+    'sgqs': 'sgqs_e28_r7',
 }
+PRIMARY_ARMS = ('b0', 'support', 'v2')
+SCHEMA = 'sgqs_v2_coverage_allocation_v1'
 RUNTIME_FILES = Path('configs/sgqs_v2/runtime_files.sha256')
 
 
@@ -35,9 +35,11 @@ def validate_checkpoint(checkpoint):
     missing = required - checkpoint.keys()
     if checkpoint.get('last_epoch') != 27 or missing:
         raise ValueError(f'Require epoch-27 resume with model/EMA/optimizer/scaler; missing {sorted(missing)}')
+    if not isinstance(checkpoint['ema'], dict) or 'module' not in checkpoint['ema']:
+        raise ValueError('Require a complete EMA state with its module weights')
 
 
-def main():
+def main(argv=None):
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--arm', choices=ARMS, required=True)
     parser.add_argument('--resume', type=Path, required=True)
@@ -45,14 +47,17 @@ def main():
     parser.add_argument('--output', type=Path, required=True)
     parser.add_argument('--workers', type=int, default=4)
     parser.add_argument('--source-revision')
-    args = parser.parse_args()
+    args = parser.parse_args(argv)
     if args.output.exists():
         raise FileExistsError(f'Output must not already exist: {args.output}')
     if args.workers < 0:
         raise ValueError('workers must be non-negative')
     identity = source_identity(ROOT, args.source_revision)
     runtime_files, runtime_manifest = load_runtime_files(ROOT, RUNTIME_FILES)
-    topology = probe_topology()
+    try:
+        topology = probe_topology()
+    except RuntimeError as exc:
+        raise RuntimeError(str(exc).replace('EXP-TRAIN-006', 'EXP-TRAIN-008')) from None
     frozen = yaml.safe_load((ROOT / 'configs/e35_r7/frozen_inputs.yml').read_text(encoding='utf-8'))
     paths = {'resume_checkpoint': args.resume,
              'train_annotation': args.data_root / 'annotations/instance_train.json',
@@ -74,6 +79,8 @@ def main():
     config.update(output_dir=str(args.output.resolve()), seed=0, use_amp=True,
                   resume=str(args.resume.resolve()), quick_probe=False, max_train_steps=None)
     config['HGNetv2']['pretrained'] = False
+    if not (args.data_root / 'images').is_dir():
+        raise FileNotFoundError(args.data_root / 'images')
     for split in ('train', 'val'):
         loader = config[f'{split}_dataloader']
         loader.update(total_batch_size=GLOBAL_BATCH, num_workers=args.workers)
@@ -81,8 +88,10 @@ def main():
                                  ann_file=str(paths[f'{split}_annotation'].resolve()))
     resolved = yaml.safe_dump(config, sort_keys=False)
     metadata = {
-        'schema': 'sgqs_v2_single_factor_v1', 'experiment_id': 'EXP-TRAIN-007',
+        'schema': SCHEMA, 'experiment_id': 'EXP-TRAIN-008',
         'arm': args.arm, 'inputs': identities, **topology,
+        'seed': 0, 'epochs': list(range(28, 35)), 'training_queries': 640,
+        'evaluation_max_dets': 640,
         'source_revision': {'value': identity['commit'], 'verification': identity['mode']},
         'git_status': identity['git_status'], 'runtime_manifest': runtime_manifest,
         'runtime_files': runtime_files,

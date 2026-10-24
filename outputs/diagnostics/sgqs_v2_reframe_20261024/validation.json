@@ -1,0 +1,50 @@
+{
+  "date": "2026-10-24",
+  "scope": "implementation_checks_only_no_real_training_or_GPU_speed_claim",
+  "environment": {
+    "python": "3.13.12",
+    "torch": "2.13.0+cpu",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "cuda_available": false
+  },
+  "unittest": {
+    "command": "python -m unittest discover -s tests -p 'test_*.py' -q",
+    "passed": 137,
+    "failed": 0
+  },
+  "ddp": {
+    "command": "python tests/sgqs_v2_ddp_smoke.py",
+    "backend": "gloo",
+    "ranks": 2,
+    "result": "passed",
+    "cases": [
+      "one rank with pair / one rank empty",
+      "globally empty pairs",
+      "gradient and SGD equal pooled reference"
+    ]
+  },
+  "native_checks": [
+    "DFINE+DN training forward/backward finite",
+    "same state_dict and same K eval exactly equal",
+    "query-budget switch occurs before Decoder",
+    "strict local-small one-to-one evaluator",
+    "CocoEvaluator summary and cleanup preserve maxDets640",
+    "K-sensitive matrix identity and resume cache"
+  ],
+  "launcher_syntax": {
+    "command": "bash -n tools/table_cells/run_sgqs_v2.sh",
+    "result": "passed"
+  },
+  "runtime_manifest": {
+    "path": "configs/sgqs_v2/runtime_files.sha256",
+    "files": 98,
+    "sha256": "b566c91e3535f6011559c3fbca634d39f2e35c8a5c46c19984f0f7cddc8ef818"
+  },
+  "not_validated": [
+    "CUDA AMP/DDP",
+    "real dataset training benefit",
+    "full validation results of v2",
+    "GPU/deployment latency improvement",
+    "multi-seed stability"
+  ]
+}

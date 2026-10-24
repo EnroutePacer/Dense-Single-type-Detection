@@ -1,0 +1,26 @@
+__include__: ['../e35_r7/resume_b0_baseline.yml']
+
+# EXP-TRAIN-008: same epoch-27 checkpoint, data, optimizer and 8x8 topology.
+epoches: 35
+checkpoint_freq: 1
+seed: 0
+use_amp: True
+use_ema: True
+quick_probe: False
+max_train_steps: null
+
+DFINETransformer:
+  num_queries: 640
+  learn_query_content: False
+
+PostProcessor:
+  num_top_queries: 640
+
+# The output budget and evaluator budget must both be 640.
+evaluator:
+  max_dets: 640
+
+train_dataloader:
+  total_batch_size: 64
+val_dataloader:
+  total_batch_size: 64

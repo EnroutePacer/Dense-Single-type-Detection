@@ -106,6 +106,10 @@ article/docs/reproducibility/research_scripts.sha256 text eol=lf
 
 # These are frozen historical bytes, not active executable files.
 configs/sgqs_v2/** text eol=lf
+# Deployment hashes must also cover byte-identical inherited configurations.
+configs/**/*.yml text eol=lf
+configs/**/*.yaml text eol=lf
+train.py text eol=lf
 outputs/sgqs_v2/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
 outputs/sgqs_v2/**/probe_steps.csv filter=lfs diff=lfs merge=lfs -text
 outputs/provenance/retired_article_entities_20261014/** -text -diff

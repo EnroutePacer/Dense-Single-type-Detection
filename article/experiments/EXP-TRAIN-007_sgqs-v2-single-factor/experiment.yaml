@@ -1,13 +1,13 @@
 experiment_id: EXP-TRAIN-007
 slug: sgqs_v2_single_factor
 type: train
-status: planned
+status: superseded
 validity: not_run
 title: SGQS v2 目标一致性与正样本归一化单因素续训
 method_ids: [M-002]
 control_experiment_id: EXP-TRAIN-006
-updated_at: '2026-10-19'
-implementation_status: implemented_unvalidated
+updated_at: '2026-10-24'
+implementation_status: historical_implementation_at_119bfe2
 arms: [r0, r1, r2, r3, r4, r5]
 initialization: checkpoint0027.pth from configs/e35_r7/frozen_inputs.yml
 epochs: [28, 29, 30, 31, 32, 33, 34]
@@ -31,3 +31,4 @@ local_small_definition: '640-input bbox area < 1024 OR short side < 16; strict i
 full_val_states: 84
 full_val_budget_rows: 168
 claim_scope: single_seed_continuation_screen_not_causal_closure
+superseded_by: EXP-TRAIN-008

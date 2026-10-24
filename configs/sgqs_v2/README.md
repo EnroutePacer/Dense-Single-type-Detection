@@ -1,32 +1,22 @@
-# SGQS v2：单因素续训筛选
+# SGQS v2：实例覆盖驱动的候选分配
 
-对应 [EXP-TRAIN-007](../../article/experiments/EXP-TRAIN-007_sgqs-v2-single-factor/README.md)。
-状态：已实现，未运行，收益未验证。旧 `sgqs/`、`sgqs_e/`、`e35_r7/`、`probes/` 保留。
+2026-10-24 起，本目录覆盖为 [M-003 设计](../../article/methods/M-003_sgqs_v2/README.md) 的训练入口。旧的 r0–r5 单因素筛选停止作为活跃方案，历史配置可在提交 `119bfe2` 查阅；原 SGQS v1 源码与结果保留。
 
-| 分支 | 对照关系 | 唯一干预 |
+目标是在训练时改善 Encoder 候选对不同实例的覆盖与预算分配。保持训练 query 数 640、原 Matcher、DN/DDF 和推理模块；保留带保护的 owner 几何辅助，以 IoU 为 dense 分类目标，所有新增项在 epoch 28 的一轮内统一升温。新分配项只处理 GT 和 Decoder 反馈共同确认的安全候选关系，不包含旧 survival、EFGL 或 Top-300 admission loss。
+
+| arm | 配置 | 用途 |
 |---|---|---|
-| R0 `r0_original_e28_r7.yml` | 原 SGQS 重跑 | 无，使用原版 SGQSCriterion |
-| R1 `r1_baseline_e28_r7.yml` | R0 的整体方法对照 | 关闭 SGQS，使用原 B0 与相同探针 |
-| R2 `r2_iou_target_e28_r7.yml` | 相对 R0 | dense 正样本 BCE target 从 q 改为 IoU |
-| R3 `r3_global_positive_e28_r7.yml` | 相对 R0 | dense 正样本改为全局 owner-count 均值 |
-| R4 `r4_resume_ramp_e28_r7.yml` | 相对 R0 | 仅 dense/owner 在 epoch 28→29 线性升温 |
-| R5 `r5_decoder_admission_e28_r7.yml` | 相对 R0 | 仅最终 Decoder 增加预算边界配对监督 |
+| `b0` | [b0_e28_r7.yml](b0_e28_r7.yml) | 原生训练对照 |
+| `support` | [support_e28_r7.yml](support_e28_r7.yml) | 新 dense、owner、保护和升温，allocation 权重为 0 |
+| `v2` | [v2_e28_r7.yml](v2_e28_r7.yml) | 完整新方案，默认启动项 |
+| `sgqs` | [sgqs_e28_r7.yml](sgqs_e28_r7.yml) | 可选原 v1 参照，保留其 dense/owner 无升温的历史语义 |
 
-R1 是整套 SGQS 开/关对照，不用于分离 dense、owner 回归、survival 各自因果。
-R2、R3 互不叠加。R2 保留外层 q 权重与 survival 的 q 权重；R3 保留逐层负样本均值。
-只有 R4 增加 dense/owner 升温；R5 是独立的末端机制探针，不与其他干预叠加。
-六臂共享 epoch-27 输入、epoch 28--34、8 GPU × 8、seed 0、
-640 输入/640 query、原始优化器/EMA/AMP 设置、每 epoch checkpoint 和探针采样。
+最小主比较为 `b0 / support / v2`。`v2` 对 `support` 才隔离新分配项的作用；`v2` 对原 `sgqs` 同时改变了 dense 目标、归一化、survival 与升温，不能单独归因于 allocation。
 
-2026-10-19 修订主指标为严格一对一 `local_hybrid_small AP@[.50:.95]@300`，
-定义为直接缩放至 640 后 `area < 32² OR short side < 16`。@640 为必报预算对照，
-COCO AP-small 为历史诊断副指标；不能用新集合解释旧日志的倒 U。
-完整验证集矩阵默认六臂 × 七轮 × raw/EMA = 84 状态，两个预算共 168 行。
-旧四臂可独立评估 56 状态/112 行。128 图子集只保留为 train/val 泛化辅助探针。
+`common.yml` 固定训练与评价约定，`base_v2.yml` 固定新方法参数。所有臂均使用冻结的 epoch-27 checkpoint、8 GPU × 每卡 8 图、seed 0，续训绝对 epoch 28–34。单 seed 七轮是筛选，尚无新训练或性能结论。
 
-运行方式见 [SERVER_COMMANDS.md](SERVER_COMMANDS.md)。新损失只由专用入口注册，
-直接使用普通 `train.py` 启动 R2/R3 会缺少注册；请使用随附脚本。
+训练时 PostProcessor 与 CocoEvaluator 均使用 640。完整验证工具按每轮 raw/EMA 输出 COCO 各尺度和本地 hybrid-small 严格一对一 AP/AR；主预算为 640，300 为附加排名诊断。本地 small 为直接缩放到 640 后 `area < 32² OR short side < 16`，不与 COCO-small 混称。高密度场景按固定标注中每图 GT 数 ≥301 定义。
 
-`runtime_files.sha256` 固定本次训练依赖的路径、字节数与 SHA-256。
-预检和每个训练 rank 都校验它，配置或代码变化必须更新实验版本及清单。
-保留原探针清单，避免更改历史复现身份。
+真实计算预算比较使用同一 checkpoint，将 Decoder 输入 K 改为 640/512/384/256 并分别重跑；不对完整 640 输出静态切片，不把升分或过滤数等同于加速。
+
+启动与评估详见 [SERVER_COMMANDS.md](SERVER_COMMANDS.md)。准备工具记录完整源码、配置、输入哈希与运行身份；旧六臂 manifest 不兼容新 schema。新主入口直接使用 criterion 的日志，不再运行原重型 GO/DDF 梯度探针。运行目录已存在即停止，不能混入旧结果。

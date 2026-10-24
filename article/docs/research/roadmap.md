@@ -1,82 +1,11 @@
-# 研究路线图
+# 当前研究路线图
 
-当前优先路线由 [ADR-003](decisions/ADR-003_training-first-sgqs-e.md) 更新：SGQS-E 已实现，B0--B3/C2 单 seed checkpoint 续训屏选已经完成；[EXP-TRAIN-006](../../experiments/EXP-TRAIN-006_sgqs-supervision-probes/README.md) 的 SGQS 与 B0 同探针训练臂均已完整训练至 epoch 34。[EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md) 在本地完整 12,841 图上定位最终 Top-300 承载阶段；[EXP-DIAG-007](../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md) 又完成两臂训练 loss/代理配对审计。当前主线已经从相关性分析进入单变量因果验证：先测试启动升温、尺度归一化和末端跟进三条线索，再决定是否修订方法或进入从头多 seed 对照。
+2026-10-24 用户暂停旧根因探针。本路线由 [M-003完整设计](../../methods/M-003_sgqs_v2/README.md) 和 [EXP-TRAIN-008](../../experiments/EXP-TRAIN-008_sgqs-v2-coverage-allocation/README.md) 定义；此前单因素路线保留于Git历史与EXP-TRAIN-007，不继续默认执行。
 
-## Gate 0：资产与口径
+1. 完整设计后实现：保留几何辅助、修正分类目标和归一化、统一升温，加入受GT身份约束的候选分配；完成梯度、门控、DDP归一化、真实前后向、@640与实际K执行检查。
+2. 最小主比较：同epoch27初始化跑b0/support/v2，七轮seed0；原SGQS可选参照，不再扩大六臂根因矩阵。
+3. 固定K=640完整val：每轮raw/EMA，主@640、附@300，严格local-small/COCO各尺度与固定GT>=301高密度场景。检查实际pair支持与对support的净改善。
+4. 同checkpoint实际K=640/512/384/256：重跑Decoder、记录当前后端同步forward时间，比较等K指标和可接受性能损失下的最小K。不部署未经验证的动态阈值。
+5. 若机制与指标均有支持，再进行多seed完整训练、独立固定难例集和目标部署后端测量。若无安全pair或无指标改善，如实收敛结论，不堆叠更多loss兜底。
 
-状态：**本地 full-val 资产、协议与 14 状态 CPU 输出均已完成并审计**。val128 的确定性
-清单、checkpoint 身份、两种 small 定义和派生表已经由
-[EXP-DIAG-005](../../experiments/EXP-DIAG-005_sgqs-top300-ranking-replay/README.md)
-归档；12,841 图/1,458,060 GT 的完整 val 资产、14 个唯一参数状态与输出 schema
-已由 [EXP-DIAG-006](../../experiments/EXP-DIAG-006_sgqs-full-val-checkpoint-replay/README.md)
-登记。派生表、图与可复算脚本已发布；原始私有 annotation、图像和权重不在仓库内。
-
-- 冻结正式 merged 身份记录，并保存 annotation、checkpoint、配置、环境 SHA-256 与
-  许可状态；val128 映射一致不等于全量身份审计完成。
-- 固定输入 640、`K=640`、模型权重和后处理。
-- 为 full-val 导出每个 annotation 的 dense、Encoder Top-640、Decoder 全 640、最终 score/rank、Top-300 状态与 COCO 一对一匹配；独立 coverage 与正式匹配必须分字段保存。
-
-验收：同一图可以从 dense proposals 一直追踪到 Top-K、每层 decoder 和 output；所有产物含 image/category 映射和配置哈希。
-
-## Gate 1：冻结模型的分阶段归因
-
-状态：**本地完整集 scoped diagnosis 已完成**。EMA e28→29、e28→30 gain 与
-e30→34 loss 的十 IoU 正式 evaluator-small 转移事件中，`rank_gt300` 分别占
-89.90%、87.73%、93.38%；全局 PR 差异的 80.05%--88.66% 集中在 recall
-0.69--0.72。变化人群集中于每图 GT≥301、640 输入短边 8--16 px，两个域同向。
-
-- 已同时保存独立 GT coverage 与正式 COCO 一对一匹配，二者禁止混称。
-- 已跟踪 Decoder 全 640 的 IoU、score、rank、Top-300 生存与一对一匹配身份，并按
-  domain、密度、短边及 evaluator/hybrid cohort 分桶。
-- 已按十个 COCO IoU 阈值与 `maxDets=300/640` 复算 AP/AR 和全局 PR；只有 10×101
-  PR precision 差能精确加和为 AP 差，局部 TP/FN cause count 不能。
-- raw 的七轮 AP-small 范围约 0.008，EMA 约 0.027；未经受控干预不得把 EMA 写成
-  唯一根因。
-
-验收：**已通过（限本地 annotation 与 Windows CPU 后端）**。full-val 中每个状态变化
-可追踪到 generation、selection、Decoder 几何、最终 score/rank 截断或一对一匹配
-竞争；服务器 H20/训练 annotation 的位级复现不属于本次已通过范围。
-
-## Gate 2：selector 诊断对照
-
-状态：**训练探针配对审计已完成，尚未开始 selector 干预对照**。完整集已把直接变化
-定位到最终 Decoder score/rank；EXP-DIAG-007 又确认强启动冲击与代理脱节，但仍没有
-证明应修改 Encoder selector。以下冻结输出对照降为次级，优先执行 Gate 3 的单变量测试。
-
-在不训练、同一冻结输出、同 K 下比较：
-
-1. 原始 global Top-K；
-2. 简单 per-level calibration；
-3. 简单 per-level quota；
-4. 去重/coverage-aware selector；
-5. GT-aware oracle；
-6. K sweep，仅用于判断容量，不作为主方法。
-
-验收：主假设必须相对简单对照和 oracle 定位出可改进空间。
-
-## Gate 3：确定单一方法分支
-
-状态：**配对探针已审计，等待单变量干预**。当前证据把优先级排为：无升温启动冲击、
-pre-TopK 代理缺少最终 Top-300 跟进、P3/P4/P5 等层均值放大稀少 P5。三者仍是竞争或
-组合解释，不能仅凭 loss 标量和排名跨界指定唯一分支。
-
-单变量顺序固定为：
-
-1. 只给 dense+owner 1 epoch `0→1` 升温；
-2. 只将等层均值改为全局 owner-count 归一化，并记录逐层共享参数梯度；
-3. 只选择“e30 后停 SGQS”或“增加最终 owner/rank 跟进”其中一个。
-
-任何实验不得同时改两项，否则无法区分启动冲击、尺度归一化和末端链路。
-
-- generation 主导：研究 P2/形状先验/表示；
-- selection 主导：研究 level-calibrated 或 coverage-aware initialization；
-- decoder 主导：研究匹配/质量校准；
-- output 主导：修正后处理或评估，不包装成训练创新。
-
-只选择一个由证据支持的主组件，其他作为消融或未来工作。
-
-## Gate 4：训练与论文验证（屏选完成，正式验证待修订）
-
-状态：**单 seed checkpoint 续训屏选、SGQS/B0 同探针训练与 SGQS full-val 诊断已完成；正式方法验证未开始**。B0 回放、参数级单变量干预及从头多 seed 训练均未完成。
-
-相同初始化、global batch、epoch/steps、seed 和 `maxDets=300` 下比较 baseline 与方法。先 seed 0 验证方向，再三 seed；报告早期同 epoch、最终指标、wall-clock、GPU-hours、参数/FLOPs 和固定延迟协议。
+当前只提交可运行代码与协议，不自动启动GPU训练。

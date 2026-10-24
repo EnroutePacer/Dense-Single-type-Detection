@@ -7,7 +7,8 @@ reference:
 hash_policy: sha256_after_canonical_lf
 
 # Every file below is byte-equivalent to the reference commit after CRLF/LF
-# normalization, except the single explicitly allow-listed resume adapter.
+# normalization, except the explicitly listed compatible runtime adapters.
+# Historical exact code is retained at commit 119bfe2; the default remains 300.
 reference_files:
   configs/table_cells/dfine_hgnetv2_m_table_cell_fixed640.yml: fcf6e5a5efb1ec37cfe932f5763ec0fb98b4e69eb09fd6c6dac899ee357f5515
   configs/sgqs/sgqs_hgnetv2_m_table_cell_fixed640.yml: 555407a0be5735c21e08004fc6a8dc22ea7a47614ac78aa48ffafd7c905770eb
@@ -39,6 +40,15 @@ allowed_runtime_delta:
     - compensation_duration_epochs defaults to null
     - default behavior is exactly the reference c(p)=max(0,1-p/(T*0.30))
     - no owner, loss, matching, edge-weight, DDF, DN, or inference equation changes
+
+compatible_runtime_deltas:
+  engine/data/dataset/coco_eval.py:
+    runtime_sha256: 0255f2a61371779199a4712671e52bdb7964f3861a7eac8b484ca78a64d1057c
+    purpose: configurable_evaluation_budget_for_M003_with_legacy_default_300
+    constraints:
+      - default constructor and cleanup retain maxDets [1, 10, 300]
+      - only new SGQS v2 configs explicitly set max_dets 640
+      - no training matching or loss equation changes
 
 resume_screen:
   source_checkpoint_last_epoch: 27

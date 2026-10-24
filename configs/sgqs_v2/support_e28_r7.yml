@@ -1,0 +1,5 @@
+__include__: ['base_v2.yml']
+output_dir: ./outputs/sgqs_v2/support_e28_r7_seed0
+# Same dense, geometry, protection and ramp as v2; no allocation or its mask.
+SGQSV2Criterion:
+  allocation_weight: 0.0

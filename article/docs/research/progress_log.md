@@ -1,5 +1,9 @@
 # 科研进展日志
 
+## 2026-10-24 — 设计并实现 SGQS v2 候选预算分配
+
+用户暂停旧探针，先冻结 [M-003](../../methods/M-003_sgqs_v2/README.md)，再替换活跃v2代码与启动配置。新 [EXP-TRAIN-008](../../experiments/EXP-TRAIN-008_sgqs-v2-coverage-allocation/README.md) 使用b0/support/v2，@640完整验证和真实K sweep。所有新科学结论仍待训练验证；CPU实现检查不等于收益。以下日期记录保留历史计划与当时结论，已不作为当前自动执行任务。
+
 ## 2026-10-17 — 完成 SGQS 训练损失假说与实例证据审计
 
 - 新增 [EXP-DIAG-007](../../experiments/EXP-DIAG-007_sgqs-loss-hypothesis-audit/README.md)，
