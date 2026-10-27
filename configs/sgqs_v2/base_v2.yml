@@ -28,3 +28,8 @@ SGQSV2Criterion:
   background_score: 0.1
   margin: 0.2
   iou_chunk_size: 512
+  # Native grid centers + Decoder intersection / smaller-area for redundancy.
+  redundancy_ios_threshold: 0.8
+  # Used only on images without any executable cross-GT transfer.
+  overflow_tolerance: 10
+  overflow_score_threshold: 0.8

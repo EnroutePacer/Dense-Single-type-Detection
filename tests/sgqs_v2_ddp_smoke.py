@@ -1,4 +1,4 @@
-"""Two-process CPU/Gloo check: one rank has a pair, the other has none."""
+"""Two-process CPU/Gloo check: sparse transfers, overflow, mixed and empty."""
 from datetime import timedelta
 from pathlib import Path
 import sys
@@ -30,20 +30,22 @@ def worker(rank, store):
     try:
         model = DistributedDataParallel(ScoreModel())
         opt = torch.optim.SGD(model.parameters(), lr=.1)
-        for empty_everywhere in (False, True):
+        for case, expected in (('pair', 2.), ('overflow', 1.), ('mixed', 1.5), ('empty', 0.)):
+            with torch.no_grad(): model.module.value.fill_(.7)
             opt.zero_grad()
-            donor = torch.tensor([0] if rank == 0 and not empty_everywhere else [], dtype=torch.long)
+            donor = torch.tensor([0] if rank == 0 and case in ('pair', 'mixed') else [], dtype=torch.long)
             receiver = torch.ones_like(donor)
             pairs = [(donor, receiver, torch.ones_like(donor, dtype=torch.bool))]
+            overflow = [torch.tensor([0] if rank == 1 and case in ('overflow', 'mixed') else [], dtype=torch.long)]
             loss, _ = allocation_loss(model(), pairs, .2,
-                                       SGQSCriterion._distributed_average_denominator)
+                                       SGQSCriterion._distributed_average_denominator,
+                                       overflow=overflow, overflow_score_threshold=.6)
             loss.backward()
-            expected = 0. if empty_everywhere else 2.
             torch.testing.assert_close(model.module.value.grad, torch.tensor(expected), rtol=0, atol=0)
             opt.step()
-        torch.testing.assert_close(model.module.value, torch.tensor(.5), rtol=0, atol=1e-7)
+            torch.testing.assert_close(model.module.value, torch.tensor(.7 - .1 * expected), rtol=0, atol=1e-7)
         if rank == 0:
-            print('Two-rank Gloo: sparse pair and globally empty pair gradients/SGD passed.', flush=True)
+            print('Two-rank Gloo: sparse transfer, overflow, mixed, empty gradients/SGD passed.', flush=True)
     finally:
         dist.destroy_process_group()
 

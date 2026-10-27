@@ -1,0 +1,38 @@
+{
+  "date": "2026-10-27",
+  "base_commit": "5f5602758701db7d93e428b669127bc835b40a39",
+  "method_revision": "center_ios_overflow_20261027",
+  "scope": "implementation_checks_only",
+  "environment": {
+    "python": "3.13.12",
+    "torch": "2.13.0",
+    "platform": "Windows-11-10.0.26200-SP0"
+  },
+  "unittest": {
+    "command": "python -m unittest discover -s tests -p 'test_*.py' -q",
+    "passed": 152,
+    "failed": 0
+  },
+  "ddp": {
+    "command": "python tests/sgqs_v2_ddp_smoke.py",
+    "backend": "gloo",
+    "ranks": 2,
+    "result": "passed",
+    "cases": [
+      "sparse transfer",
+      "sparse overflow",
+      "mixed transfer/overflow across ranks",
+      "globally empty"
+    ]
+  },
+  "runtime_manifest": {
+    "files": 98,
+    "sha256": "93ff47fdde3eb485b7198291afa8a7239a0a7d824e27ad74e60f0b213804969a"
+  },
+  "not_validated": [
+    "real dataset training",
+    "CUDA AMP/DDP",
+    "AP improvement",
+    "dynamic-threshold deployment or GPU speedup"
+  ]
+}

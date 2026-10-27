@@ -1,6 +1,6 @@
 # M-003 — SGQS v2：实例覆盖驱动的候选分配
 
-设计冻结：2026-10-24；依据仓库 119bfe2、EXP-DIAG-006/007 与 baseline_test 的现有导出。状态：implemented / cpu_checked / unvalidated。完整方案先于训练实现写入，随后完成代码与CPU检查；本轮没有运行真实训练。
+初版设计：2026-10-24；当前修订：2026-10-27（center_ios_overflow）；依据仓库 119bfe2、EXP-DIAG-006/007 与 baseline_test 的现有导出。状态：implemented / cpu_checked / unvalidated。完整方案先于训练实现写入，随后完成代码与CPU检查；本轮没有运行真实训练。
 
 ## 目标与证据边界
 
@@ -26,24 +26,25 @@ $$
 
 唯一 owner survival 项退出 v2；v1 源码与历史结果保留。
 
-## 2. 用真实 query 身份识别可确认的冗余
+## 2. 来源中心与 Decoder IoS 判断冗余
 
-记 S 为真实 invalid-anchor mask 后 Encoder Top-K，K=640；z_i 为原 Encoder logit，E_i、D_i 分别为同一 query 的 Encoder/最终 Decoder 框。通过 selected_indices 连接身份，不用空间最近邻猜身份。
+记 S 为真实 invalid-anchor mask 后 Encoder Top-K，K=640；z_i 为 Encoder logit，E_i、D_i 为同一 query 的 Encoder/最终 Decoder 框。selected_indices 连接身份并校验分数一致。c_i 是原始网格 anchor 的中心，即 sigmoid(anchors_unact)[..., :2]，不是回归后的 E_i 中心；它和 GT 都在增强后的归一化坐标系内。
 
-仅训练时用原 bbox head 在 no_grad 下额外解码 dense boxes，用于门控。框/teacher/matching/配对均 detach；采用 FP32、分块 IoU，避免生成巨大的 dense×GT 反传图。推理时不执行该分支，不新增参数或推理头。
+来源归属 C(i)=g 要求 c_i 位于且仅位于一个 GT 的闭矩形内；落在多个 GT 内（含共享边界）则弃权。只在训练时传递 detached 中心，不改变推理。
 
-定义明确归属 a(b)：最佳 GT 的 IoU>=rho=.5，且最佳与次佳 IoU 差>=delta=.05；只有一个 GT 时次佳为0。空GT无归属。所有框来自增强后的归一化坐标。
+可靠代表和 rescue 接收者仍沿用 IoU 质量检查：最佳 IoU>=.5 且与次佳相差>=.05。可靠代表 k_g 必须是现有 final Hungarian 对 g 的正匹配，Decoder score>=.5，Encoder/Decoder 的 IoU 归属均为 g，且 C(k_g)=g。因此 IoS 不会把小碎框升级为可靠代表。
 
-可靠代表 k_g 必须是现有 final Hungarian 对 g 的正匹配，Decoder score>=.5，且 Encoder/Decoder 框均明确归属 g。选中的 source 与 payload 映射必须校验一致。无需再运行一次 Matcher。
+对待判冗余的 Decoder 框改用：
 
-冗余 donor i 必须同时满足：
+$$
+\operatorname{IoS}(D_i,b_g)=\frac{|D_i\cap b_g|}{\min(|D_i|,|b_g|)}.
+$$
 
-1. i 属于 S，Encoder 与 Decoder 都明确归属同一 g，且 g 有可靠代表。
-2. Decoder score<.1；任意其他 GT 与 E_i 或 D_i 的 IoU 均<rho，拒绝跨实例兼任。
-3. i 不是任何 final Hungarian 正样本、Encoder 分类正样本或 guard 后有效 SGQS owner；GO box 目标若存在，必须与几何归属同GT。GO回归正不等于分类正，同GT GO背景候选可以作为donor，避免无差别过度过滤。
-4. 配对时 m+z_i>z_j，即排名错误或正确但尚未留足margin；不另设Encoder绝对分数阈值。
+最佳 IoS>=rho_s=.8、与次佳差>=.05，且最佳 GT 必须等于 C(i)。这同时覆盖 GT 内小碎框和包含 GT 的大框；旧版 IoU>=.5 会遗漏许多这种候选。这里不要求 E_i 与本 GT 的 IoU>=.5。
 
-所有正匹配均保护，不仅高置信者。先固定代表再定义冗余，禁止“各自删一个都无损，所以全部都删”的错误。困难B→简单A的漂移 query 不会通过同GT双阶段门控。
+安全 donor i 还须：i属于S；Decoder score<.1；该GT已有可靠代表；不是任何 final Hungarian 正样本、Encoder 分类正样本或 guard 后有效owner；GO回归目标不存在或与C(i)一致。保留原跨GT IoU保护，且另一个GT的Decoder IoS>=.8也排除；模糊的跨GT IoU归属保守排除。一个大框包住多个GT时不会因为IoS高而获得冗余资格。
+
+这些门槛只控制新增监督。原背景分类、有效owner回归及可能适用的dense背景监督仍然存在，不能把旧版专项门控遗漏说成“完全无监督”。仅凭低分和包含关系不能证明删query后Decoder其他输出不变。
 
 ## 3. 两种接收者，共用一个排序项
 
@@ -51,7 +52,7 @@ $$
 
 再处理 prefix allocation：从已有可靠 final 代表中选择当前 Encoder 排名较弱的其他GT代表 j，要求它是同GT的 Encoder 分类正匹配，且已有 GO box/owner 目标没有跨GT冲突。这一类已经在640内，只改善较小候选前缀的分配，不记为新增Top640覆盖。
 
-receiver按 rescue优先、组内分数从高到低，donor按分数从低到高确定性配对；跳过同GT与不满足 m+z_i>z_j 的配对。每donor、receiver只用一次，每GT至多一个receiver；缺少可靠配对就返回0，不降低门槛凑样本。
+receiver按 rescue优先、组内分数从高到低，donor按分数从低到高确定性配对；跳过同GT与不满足 m+z_i>z_j 的配对。每donor、receiver只用一次，每GT至多一个receiver；缺少可靠配对时进入下述溢出检查，不降低配对门槛凑样本。
 
 对 rescue receiver，当步从辅助 dense 的正、负分类监督中排除，但保留其 owner 几何回归；它在S外，本来无 base Encoder 分类项。避免新排序正梯度与旧 dense 背景/软目标冲突。对 prefix receiver，不新增正梯度，只作为 detached 参照；其已有正监督正常工作。
 
@@ -59,12 +60,22 @@ receiver按 rescue优先、组内分数从高到低，donor按分数从低到高
 
 $$
 L_{\mathrm{allocate}}
-=\frac1{|\mathcal P|\vee1}\sum_{(i,j)\in\mathcal P}[m+z_i-t_j]_+,
+=\frac{\sum_{(i,j)\in\mathcal P}[m+z_i-t_j]_+
++\sum_{i\in\mathcal O}[z_i-\operatorname{logit}(u)]_+}
+{(|\mathcal P|+|\mathcal O|)\vee1},
 \qquad m=0.2,
 \qquad t_j=\begin{cases}z_j&\text{rescue},\\\operatorname{sg}(z_j)&\text{prefix}.\end{cases}
 $$
 
-rescue 在激活区的梯度为 (+1,-1)，prefix为(+1,0)，除以全局有效配对计数。无温度、额外质量权重、邻域强制均匀项或可学习门控。单独记录两类配对，不能用prefix数量宣称困难召回提升。
+rescue 在激活区的梯度为 (+1,-1)，prefix为(+1,0)，除以全局有效配对与溢出样本的总计数。无温度、额外质量权重、邻域强制均匀项或可学习门控。单独记录两类配对与溢出样本，不能用prefix或overflow数量宣称困难召回提升。
+
+### 无可执行接收者时的备用数量与高置信度检查
+
+逐图先寻找所有可执行的跨GT配对（必须满足m+z_i>z_j）；一张图只要有一对，整图不执行额外溢出惩罚，未配上的donor也不走此分支。它不是“配对用完后的第二轮处罚”。
+
+若整图无配对，对有可靠代表的GT统计n_g：TopK内来源中心唯一落在g内的候选总数减1。计数包括受保护候选，不把TopK外dense anchor当作Decoder开销。容忍T=10个备用，e_g=max(n_g-T,0)。先在额外候选中保留至多T个备用：非安全donor（有正监督或尚不能确认冗余者）优先，其余按Decoder对该GT的IoU降序、Decoder分数降序、来源索引升序确定。备用选择不依赖Encoder分数，避免降分后轮换处罚全部备用。仅对备用集合之外的安全donor检查s_i>u=.8，再按Encoder分数降序处理；进入O的数量自然不超过e_g，不够就少罚，任何受保护候选即使超出T也不处罚。
+
+溢出项只给Encoder logit正梯度，降到logit(.8)后该项停止。没有接收者升分、没有新增框回归或teacher反传。P、O在同一图片上互斥；全局可以由不同图片同时贡献，两者共同取均值并共享原allocation权重与升温，避免另加一份独立归一化的损失。T、u、rho_s是显式配置、未验证的首轮参数，u不是已经部署的推理阈值。
 
 ## 4. 总损失与升温
 
@@ -85,7 +96,7 @@ engine/sgqs_v2 下只增加训练 supervisor、候选配对函数及新criterion
 
 必报：GT/selected几何覆盖、missing-GT、rescue可用GT、无几何候选GT、可靠代表、双阶段不一致、受保护donor、可用donor、rescue/prefix pair数量、有效pair比例、pair logit gap、donor/receiver/keeper分数、owner冲突与辅助ramp。记录未加权和加权损失可区分升温与学习。
 
-GT>=K时全部query可能被Hungarian标正，从而没有安全donor；不为产生配对绕过正标签保护。无pair/长期coverage rescue为0是可解释失败反馈，不能自动放松门控。teacher高低分阈值是保守首轮设置，不代表验证过最优。
+GT>=K时全部query可能被Hungarian标正，从而没有安全donor；不为产生配对绕过正标签保护。无pair且无overflow/长期coverage rescue为0是可解释失败反馈，不能自动放松门控。teacher高低分阈值是保守首轮设置，不代表验证过最优。
 
 ## 6. 训练与评价协议
 
@@ -103,7 +114,7 @@ GT>=K时全部query可能被Hungarian标正，从而没有安全donor；不为�
 
 ## 7. 必需实现检查
 
-配对梯度方向与teacher detach；prefix receiver零新梯度；rescue分类mask保留回归；跨GT漂移/共享覆盖/现有正标签保护；空GT、没有候选、GT>K、tie、无pair；不均匀DDP计数与pooled梯度一致；真实微型DFINE训练前后向含DN；同权重同K eval逐元素一致；实际改变K在Decoder前生效；严格local-small边界与一对一重复惩罚；CocoEvaluator cleanup保持640；入口预检、resume时钟、runtime manifest、全val矩阵K缓存。
+配对梯度方向与teacher detach；prefix receiver零新梯度；rescue分类mask保留回归；跨GT漂移/共享覆盖/现有正标签保护；空GT、没有候选、GT>K、tie、无pair、嵌套框IoS、原始中心与回归中心不同、跨GT包含、10/11备用边界及无接收者溢出；不均匀DDP计数与pooled梯度一致；真实微型DFINE训练前后向含DN；同权重同K eval逐元素一致；实际改变K在Decoder前生效；严格local-small边界与一对一重复惩罚；CocoEvaluator cleanup保持640；入口预检、resume时钟、runtime manifest、全val矩阵K缓存。
 
 ## 8. 相关工作与贡献边界
 
@@ -119,4 +130,6 @@ DDQ（CVPR2023，https://arxiv.org/abs/2303.12776）已研究dense/distinct quer
 
 门控的几何计算为O(NG+KG)，IoU峰值临时空间O(chunk_size×G)，不保存N×G反传图；路由排序后用CPU整数身份确定性配对，批量传输避免每候选一次CUDA同步。训练增加dense框解码和GT门控成本；正常推理无该分支。默认全局K640推理路径与同权重base逐元素一致已在真实微型DFINE检查；GPU与生产数据未验证。
 
-检查完成：137项仓库测试、两进程CPU/Gloo的稀疏/全空配对梯度与SGD一致性、Bash语法、运行文件校验、Markdown链接。检查记录保留环境与范围，不代表模型AP或加速收益。排序margin在代码评审中明确为配对条件m+z_i>z_j，避免只改变loss数值但不起实际作用；其余模型目标按上述冻结设计实现。
+2026-10-24初版检查完成：137项仓库测试、两进程CPU/Gloo的稀疏/全空配对梯度与SGD一致性、Bash语法、运行文件校验、Markdown链接。检查记录保留环境与范围，不代表模型AP或加速收益。排序margin在代码评审中明确为配对条件m+z_i>z_j，避免只改变loss数值但不起实际作用；其余模型目标按上述冻结设计实现。
+
+2026-10-27修订检查与旧门控覆盖分析见 [修订记录](../../../outputs/diagnostics/sgqs_v2_ios_overflow_20261027/README.md)。

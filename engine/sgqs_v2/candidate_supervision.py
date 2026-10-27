@@ -28,6 +28,9 @@ class SGQSV2Supervisor(SGQSQuerySupervisor):
         if any(p.dtype != torch.float32 for p in bbox_head.parameters()):
             raise ValueError('SGQS v2 requires FP32 bbox-head weights (AMP is supported)')
         with torch.no_grad(), torch.autocast(output_memory.device.type, enabled=False):
+            # Native feature-grid anchors, not the regressed Encoder box center.
+            payload['anchor_centers'] = anchors_unact.detach().float()[..., :2].sigmoid().expand(
+                output_memory.shape[0], -1, -1)
             boxes = []
             for start in range(0, output_memory.shape[1], self.bbox_chunk_size):
                 end = start + self.bbox_chunk_size

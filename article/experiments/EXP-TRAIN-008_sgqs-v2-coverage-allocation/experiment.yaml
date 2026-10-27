@@ -7,7 +7,8 @@ title: SGQS v2 实例覆盖驱动的候选预算分配
 method_ids:
 - M-003
 control_experiment_id: EXP-TRAIN-006
-updated_at: '2026-10-24'
+updated_at: '2026-10-27'
+method_revision: center_ios_overflow_20261027
 implementation_status: implemented_cpu_checked
 arms:
 - b0

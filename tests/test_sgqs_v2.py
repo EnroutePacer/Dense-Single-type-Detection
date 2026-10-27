@@ -30,6 +30,7 @@ def fixture(rescue=True):
     logits = torch.tensor([4.,3.,1.,0.,-.5,-1.]).reshape(1,6,1).requires_grad_()
     selected = torch.tensor([[0,1,2,3]])
     payload = dict(dense_logits=logits,dense_boxes=boxes[None],
+        anchor_centers=boxes[None, :, :2].clone(),
         valid_mask=torch.ones(1,6,dtype=torch.bool),ignore_mask=torch.zeros(1,6,dtype=torch.bool),
         spatial_shapes=torch.tensor([[1,6]]),selected_indices=selected,
         owner_indices=[torch.tensor([0,4])],target_indices=[torch.tensor([0,2])],
@@ -72,7 +73,7 @@ def criterion(data=None, **options):
 class AllocationTest(unittest.TestCase):
     def test_rescue_replaces_duplicate_and_detaches_teacher(self):
         data=fixture(); payload,out,gt,indices,record=data
-        pairs,stats=build_allocation(*data)
+        pairs,overflow,stats=build_allocation(*data)
         i,j,rescue=pairs[0]
         self.assertEqual((i.tolist(),j.tolist(),rescue.tolist()),([1],[4],[True]))
         self.assertEqual(stats['selected_covered_gt'].item(),2)
@@ -85,7 +86,7 @@ class AllocationTest(unittest.TestCase):
 
     def test_prefix_only_lowers_redundant_query(self):
         data=fixture(False)
-        pairs,stats=build_allocation(*data)
+        pairs,overflow,stats=build_allocation(*data)
         self.assertEqual(tuple(x.tolist() for x in pairs[0]),([1],[2],[False]))
         self.assertEqual(stats['rescue_pairs'].item(),0)
         loss,_=allocation_loss(data[0]['dense_logits'],pairs,.2,lambda n,d:max(n,1))
@@ -95,7 +96,7 @@ class AllocationTest(unittest.TestCase):
     def test_prefix_margin_is_enforced_after_rank_order_is_correct(self):
         data=fixture(False)
         with torch.no_grad(): data[0]['dense_logits'][0,2]=3.1
-        pairs,_=build_allocation(*data,margin=.2)
+        pairs,_,_=build_allocation(*data,margin=.2)
         loss,_=allocation_loss(data[0]['dense_logits'],pairs,.2,lambda n,d:max(n,1))
         self.assertAlmostEqual(loss.item(),.1,places=5)
         with torch.no_grad(): data[0]['dense_logits'][0,2]=3.3
@@ -103,9 +104,10 @@ class AllocationTest(unittest.TestCase):
 
     def test_cross_instance_drift_is_not_redundancy(self):
         data=fixture(); p,o,t,_,_=data
+        p['anchor_centers'][0,1]=t[0]['boxes'][1,:2]
         p['dense_boxes'][0,1]=t[0]['boxes'][1]
         o['enc_aux_outputs'][0]['pred_boxes'][0,1]=t[0]['boxes'][1]
-        pairs,stats=build_allocation(*data)
+        pairs,overflow,stats=build_allocation(*data)
         self.assertEqual(len(pairs[0][0]),0)
         self.assertEqual(stats['stage_disagreement'].item(),1)
 
@@ -115,9 +117,9 @@ class AllocationTest(unittest.TestCase):
         p['dense_boxes'][0,2]=t[0]['boxes'][1]
         o['enc_aux_outputs'][0]['pred_boxes'][0,2]=t[0]['boxes'][1]
         with torch.no_grad(): o['pred_boxes'][0,2]=t[0]['boxes'][1]
-        pairs,stats=build_allocation(*data)
+        pairs,overflow,stats=build_allocation(*data)
         self.assertEqual(len(pairs[0][0]),0)
-        self.assertEqual(stats['donor_cross_gt_overlap'].item(),1)
+        self.assertGreater(stats['donor_center_ambiguous'].item(),0)
 
     def test_positive_and_cross_gt_go_protections(self):
         for protection in ('final','classification','owner','go'):
@@ -128,7 +130,7 @@ class AllocationTest(unittest.TestCase):
             else:
                 p['owner_indices'][0]=torch.tensor([0,1,4])
                 p['target_indices'][0]=torch.tensor([0,0,2])
-            pairs,_=build_allocation(*data)
+            pairs,_,_=build_allocation(*data)
             self.assertEqual(len(pairs[0][0]),0,protection)
 
     def test_prefix_receiver_requires_compatible_encoder_positive(self):
@@ -138,7 +140,7 @@ class AllocationTest(unittest.TestCase):
 
     def test_same_gt_cannot_pair_and_each_donor_is_used_once(self):
         data=fixture()
-        pairs,_=build_allocation(*data)
+        pairs,_,_=build_allocation(*data)
         self.assertEqual(len(pairs[0][0].unique()),len(pairs[0][0]))
         # Rescue takes the only donor, so B's prefix cannot reuse it.
         self.assertEqual(pairs[0][2].tolist(),[True])
@@ -151,7 +153,7 @@ class AllocationTest(unittest.TestCase):
         t[0]['boxes']=torch.empty(0,4);t[0]['labels']=torch.empty(0,dtype=torch.long)
         p['owner_indices']=[torch.empty(0,dtype=torch.long)];p['target_indices']=[torch.empty(0,dtype=torch.long)]
         f[0]=match([],[]);r['classification'][0]=match([],[]);r['boxes'][0]=match([],[])
-        pairs,_=build_allocation(*data)
+        pairs,_,_=build_allocation(*data)
         loss,_=allocation_loss(p['dense_logits'],pairs,.2,lambda n,d:max(n,1e-12))
         self.assertEqual(loss.item(),0.)
         self.assertTrue(torch.equal(torch.autograd.grad(loss,p['dense_logits'])[0],torch.zeros_like(p['dense_logits'])))
@@ -284,6 +286,10 @@ class NativeIntegrationTest(unittest.TestCase):
         model.train();outputs=model(features,gt)
         self.assertIn('dn_outputs',outputs)
         self.assertFalse(outputs['sgqs_aux_outputs']['dense_boxes'].requires_grad)
+        centers = outputs['sgqs_aux_outputs']['anchor_centers']
+        self.assertFalse(centers.requires_grad)
+        torch.testing.assert_close(centers[0, 0], torch.tensor([.125, .125]))
+        torch.testing.assert_close(centers[0, 1], torch.tensor([.375, .125]))
         losses=c(outputs,gt,**META)
         self.assertTrue(any('ddf_dn' in name for name in losses))
         sum(losses.values()).backward()

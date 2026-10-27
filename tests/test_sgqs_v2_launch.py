@@ -68,6 +68,9 @@ class ConfigContractTest(unittest.TestCase):
         method = full['SGQSV2Criterion']
         self.assertEqual(method['start_epoch'], 28.)
         self.assertEqual(method['ramp_epochs'], 1.)
+        self.assertEqual(method['redundancy_ios_threshold'], .8)
+        self.assertEqual(method['overflow_tolerance'], 10)
+        self.assertEqual(method['overflow_score_threshold'], .8)
         self.assertEqual(set(method['weight_dict']),
                          {'loss_sgqs_dense', 'loss_sgqs_bbox', 'loss_sgqs_giou'})
         self.assertNotIn('admission_weight', method)

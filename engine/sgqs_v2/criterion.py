@@ -18,19 +18,26 @@ class SGQSV2Criterion(SGQSCriterion):
                  dense_alpha=.75, dense_gamma=2., negative_weight=1.,
                  start_epoch=28., ramp_epochs=1., allocation_weight=.25,
                  iou_threshold=.5, ambiguity_gap=.05, teacher_score=.5,
-                 background_score=.1, margin=.2, iou_chunk_size=512):
+                 background_score=.1, margin=.2, iou_chunk_size=512,
+                 redundancy_ios_threshold=.8, overflow_tolerance=10,
+                 overflow_score_threshold=.8):
         required = {'loss_sgqs_dense', 'loss_sgqs_bbox', 'loss_sgqs_giou'}
         if set(weight_dict) != required:
             raise ValueError('v2 requires exactly dense/bbox/giou weights; no owner survival')
         scalars = [*weight_dict.values(), q_min, dense_alpha, dense_gamma,
                    negative_weight, start_epoch, ramp_epochs, allocation_weight,
-                   iou_threshold, ambiguity_gap, teacher_score, background_score, margin]
+                   iou_threshold, ambiguity_gap, teacher_score, background_score, margin,
+                   redundancy_ios_threshold, overflow_tolerance, overflow_score_threshold]
         if not all(math.isfinite(float(v)) and float(v) >= 0 for v in scalars):
             raise ValueError('SGQS v2 parameters must be finite and non-negative')
         if not 0 < iou_threshold <= 1 or not 0 < ambiguity_gap <= 1:
             raise ValueError('IoU and ambiguity thresholds must be in (0, 1]')
         if not 0 <= background_score < teacher_score <= 1:
             raise ValueError('Require 0 <= background_score < teacher_score <= 1')
+        if not 0 < redundancy_ios_threshold <= 1 or not 0 < overflow_score_threshold < 1:
+            raise ValueError('Require IoS in (0, 1] and overflow score in (0, 1)')
+        if isinstance(overflow_tolerance, bool) or int(overflow_tolerance) != overflow_tolerance:
+            raise ValueError('overflow_tolerance must be a non-negative integer')
         if isinstance(iou_chunk_size, bool) or int(iou_chunk_size) != iou_chunk_size or iou_chunk_size < 1:
             raise ValueError('iou_chunk_size must be a positive integer')
         super().__init__(base_criterion, {**weight_dict, 'loss_sgqs_survival': 0.},
@@ -39,10 +46,14 @@ class SGQSV2Criterion(SGQSCriterion):
         self.weight_dict = dict(weight_dict)
         self.start_epoch, self.ramp_epochs = float(start_epoch), float(ramp_epochs)
         self.allocation_weight, self.margin = float(allocation_weight), float(margin)
+        self.overflow_score_threshold = float(overflow_score_threshold)
         self.allocation_options = dict(iou_threshold=float(iou_threshold),
             ambiguity_gap=float(ambiguity_gap), teacher_score=float(teacher_score),
             background_score=float(background_score), margin=self.margin,
-            iou_chunk_size=int(iou_chunk_size))
+            iou_chunk_size=int(iou_chunk_size),
+            redundancy_ios_threshold=float(redundancy_ios_threshold),
+            overflow_tolerance=int(overflow_tolerance),
+            overflow_score_threshold=self.overflow_score_threshold)
 
     def _ramp(self, metadata):
         if not {'epoch', 'step', 'epoch_step'} <= metadata.keys():
@@ -123,7 +134,7 @@ class SGQSV2Criterion(SGQSCriterion):
             raise RuntimeError('The base criterion did not produce final matching')
         payload = self._guard_encoder_supervision(payload)
         records = self.base_criterion.get_encoder_supervision()
-        pairs, stats = build_allocation(payload, outputs, targets, captured[0], records[0],
+        pairs, overflow, stats = build_allocation(payload, outputs, targets, captured[0], records[0],
                                        enabled=self.allocation_weight > 0, **self.allocation_options)
         payload = dict(payload)
         payload['classification_skip'] = torch.zeros_like(payload['valid_mask'], dtype=torch.bool)
@@ -131,7 +142,8 @@ class SGQSV2Criterion(SGQSCriterion):
             payload['classification_skip'][batch, receivers[rescue]] = True
         auxiliary = self.loss_sgqs(payload, targets, **metadata)
         allocate, _ = allocation_loss(payload['dense_logits'], pairs, self.margin,
-                                     self._distributed_average_denominator)
+                                     self._distributed_average_denominator, overflow,
+                                     self.overflow_score_threshold)
         for key, value in auxiliary.items():
             losses[key] = value * self.weight_dict[key] * ramp
         losses['loss_sgqs_allocation'] = allocate * self.allocation_weight * ramp
@@ -157,6 +169,8 @@ class SGQSV2Criterion(SGQSCriterion):
         metrics = {f'v2_{name}': value for name, value in values.items() if not name.endswith('_sum')}
         metrics.update(v2_ramp=torch.tensor(ramp, device=device),
             v2_pair_count=pair_count, v2_pairs_per_image=pair_count / images,
+            v2_allocation_count=pair_count + values['overflow_penalized'],
+            v2_overflow_score=values['overflow_score_sum'] / values['overflow_penalized'].clamp_min(1.),
             v2_donor_utilization=pair_count / values['donor_available'].clamp_min(1.),
             v2_selected_gt_coverage=values['selected_covered_gt'] / values['gt'].clamp_min(1.),
             v2_pair_logit_gap=values['pair_gap_sum'] / pair_count.clamp_min(1.),

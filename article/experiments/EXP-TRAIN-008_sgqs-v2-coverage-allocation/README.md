@@ -1,6 +1,6 @@
 # EXP-TRAIN-008：SGQS v2 实例覆盖与候选预算分配
 
-状态：已实现并通过CPU检查；真实训练未运行、方法收益未验证。设计冻结于 2026-10-24，完整算法见 [M-003](../../methods/M-003_sgqs_v2/README.md)。本实验替代已暂停的 [EXP-TRAIN-007](../EXP-TRAIN-007_sgqs-v2-single-factor/README.md)，不继续旧六臂根因探针。
+状态：已实现并通过CPU检查；真实训练未运行、方法收益未验证。初版设计于2026-10-24，2026-10-27按中心/IoS与无接收者溢出规则修订，完整算法见 [M-003](../../methods/M-003_sgqs_v2/README.md)。本实验替代已暂停的 [EXP-TRAIN-007](../EXP-TRAIN-007_sgqs-v2-single-factor/README.md)，不继续旧六臂根因探针。
 
 ## 目标与对照
 
@@ -47,10 +47,12 @@ local-small必须按输入640后 `area<32² OR short_side<16` 采用严格一对
 
 两类配对必须分别记录：outside coverage救援与inside prefix分配。prefix不新增actual640覆盖；outside有合格几何入口也不保证最终Decoder检出。
 
-记录有效配对数、门控拒绝原因、teacher可靠代表、selected覆盖、missing GT、无候选GT、分数差与升温。若有效配对长期近零，应判定方法未形成足够干预，不能把零loss当作学习成功。GT>=K时全部query被匹配、无安全donor，是明确边界；不绕过保护凑样本。
+记录有效配对数、门控拒绝原因、teacher可靠代表、selected覆盖、missing GT、无候选GT、分数差与升温。若有效配对和overflow处罚均长期近零，应判定方法未形成足够干预，不能把零loss当作学习成功。GT>=K时全部query被匹配、无安全donor，是明确边界；不绕过保护凑样本。
 
 成功需要v2对support产生同预算性能或预算曲线改善，同时不违反整体AP约束；改善必须伴随一致的机制变化。七轮单seed只能筛选，正式结论还需多seed/完整训练与固定独立难例集。
 
 ## 运行
 
 [配置入口](../../../configs/sgqs_v2/README.md)；[服务器命令](../../../configs/sgqs_v2/SERVER_COMMANDS.md)。本轮提交代码与协议，不自动启动服务器训练。
+
+2026-10-27修订不扩大训练矩阵。记录方法revision=center_ios_overflow_20261027；support关闭配对与overflow，v2启用两者。新增加的overflow只在整图无配对时触发，不能记为跨实例救援。启动命令不变；使用新运行目录并核对runtime manifest，不能将5f56027结果混入本修订。

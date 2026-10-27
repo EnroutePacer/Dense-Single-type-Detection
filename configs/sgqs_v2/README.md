@@ -20,3 +20,4 @@
 真实计算预算比较使用同一 checkpoint，将 Decoder 输入 K 改为 640/512/384/256 并分别重跑；不对完整 640 输出静态切片，不把升分或过滤数等同于加速。
 
 启动与评估详见 [SERVER_COMMANDS.md](SERVER_COMMANDS.md)。准备工具记录完整源码、配置、输入哈希与运行身份；旧六臂 manifest 不兼容新 schema。新主入口直接使用 criterion 的日志，不再运行原重型 GO/DDF 梯度探针。运行目录已存在即停止，不能混入旧结果。
+2026-10-27修订：冗余改为原始网格anchor中心唯一位于GT内 + Decoder IoS>=0.8；可靠代表/救援仍用IoU。有可执行接收者时不设备用数量门槛；整图无配对时，容忍每GT除代表外10个候选，仅抑制溢出中Encoder score>0.8的安全donor。配对和溢出共享allocation权重，support同时关闭二者。新日志增加donor_ios_only、donor_center_ambiguous、overflow_excess/overconfident/penalized与overflow_score。旧5f56027运行不得与此修订混为同一方法状态。
