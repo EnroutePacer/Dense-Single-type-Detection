@@ -1,0 +1,29 @@
+{
+  "date": "2026-10-27",
+  "type": "implementation_validation_not_training_experiment",
+  "schema": "sgqs_v2_durable_training_v1",
+  "full_regression": {"tests": 161, "passed": true},
+  "final_focused_regression": {"tests": 19, "passed": true},
+  "two_process_gloo": {
+    "sparse_pair_overflow_mixed_empty_gradients": "passed",
+    "real_tiny_dfine_training_lifecycle": "passed",
+    "raw_ema_validation_archives_and_padding_checks": "passed",
+    "per_rank_rng_checkpoint": "passed",
+    "single_rank_nan_and_root_io_failure_propagation": "passed"
+  },
+  "recovery": {
+    "injected_failure": "after_epoch_checkpoint_before_validation",
+    "pending_validation_completed": true,
+    "subsequent_raw_and_ema_equal_to_uninterrupted_cpu_run": true,
+    "atomic_write_failure_preserves_previous_file": true,
+    "corrupt_latest_checkpoint_rejected": true
+  },
+  "deployment": {
+    "runtime_files_verified": 101,
+    "local_markdown_links_verified": 26,
+    "launch_and_recovery_bash_syntax": "passed",
+    "git_diff_check": "passed"
+  },
+  "not_executed": ["production_eight_gpu_NCCL", "full_real_dataset_training", "accuracy_or_throughput_benchmark"],
+  "readme": "engine/sgqs_v2/README.md"
+}

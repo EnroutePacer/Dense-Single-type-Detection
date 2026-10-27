@@ -132,7 +132,20 @@ class SGQSV2Criterion(SGQSCriterion):
             handle.remove()
         if not captured:
             raise RuntimeError('The base criterion did not produce final matching')
+        def owner_counts(data):
+            total, small = 0, 0
+            for target, ids in zip(targets, data['target_indices']):
+                boxes = target['boxes'][ids].detach()
+                # Declared local definition, normalized geometry mapped to 640.
+                w, h = boxes[:, 2] * 640, boxes[:, 3] * 640
+                total += len(ids)
+                small += int(((w * h < 32**2) | (torch.minimum(w, h) < 16)).sum())
+            return total, small
+        before = owner_counts(payload)
         payload = self._guard_encoder_supervision(payload)
+        after = owner_counts(payload)
+        self._owner_counts = torch.tensor([*before, after[1]],
+            device=payload['dense_logits'].device, dtype=torch.float32)
         records = self.base_criterion.get_encoder_supervision()
         pairs, overflow, stats = build_allocation(payload, outputs, targets, captured[0], records[0],
                                        enabled=self.allocation_weight > 0, **self.allocation_options)
@@ -147,8 +160,10 @@ class SGQSV2Criterion(SGQSCriterion):
         for key, value in auxiliary.items():
             losses[key] = value * self.weight_dict[key] * ramp
         losses['loss_sgqs_allocation'] = allocate * self.allocation_weight * ramp
-        if not all(torch.isfinite(value).all() for value in (*auxiliary.values(), allocate)):
-            raise FloatingPointError('Non-finite SGQS v2 auxiliary loss')
+        # All ranks must take the same branch before metric collectives.
+        from .runtime import require_finite
+        require_finite(torch.stack([*auxiliary.values(), allocate]),
+                       payload['dense_logits'].device, 'SGQS v2 auxiliary loss')
         self._record_metrics(payload, stats, auxiliary, allocate, ramp)
         return losses
 
@@ -159,14 +174,16 @@ class SGQSV2Criterion(SGQSCriterion):
         local_extra = torch.tensor([owner_count, float(payload['classification_skip'].sum())], device=device)
         vector = torch.stack([stats[name] for name in STAT_NAMES] + [
             local_extra[0], local_extra[1], payload['supervision_conflicts'], self._owner_iou_sum,
-            *[x.detach() for x in auxiliary.values()], allocate.detach()])
+            *[x.detach() for x in auxiliary.values()], allocate.detach(), *self._owner_counts])
         totals = self._distributed_sum(vector)
         values = dict(zip(STAT_NAMES, totals[:len(STAT_NAMES)]))
-        owners, masked, conflicts, owner_iou, *raw_losses = totals[len(STAT_NAMES):]
+        owners, masked, conflicts, owner_iou = totals[len(STAT_NAMES):len(STAT_NAMES)+4]
+        raw_losses = totals[len(STAT_NAMES)+4:len(STAT_NAMES)+8]
+        before, small_before, small_after = totals[-3:]
         images = values['images'].clamp_min(1.)
         pair_count = values['rescue_pairs'] + values['prefix_pairs']
         # Global sums give interpretable denominators, not per-rank mean-of-means.
-        metrics = {f'v2_{name}': value for name, value in values.items() if not name.endswith('_sum')}
+        metrics = {f'v2_{name}': value for name, value in values.items()}
         metrics.update(v2_ramp=torch.tensor(ramp, device=device),
             v2_pair_count=pair_count, v2_pairs_per_image=pair_count / images,
             v2_allocation_count=pair_count + values['overflow_penalized'],
@@ -178,7 +195,10 @@ class SGQSV2Criterion(SGQSCriterion):
             v2_rescue_score=values['rescue_score_sum'] / values['rescue_pairs'].clamp_min(1.),
             v2_prefix_score=values['prefix_score_sum'] / values['prefix_pairs'].clamp_min(1.),
             v2_keeper_score=values['keeper_score_sum'] / values['reliable_representatives'].clamp_min(1.),
-            v2_owners=owners, v2_owner_iou=owner_iou / owners.clamp_min(1.),
+            v2_owners=owners, v2_owner_iou_sum=owner_iou,
+            v2_owners_before_guard=before, v2_small_owners_before_guard=small_before,
+            v2_small_owners=small_after,
+            v2_owner_iou=owner_iou / owners.clamp_min(1.),
             v2_owner_conflicts=conflicts, v2_rescue_classification_masked=masked)
         for name, value in zip(('dense', 'bbox', 'giou', 'allocation'), raw_losses):
             metrics[f'v2_raw_{name}'] = value / get_world_size()

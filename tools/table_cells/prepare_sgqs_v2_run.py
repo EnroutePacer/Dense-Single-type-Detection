@@ -22,7 +22,7 @@ ARMS = {
     'sgqs': 'sgqs_e28_r7',
 }
 PRIMARY_ARMS = ('b0', 'support', 'v2')
-SCHEMA = 'sgqs_v2_center_ios_overflow_v1'
+SCHEMA = 'sgqs_v2_durable_training_v1'
 RUNTIME_FILES = Path('configs/sgqs_v2/runtime_files.sha256')
 
 

@@ -1,5 +1,7 @@
 # SGQS v2：实例覆盖驱动的候选分配
 
+训练生命周期已独立：逐步结构化记录、每轮完整 checkpoint、raw/EMA 全量验证与预测留档，以及 epoch 边界恢复，见 [训练框架 README](../../engine/sgqs_v2/README.md)。
+
 2026-10-24 起，本目录覆盖为 [M-003 设计](../../article/methods/M-003_sgqs_v2/README.md) 的训练入口。旧的 r0–r5 单因素筛选停止作为活跃方案，历史配置可在提交 `119bfe2` 查阅；原 SGQS v1 源码与结果保留。
 
 目标是在训练时改善 Encoder 候选对不同实例的覆盖与预算分配。保持训练 query 数 640、原 Matcher、DN/DDF 和推理模块；保留带保护的 owner 几何辅助，以 IoU 为 dense 分类目标，所有新增项在 epoch 28 的一轮内统一升温。新分配项只处理 GT 和 Decoder 反馈共同确认的安全候选关系，不包含旧 survival、EFGL 或 Top-300 admission loss。

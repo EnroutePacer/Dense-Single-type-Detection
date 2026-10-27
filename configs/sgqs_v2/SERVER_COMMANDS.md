@@ -1,6 +1,6 @@
 # SGQS v2 服务器启动命令
 
-在仓库根目录、现有训练 Python 环境执行。入口不安装依赖。固定 8 张可见 GPU、每卡 8 图、global batch 64；预检不允许静默更改拓扑、数据、共同初始化或追加已有运行。
+在仓库根目录、现有训练 Python 环境执行。入口不安装依赖。固定 8 张可见 GPU、每卡 8 图、global batch 64；预检不允许静默更改拓扑、数据或共同初始化。已有运行只能通过显式恢复入口继续。
 
 ## 1. 启动完整新方案
 
@@ -30,11 +30,14 @@ bash tools/table_cells/run_sgqs_v2.sh sgqs
 
 `support` 与 `v2` 仅 allocation 权重不同；`sgqs` 保留旧 v1 的 dense/owner 无升温语义，不能当作仅去掉 allocation 的控制。
 
-运行目录已存在会拒绝覆盖。补跑失败运行应设置新目录，例如：
+新运行目录已存在会拒绝覆盖。恢复同一份已准备运行使用独立 attempt，不重新 prepare：
 
 ```bash
-RUN_ROOT="$PWD/outputs/sgqs_v2_retry1" bash tools/table_cells/run_sgqs_v2.sh v2
+RUN="$PWD/outputs/sgqs_v2/v2_e28_r7_seed0" ATTEMPT=1 \
+  bash tools/table_cells/recover_sgqs_v2.sh
 ```
+
+再次中断时使用新的正整数 ATTEMPT。详见 [训练框架与留档契约](../../engine/sgqs_v2/README.md)。
 
 不要用失败臂产生的中间 checkpoint 作为其他臂初始化。如果部署目录没有 `.git`，设置 `REV` 为同步方提供的完整 40 位提交号；有 Git 时记录实际 HEAD、工作区状态与运行文件哈希。`runtime_files.sha256` 不匹配时应同步完整源码，不能绕过检查。
 
@@ -49,11 +52,11 @@ RUN="$PWD/outputs/sgqs_v2/v2_e28_r7_seed0"
   2>&1 | tee "$RUN/console.log"
 ```
 
-专用训练入口显式传入 `--seed 0 --use-amp`，拒绝任意额外 `-u`、`--tuning` 等覆盖。新增分支从绝对 epoch 28 开始，一轮内统一升温；不会因工具重启把时钟从零重算。此入口用于从共同 epoch27 开始的独立七轮比较，已有运行不允许原地恢复追加。
-
-保留 `console.log`、`log.txt`、`resolved.yml`、`run_manifest.json` 和每轮 checkpoint。新诊断由 criterion 记录到训练日志，包含覆盖缺口、门控/保护、rescue/prefix 配对、分数间隔和升温状态。它没有旧 `probes/train.rank*.jsonl` 或 `probe_steps.csv`，无需执行旧 `summarize_probe.py`。
+专用入口使用独立训练循环，固定 seed 0 / AMP，拒绝额外方法覆盖。新增分支按绝对 epoch 28 升温，恢复不重置时钟。每步结构化日志、每轮完整状态和 raw/EMA 完整验证自动保存；旧的 probes/train.rank*.jsonl 与 summarize_probe.py 不适用。文件布局、统计分母和恢复规则见 [框架 README](../../engine/sgqs_v2/README.md)。
 
 ## 2. 完整验证集主评价，固定 K=640
+
+训练入口已自动完成每臂 × epoch28..34 × raw/EMA，并额外保存 epoch27 起点。通常直接读取各运行 validation/epochEEEE/{raw,ema}/complete.json，无需重跑以下矩阵。下面命令保留给旧运行或独立复核：
 
 每臂 × epoch28..34 × raw/EMA。三臂共有 42 个模型状态；每个状态从完整 640 输出计算 @640 主结果与 @300 附加结果，不预过滤 small、score 或图像子集。
 

@@ -53,6 +53,8 @@ local-small必须按输入640后 `area<32² OR short_side<16` 采用严格一对
 
 ## 运行
 
+训练生命周期和证据留档见 [框架 README](../../../engine/sgqs_v2/README.md)。新入口自动保存 epoch27 起点与每轮 raw/EMA 完整 val，输出 300/640 双预算及候选分片；逐步统计与完整 checkpoint 同步保留。恢复使用新 attempt，旧日志不覆盖。schema 为 sgqs_v2_durable_training_v1；方法与预注册终点不变，额外起点验证不参与挑选主终点。
+
 [配置入口](../../../configs/sgqs_v2/README.md)；[服务器命令](../../../configs/sgqs_v2/SERVER_COMMANDS.md)。本轮提交代码与协议，不自动启动服务器训练。
 
 2026-10-27修订不扩大训练矩阵。记录方法revision=center_ios_overflow_20261027；support关闭配对与overflow，v2启用两者。新增加的overflow只在整图无配对时触发，不能记为跨实例救援。启动命令不变；使用新运行目录并核对runtime manifest，不能将5f56027结果混入本修订。

@@ -1,0 +1,190 @@
+"""Dedicated v2 lifecycle, shared by all registered comparison arms."""
+import json
+import math
+import time
+from pathlib import Path
+
+import torch
+
+from ..solver._solver import BaseSolver
+from ..misc import dist_utils
+from ..optim.lr_scheduler import FlatCosineLRScheduler
+from .runtime import (StepRecorder, atomic_json, digest, main_call, save_checkpoint,
+                      validate_recovery, restore_rng, require_finite)
+from .evaluation import validate
+
+
+class SGQSV2Trainer(BaseSolver):
+    def __init__(self, cfg, run_id, attempt=0, recovery=False):
+        super().__init__(cfg)
+        self.run_id, self.attempt, self.recovery = run_id, attempt, recovery
+        self.recovery_meta = None
+
+    def train(self):
+        super().train()
+        # Evaluation forwards use the unwrapped model, so unequal rank lengths
+        # are safe. Avoid padded duplicates and score-tie ordering differences.
+        loader = self.val_dataloader
+        if dist_utils.is_dist_available_and_initialized():
+            subset = torch.utils.data.Subset(loader.dataset,
+                range(dist_utils.get_rank(), len(loader.dataset), dist_utils.get_world_size()))
+            self.val_dataloader = torch.utils.data.DataLoader(subset,
+                batch_size=loader.batch_size, shuffle=False, drop_last=False,
+                num_workers=loader.num_workers, collate_fn=loader.collate_fn,
+                pin_memory=loader.pin_memory, worker_init_fn=loader.worker_init_fn)
+
+    def state_dict(self):
+        state = {'last_epoch': self.last_epoch}
+        for name in ('model', 'criterion', 'optimizer', 'ema', 'scaler',
+                     'lr_scheduler', 'lr_warmup_scheduler'):
+            value = getattr(self, name, None)
+            if value is not None and hasattr(value, 'state_dict'):
+                state[name] = dist_utils.de_parallel(value).state_dict()
+        state['ema']['before_start'] = self.ema.before_start
+        return state
+
+    def load_resume_state(self, path):
+        # Only locally prepared, hash-verified checkpoints are accepted by entry.
+        state = torch.load(path, map_location='cpu', weights_only=False)
+        if self.recovery:
+            self.recovery_meta = validate_recovery(state, self.run_id, dist_utils.get_world_size())
+        self.load_state_dict(state)
+        self.ema.before_start = state['ema'].get('before_start', 0)
+
+    def fit(self):
+        self.phase = {'stage': 'setup'}
+        self.train()
+        cfg = self.cfg
+        steps = len(self.train_dataloader)
+        if not steps or self.ema is None or self.scaler is None:
+            raise ValueError('Require nonempty training loader, EMA and AMP scaler')
+        if cfg.lrsheduler != 'flatcosine':
+            raise ValueError('This continuation protocol requires flatcosine scheduling')
+        stop = getattr(self.train_dataloader.collate_fn, 'stop_epoch', math.inf)
+        if self.last_epoch < stop < cfg.epoches:
+            raise ValueError('Stage reload inside continuation is not part of this protocol')
+        self.lr_scheduler = FlatCosineLRScheduler(self.optimizer, cfg.lr_gamma, steps,
+            cfg.epoches, cfg.warmup_iter, cfg.flat_epoch, cfg.no_aug_epoch)
+        self.attempt_dir = self.output_dir / 'attempts' / f'{self.attempt:04d}'
+        if self.recovery_meta:
+            if steps != self.recovery_meta['steps_per_epoch']:
+                raise ValueError('Training-loader length changed on recovery')
+            self.train_summary = self.recovery_meta['train_summary']
+            restore_rng(self.recovery_meta['rng_by_rank'][dist_utils.get_rank()])
+            checkpoint = main_call(lambda: {'path': Path(cfg.resume).name,
+                'sha256': digest(cfg.resume), 'epoch': self.last_epoch})
+        else:
+            if self.last_epoch != 27:
+                raise ValueError('Fresh continuation must start at the epoch-27 boundary')
+            self.train_summary = None
+            checkpoint = save_checkpoint(self, self.run_id, steps)
+        self.validate_boundary(checkpoint)
+        for epoch in range(self.last_epoch + 1, cfg.epoches):
+            self.train_dataloader.set_epoch(epoch)
+            if hasattr(self.train_dataloader.sampler, 'set_epoch'):
+                self.train_dataloader.sampler.set_epoch(epoch)
+            self.train_summary = self.train_epoch(epoch)
+            self.last_epoch = epoch
+            self.phase = {'stage': 'checkpoint', 'epoch': epoch}
+            checkpoint = save_checkpoint(self, self.run_id, steps)
+            self.validate_boundary(checkpoint)
+        main_call(lambda: atomic_json(self.output_dir / 'completed.json', {
+            'run_id': self.run_id, 'last_epoch': self.last_epoch,
+            'checkpoint': checkpoint, 'attempt': self.attempt}))
+
+    def validate_boundary(self, checkpoint):
+        for kind in ('raw', 'ema'):
+            self.phase = {'stage': 'validation', 'epoch': self.last_epoch, 'state': kind}
+            result = validate(self, checkpoint, kind)
+            def best():
+                path = self.output_dir / f'best_{kind}.json'
+                old = json.loads(path.read_text(encoding='utf-8')) if path.exists() else {}
+                for cohort, group in (('full', 'coco_all'), ('full', 'local_hybrid_small'),
+                                      ('dense_ge301', 'local_hybrid_small')):
+                    key = f'{cohort}/{group}/AP@640'
+                    score = result[cohort]['budgets']['640'][group]['AP']
+                    if score is not None and (key not in old or score > old[key]['score']):
+                        old[key] = {'score': score, 'epoch': self.last_epoch, 'checkpoint': checkpoint}
+                atomic_json(path, old)
+            main_call(best)
+
+    def train_epoch(self, epoch):
+        epoch_started = time.monotonic()
+        self.model.train(); self.criterion.train()
+        rank = dist_utils.get_rank()
+        recorder = StepRecorder(self.attempt_dir, epoch) if rank == 0 else None
+        samples_path = self.attempt_dir / f'epoch{epoch:04d}.rank{rank:02d}.samples.jsonl'
+        sample_stream = samples_path.open('x', encoding='utf-8')
+        i, image_ids = -1, []
+        try:
+            for i, (samples, targets) in enumerate(self.train_dataloader):
+                self.phase = {'stage': 'training', 'epoch': epoch, 'step': i}
+                started = time.monotonic()
+                image_ids = [int(t['image_id'].item()) for t in targets]
+                sample_stream.write(json.dumps({'step': i, 'image_ids': image_ids}) + '\n')
+                sample_stream.flush()
+                samples = samples.to(self.device)
+                targets = [{k: v.to(self.device) for k, v in t.items()} for t in targets]
+                global_step = epoch * len(self.train_dataloader) + i
+                meta = dict(epoch=epoch, step=i, global_step=global_step,
+                            epoch_step=len(self.train_dataloader), input_size=tuple(samples.shape[-2:]))
+                self.optimizer.zero_grad(set_to_none=True)
+                with torch.autocast(device_type=self.device.type, enabled=self.scaler.is_enabled()):
+                    outputs = self.model(samples, targets=targets)
+                require_finite(outputs['pred_boxes'], self.device, 'Decoder boxes')
+                require_finite(outputs['pred_logits'], self.device, 'Decoder logits')
+                with torch.autocast(device_type=self.device.type, enabled=False):
+                    losses = self.criterion(outputs, targets, **meta)
+                require_finite(torch.stack(list(losses.values())), self.device, 'training losses')
+                loss = sum(losses.values())
+                scale_before = self.scaler.get_scale()
+                lr_before = [group['lr'] for group in self.optimizer.param_groups]
+                self.scaler.scale(loss).backward()
+                self.scaler.unscale_(self.optimizer)
+                norm = torch.nn.utils.clip_grad_norm_(self.model.parameters(),
+                    self.cfg.clip_max_norm if self.cfg.clip_max_norm > 0 else math.inf)
+                if not self.scaler.is_enabled():
+                    require_finite(norm, self.device, 'unscaled gradients')
+                self.scaler.step(self.optimizer)
+                self.scaler.update()
+                skipped = self.scaler.get_scale() < scale_before
+                # DDP must not let one rank advance EMA when another skipped.
+                flags = torch.tensor([int(skipped), int(not skipped)], device=self.device)
+                if dist_utils.is_dist_available_and_initialized():
+                    torch.distributed.all_reduce(flags, op=torch.distributed.ReduceOp.MAX)
+                if flags.tolist() == [1, 1]:
+                    raise RuntimeError('AMP update diverged between ranks; recover last boundary')
+                if not skipped:
+                    self.ema.update(self.model)
+                # Preserve baseline scheduler order and absolute attempted-step clock.
+                self.lr_scheduler.step(global_step, self.optimizer)
+                reduced = dist_utils.reduce_dict({k: v.detach() for k, v in losses.items()})
+                metrics = (self.criterion.get_logging_metrics()
+                           if hasattr(self.criterion, 'get_logging_metrics') else {})
+                row = {'epoch': epoch, 'step': i, 'global_step': global_step,
+                    'allocation_enabled': getattr(self.criterion, 'allocation_weight', 0.) > 0,
+                    'losses': {k: float(v) for k, v in reduced.items()},
+                    'metrics': {k: float(v) for k, v in metrics.items()},
+                    'lr_before': lr_before, 'lr_after': [g['lr'] for g in self.optimizer.param_groups],
+                    'amp_scale_before': scale_before, 'amp_scale_after': self.scaler.get_scale(),
+                    'amp_skipped': skipped, 'gradient_norm_before_clip': float(norm) if torch.isfinite(norm) else None,
+                    'seconds': time.monotonic() - started}
+                main_call(lambda: recorder.record(row))
+                if rank == 0 and i % self.cfg.print_freq == 0:
+                    print(f'Epoch {epoch} step {i}/{len(self.train_dataloader)} loss={sum(row["losses"].values()):.5f} skipped={skipped}', flush=True)
+            def finish():
+                summary = recorder.summary()
+                summary['epoch_wall_seconds'] = time.monotonic() - epoch_started
+                summary['optimizer_updates'] = summary['steps'] - summary['amp_skipped']
+                atomic_json(self.attempt_dir / f'epoch{epoch:04d}.summary.json', summary, replace=False)
+                return summary
+            return main_call(finish)
+        except Exception as exc:
+            atomic_json(self.attempt_dir / f'failure.rank{rank:02d}.json', {
+                'epoch': epoch, 'step': i, 'image_ids': image_ids,
+                'error': f'{type(exc).__name__}: {exc}'})
+            raise
+        finally:
+            sample_stream.close()
+            if recorder:
+                recorder.close()

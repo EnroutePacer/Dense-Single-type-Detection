@@ -186,15 +186,19 @@ class PreparedRunTest(unittest.TestCase):
     def test_entrypoint_supplies_seed_and_amp_without_probe_wrapper(self):
         args = type('Args', (), {'config': Path('run/resolved.yml')})()
         with mock.patch.object(launch, 'verify_run', return_value=args), \
-                mock.patch.object(launch, 'require_probe_topology') as topology, \
-                mock.patch.object(launch, 'reserve_probe_rank') as reserve, \
-                mock.patch.object(launch.runpy, 'run_path') as run, \
-                mock.patch.object(sys, 'argv', ['launcher']):
+                mock.patch.object(launch, 'run_training') as run:
             launch.main(['-c', str(args.config)])
-            self.assertEqual(sys.argv[1:], ['-c', str(args.config), '--seed', '0', '--use-amp'])
-            topology.assert_called_once_with()
-            reserve.assert_called_once_with(['-c', str(args.config)])
-            run.assert_called_once_with(str(prepare.ROOT / 'train.py'), run_name='__main__')
+            run.assert_called_once_with(args)
+
+    def test_recovery_requires_explicit_new_attempt(self):
+        for flags in (['--recover'], ['--attempt','1'], ['--attempt','-1']):
+            with self.assertRaisesRegex(ValueError,'attempt'):
+                launch.verify_run(['-c','resolved.yml',*flags])
+
+    def test_wrong_topology_cannot_fall_back_to_single_process(self):
+        with mock.patch.dict('os.environ',{'WORLD_SIZE':'1','LOCAL_WORLD_SIZE':'1'}):
+            with self.assertRaisesRegex(RuntimeError,'eight'):
+                launch.require_topology()
 
     def test_unregistered_cli_override_is_rejected(self):
         with mock.patch('sys.stderr', new_callable=io.StringIO), self.assertRaises(SystemExit):
