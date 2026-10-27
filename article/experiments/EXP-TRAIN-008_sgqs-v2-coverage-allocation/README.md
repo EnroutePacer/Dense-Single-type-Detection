@@ -53,7 +53,7 @@ local-small必须按输入640后 `area<32² OR short_side<16` 采用严格一对
 
 ## 运行
 
-训练生命周期和证据留档见 [框架 README](../../../engine/sgqs_v2/README.md)。新入口自动保存 epoch27 起点与每轮 raw/EMA 完整 val，输出 300/640 双预算及候选分片；逐步统计与完整 checkpoint 同步保留。恢复使用新 attempt，旧日志不覆盖。schema 为 sgqs_v2_durable_training_v1；方法与预注册终点不变，额外起点验证不参与挑选主终点。
+训练生命周期和证据留档见 [框架 README](../../../engine/sgqs_v2/README.md)。通用入口不强制本实验参数；使用 [固定配方示例](../../../configs/sgqs_v2/recipes/EXP-TRAIN-008.md) 显式指定 epoch27 起点、每轮 raw/EMA 验证和 300/640 双预算。逐步统计与 checkpoint 保留，恢复使用新 attempt。新运行 schema 为 sgqs_training_run_v1；方法和本实验预注册终点不变。
 
 [配置入口](../../../configs/sgqs_v2/README.md)；[服务器命令](../../../configs/sgqs_v2/SERVER_COMMANDS.md)。本轮提交代码与协议，不自动启动服务器训练。
 

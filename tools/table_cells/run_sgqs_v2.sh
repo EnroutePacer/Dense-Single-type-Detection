@@ -1,24 +1,45 @@
 #!/usr/bin/env bash
-# EXP-TRAIN-008: default to the new method; comparisons are explicit.
+# Generic process launcher. No experiment dispatch, data paths, or training defaults.
 set -Eeuo pipefail
 cd "$(dirname "${BASH_SOURCE[0]}")/../.."
-PY="${PY:-python}"
-DATA="${DATA:-/aicamera-mlp/chenkai/data/table_det_data/paddlex_l_cell_merged}"
-CKPT="${CKPT:-$PWD/output/dfine_hgnetv2_m_table_cell/checkpoint0027.pth}"
-RUN_ROOT="${RUN_ROOT:-$PWD/outputs/sgqs_v2}"
-export CUDA_VISIBLE_DEVICES="${CUDA_VISIBLE_DEVICES:-0,1,2,3,4,5,6,7}"
-if [[ $# -eq 0 ]]; then set -- v2; fi
-for arm in "$@"; do
-  case "$arm" in b0|support|v2|sgqs) ;; *) echo "Unknown arm: $arm" >&2; exit 2;; esac
+python_bin=python
+nproc=''
+port=''
+gpus=''
+device=''
+args=()
+while (($#)); do
+  case "$1" in
+    --python) python_bin="$2"; shift 2;;
+    --nproc-per-node) nproc="$2"; shift 2;;
+    --master-port) port="$2"; shift 2;;
+    --gpus) gpus="$2"; shift 2;;
+    --device) device="$2"; args+=("$1" "$2"); shift 2;;
+    -h|--help)
+      echo 'Launcher: --nproc-per-node N --master-port PORT --device cpu|cuda [--gpus 0,1] [--python PATH]'
+      "$python_bin" tools/table_cells/train_sgqs_v2.py --help
+      exit 0;;
+    *) args+=("$1"); shift;;
+  esac
 done
-for arm in "$@"; do
-  run="$RUN_ROOT/${arm}_e28_r7_seed0"
-  extra=()
-  if [[ -n "${REV:-}" ]]; then extra+=(--source-revision "$REV"); fi
-  "$PY" tools/table_cells/prepare_sgqs_v2_run.py \
-    --arm "$arm" --resume "$CKPT" --data-root "$DATA" --output "$run" \
-    --workers "${WORKERS:-4}" "${extra[@]}"
-  "$PY" -m torch.distributed.run --standalone --nnodes=1 --nproc_per_node=8 \
-    tools/table_cells/train_sgqs_v2.py -c "$run/resolved.yml" \
-    2>&1 | tee "$run/console.log"
-done
+[[ "$nproc" =~ ^[1-9][0-9]*$ ]] || { echo 'Explicit positive --nproc-per-node required' >&2; exit 2; }
+[[ "$port" =~ ^[0-9]+$ && "$port" -gt 0 && "$port" -le 65535 ]] || { echo 'Explicit valid --master-port required' >&2; exit 2; }
+case "$device" in
+  cuda)
+    [[ -n "$gpus" ]] || { echo 'CUDA launch requires explicit --gpus' >&2; exit 2; }
+    IFS=',' read -ra devices <<< "$gpus"
+    [[ "${#devices[@]}" -eq "$nproc" ]] || { echo 'GPU list must match process count' >&2; exit 2; }
+    declare -A seen=()
+    for gpu in "${devices[@]}"; do
+      [[ -n "$gpu" && -z "${seen[$gpu]:-}" ]] || { echo 'GPU IDs must be nonempty and unique' >&2; exit 2; }
+      seen[$gpu]=1
+    done
+    export CUDA_VISIBLE_DEVICES="$gpus";;
+  cpu)
+    [[ -z "$gpus" ]] || { echo 'CPU launch does not accept --gpus' >&2; exit 2; }
+    export CUDA_VISIBLE_DEVICES='';;
+  *) echo 'Explicit --device cpu|cuda required' >&2; exit 2;;
+esac
+exec "$python_bin" -m torch.distributed.run --nnodes=1 --nproc_per_node="$nproc" \
+  --master_addr=127.0.0.1 --master_port="$port" \
+  tools/table_cells/train_sgqs_v2.py "${args[@]}"

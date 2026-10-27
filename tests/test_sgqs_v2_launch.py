@@ -13,7 +13,6 @@ import torch
 import yaml
 
 from tools.table_cells import prepare_sgqs_v2_run as prepare
-from tools.table_cells import train_sgqs_v2 as launch
 
 
 def digest(path):
@@ -150,59 +149,6 @@ class PreparedRunTest(unittest.TestCase):
             self.assertFalse(resolved['HGNetv2']['pretrained'])
             self.assertEqual(resolved['train_dataloader']['total_batch_size'], 64)
 
-    def test_verify_rejects_old_schema_tampering_and_old_evaluation_budget(self):
-        with tempfile.TemporaryDirectory() as temporary:
-            root = Path(temporary)
-            config_path = root / 'resolved.yml'
-            config = prepare.arm_config('v2')
-            runtime = ({'one.py': {'sha256': 'test', 'bytes': 1}}, {'path': 'runtime.sha256'})
-            manifest = {'schema': prepare.SCHEMA, 'experiment_id': 'EXP-TRAIN-008',
-                        'arm': 'v2', 'runtime_files': runtime[0], 'runtime_manifest': runtime[1]}
-            def write():
-                config_path.write_text(yaml.safe_dump(config), encoding='utf-8')
-                manifest['resolved_config_sha256'] = digest(config_path)
-                (root / 'run_manifest.json').write_text(json.dumps(manifest), encoding='utf-8')
-            write()
-            with mock.patch.object(launch, 'load_runtime_files', return_value=runtime):
-                launch.verify_run(['-c', str(config_path)])
-                config_path.write_text('seed: 3', encoding='utf-8')
-                with self.assertRaisesRegex(ValueError, 'config changed'):
-                    launch.verify_run(['-c', str(config_path)])
-                manifest['schema'] = 'sgqs_v2_single_factor_v1'
-                write()
-                with self.assertRaisesRegex(ValueError, 'coverage-allocation'):
-                    launch.verify_run(['-c', str(config_path)])
-                manifest['schema'] = prepare.SCHEMA
-                config['evaluator']['max_dets'] = 300
-                write()
-                with self.assertRaisesRegex(ValueError, 'budget must both remain 640'):
-                    launch.verify_run(['-c', str(config_path)])
-                config['evaluator']['max_dets'] = 640
-                write()
-            with mock.patch.object(launch, 'load_runtime_files', return_value=({}, runtime[1])):
-                with self.assertRaisesRegex(ValueError, 'Runtime changed'):
-                    launch.verify_run(['-c', str(config_path)])
-
-    def test_entrypoint_supplies_seed_and_amp_without_probe_wrapper(self):
-        args = type('Args', (), {'config': Path('run/resolved.yml')})()
-        with mock.patch.object(launch, 'verify_run', return_value=args), \
-                mock.patch.object(launch, 'run_training') as run:
-            launch.main(['-c', str(args.config)])
-            run.assert_called_once_with(args)
-
-    def test_recovery_requires_explicit_new_attempt(self):
-        for flags in (['--recover'], ['--attempt','1'], ['--attempt','-1']):
-            with self.assertRaisesRegex(ValueError,'attempt'):
-                launch.verify_run(['-c','resolved.yml',*flags])
-
-    def test_wrong_topology_cannot_fall_back_to_single_process(self):
-        with mock.patch.dict('os.environ',{'WORLD_SIZE':'1','LOCAL_WORLD_SIZE':'1'}):
-            with self.assertRaisesRegex(RuntimeError,'eight'):
-                launch.require_topology()
-
-    def test_unregistered_cli_override_is_rejected(self):
-        with mock.patch('sys.stderr', new_callable=io.StringIO), self.assertRaises(SystemExit):
-            launch.verify_run(['-c', 'resolved.yml', '-u', 'seed=3'])
 
 
 if __name__ == '__main__':

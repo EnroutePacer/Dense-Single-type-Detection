@@ -13,7 +13,11 @@ import torch.distributed as dist
 from ..misc import dist_utils
 from .allocation import STAT_NAMES
 
-FRAMEWORK_SCHEMA = 'sgqs_v2_training_v1'
+FRAMEWORK_SCHEMA = 'sgqs_v2_training_v2'
+
+
+def checkpoint_name(epoch):
+    return 'checkpoint_init.pth' if epoch == -1 else f'checkpoint{epoch:04d}.pth'
 
 
 def digest(path):
@@ -67,10 +71,11 @@ def main_call(function):
     return reply[0]['result']
 
 
-def capture_rng():
+def capture_rng(device=None):
+    use_cuda = torch.cuda.is_available() and (device is None or torch.device(device).type == 'cuda')
     return {'python': random.getstate(), 'numpy': np.random.get_state(),
             'torch': torch.get_rng_state(),
-            'cuda': torch.cuda.get_rng_state() if torch.cuda.is_available() else None}
+            'cuda': torch.cuda.get_rng_state() if use_cuda else None}
 
 
 def restore_rng(state):
@@ -81,7 +86,7 @@ def restore_rng(state):
 
 
 def checkpoint_payload(solver, run_id, steps_per_epoch):
-    local_rng = capture_rng()
+    local_rng = capture_rng(solver.device)
     rng = [local_rng]
     if dist_utils.is_dist_available_and_initialized():
         rng = [None] * dist_utils.get_world_size()
@@ -97,13 +102,18 @@ def checkpoint_payload(solver, run_id, steps_per_epoch):
         'next_global_step': (solver.last_epoch + 1) * steps_per_epoch,
         'train_summary': getattr(solver, 'train_summary', None),
         'scheduler': solver.cfg.yaml_cfg.get('lrsheduler'),
+        'ema_enabled': solver.ema is not None,
+        'initial_epoch': getattr(solver, 'initial_epoch', solver.last_epoch),
+        'validation_due': getattr(solver, 'validation_due', True),
+        'attempt': solver.attempt,
+        'attempt_start_epoch': getattr(solver, 'attempt_start_epoch', solver.last_epoch + 1),
     }
     return state
 
 
 def save_checkpoint(solver, run_id, steps_per_epoch):
     state = checkpoint_payload(solver, run_id, steps_per_epoch)
-    path = solver.output_dir / f'checkpoint{solver.last_epoch:04d}.pth'
+    path = solver.output_dir / checkpoint_name(solver.last_epoch)
     def write():
         atomic_write(path, lambda stream: torch.save(state, stream), replace=False)
         reference = {'path': path.name, 'epoch': solver.last_epoch,
@@ -116,7 +126,7 @@ def save_checkpoint(solver, run_id, steps_per_epoch):
 
 def validate_recovery(state, run_id, world_size):
     meta = state.get('sgqs_v2_training', {})
-    required = {'model', 'ema', 'optimizer', 'scaler', 'last_epoch'}
+    required = {'model', 'optimizer', 'scaler', 'last_epoch'}
     if not required <= state.keys() or meta.get('schema') != FRAMEWORK_SCHEMA:
         raise ValueError('Not a complete v2 framework checkpoint')
     if meta.get('phase') != 'epoch_boundary' or meta.get('run_id') != run_id:
@@ -125,7 +135,7 @@ def validate_recovery(state, run_id, world_size):
         raise ValueError('Recovery requires the same rank topology')
     if meta.get('next_global_step') != (state['last_epoch'] + 1) * meta.get('steps_per_epoch', -1):
         raise ValueError('Checkpoint epoch/global-step inconsistency')
-    if not isinstance(state['ema'], dict) or 'module' not in state['ema']:
+    if meta.get('ema_enabled') and (not isinstance(state.get('ema'), dict) or 'module' not in state['ema']):
         raise ValueError('Checkpoint EMA is incomplete')
     return meta
 
@@ -133,7 +143,10 @@ def validate_recovery(state, run_id, world_size):
 def latest_checkpoint(run, run_id, world_size):
     # Also finds a complete, atomically renamed file if power failed before its
     # sidecar/latest pointer was committed. Never fall back silently from corruption.
-    paths = sorted(Path(run).glob('checkpoint[0-9][0-9][0-9][0-9].pth'))
+    import re
+    paths = [p for p in Path(run).glob('checkpoint*.pth')
+             if p.name == 'checkpoint_init.pth' or re.fullmatch(r'checkpoint\d+\.pth', p.name)]
+    paths.sort(key=lambda p: -1 if p.name == 'checkpoint_init.pth' else int(p.stem[10:]))
     if not paths:
         raise FileNotFoundError('No epoch-boundary checkpoint available for recovery')
     path = paths[-1]
@@ -144,7 +157,7 @@ def latest_checkpoint(run, run_id, world_size):
             raise ValueError('Recovery checkpoint checksum mismatch')
     state = torch.load(path, map_location='cpu', weights_only=False)
     validate_recovery(state, run_id, world_size)
-    if path.stem != f"checkpoint{state['last_epoch']:04d}":
+    if path.name != checkpoint_name(state['last_epoch']):
         raise ValueError('Checkpoint filename/epoch mismatch')
     return {'path': str(path.resolve()), 'sha256': sha, 'epoch': state['last_epoch']}
 

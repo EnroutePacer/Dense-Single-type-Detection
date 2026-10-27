@@ -8,8 +8,8 @@ import numpy as np
 from faster_coco_eval import COCO, COCOeval_faster
 
 
-def is_local_small(box, image):
-    w, h = box[2] * 640 / image['width'], box[3] * 640 / image['height']
+def is_local_small(box, image, input_size=(640, 640)):
+    w, h = box[2] * input_size[1] / image['width'], box[3] * input_size[0] / image['height']
     return w * h < 32**2 or min(w, h) < 16
 
 
@@ -34,7 +34,7 @@ def dense_image_ids(coco, minimum_gt=301):
                   if sum(not a.get('iscrowd', 0) for a in coco.imgToAnns[image_id]) >= minimum_gt)
 
 
-def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None):
+def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None, input_size=(640, 640)):
     """Accept every prediction, including duplicates and background detections.
 
     Returns AP@[.50:.05:.95], 101-point interpolation, one-to-one non-crowd
@@ -50,10 +50,11 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None):
         raise ValueError('Image cohort contains duplicate or unknown IDs')
     selected = set(population)
     annotations = [a for image_id in population for a in coco.imgToAnns[image_id]]
-    result = {'protocol': 'hybrid640_coco_slice_v1',
+    result = {'protocol': ('hybrid640_coco_slice_v1' if tuple(input_size) == (640, 640)
+                           else 'hybrid_input_coco_slice_v1'), 'input_size': list(input_size),
               'images': len(population),
               'noncrowd_gt': sum(not a.get('iscrowd', 0) for a in annotations),
-              'local_small_gt': sum(is_local_small(a['bbox'], coco.imgs[a['image_id']])
+              'local_small_gt': sum(is_local_small(a['bbox'], coco.imgs[a['image_id']], input_size)
                                     and not a.get('iscrowd', 0) for a in annotations),
               'budgets': {}}
     if not population:
@@ -88,7 +89,7 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None):
     try:
         for members in (annotations, dt.anns.values()):
             for ann in members:
-                ann['area'] = 1. if is_local_small(ann['bbox'], coco.imgs[ann['image_id']]) else 2.
+                ann['area'] = 1. if is_local_small(ann['bbox'], coco.imgs[ann['image_id']], input_size) else 2.
         local = COCOeval_faster(coco, dt, iouType='bbox', print_function=lambda *a: None)
         local.params.imgIds = population
         local.params.maxDets = list(budgets)

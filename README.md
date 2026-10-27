@@ -2,15 +2,19 @@
 
 本仓库是在 [DEIM](https://github.com/ShihuaHuang95/DEIM) 基础上开展的密集单类别目标检测研究。训练入口、Python 包组织和 YAML 配置继承 DEIM 的原生根布局，即 `train.py`、`engine/`、`configs/` 与 `tools/`；这样可以继续使用 DEIM 的训练链路、配置继承和服务器命令，不额外套设会改变 import 或配置路径的源码目录。
 
+## 通用训练入口
+
+SGQS v2 的 [训练框架](engine/sgqs_v2/README.md) 已与具体实验配方解耦。启动参数通过 [命令行](configs/sgqs_v2/SERVER_COMMANDS.md) 显式指定，不强制八卡、640 query、epoch27 或 28+7；支持 scratch / tuning / resume / recover，模型与损失配置由 -c 和 -u 选择。原固定实验命令单独保留在 [配方示例](configs/sgqs_v2/recipes/EXP-TRAIN-008.md)。
+
 ## 当前研究方向
 
 2026-10-24：活跃方案已转为 **SGQS v2：实例覆盖驱动的候选分配**。先完成 [完整设计 M-003](article/methods/M-003_sgqs_v2/README.md)，再覆盖原 `engine/sgqs_v2`、`configs/sgqs_v2` 和对应运行入口。
 
 目标是在密集单类别场景中提高有限 query 预算对不同实例的覆盖，并通过实际减少 Decoder 输入验证性能—计算量取舍。@640 的既有结果不支持继续以“小框整体难收敛”作为已成立前提；Encoder 升分、分布规整或静态过滤也不等于 AP 改善与推理加速。
 
-新方法保留兼容的 owner 几何辅助，将 dense 分类目标改为 IoU、采用全局正样本均值和统一升温；跨阶段 GT 归属用于识别冗余与补位，替换唯一 owner survival。Matcher、DN/DDF、网络模块及训练 K=640 保持原样；不新增推理头。
+新方法保留兼容的 owner 几何辅助，将 dense 分类目标改为 IoU、采用全局正样本均值和统一升温；跨阶段 GT 归属用于识别冗余与补位，替换唯一 owner survival。Matcher、DN/DDF 和网络模块保持原样，不新增推理头；既定实验协议选择 K=640，通用入口允许显式设置 K。
 
-主比较是 `b0 / support / v2`，其中 support 仅关闭新分配项，原 SGQS 可选作参照。训练及主评价预算明确为640；完整 val 对每轮 raw/EMA 输出严格 local-small、COCO各尺度和固定高密度场景指标；额外 K=640/512/384/256 必须真实重跑。
+EXP-TRAIN-008 的主比较是 `b0 / support / v2`，其中 support 仅关闭新分配项，原 SGQS 可选作参照。该实验选择训练及主评价预算640、每轮完整 val 的 raw/EMA 验证及固定高密度子群；通用入口的预算、验证频率、EMA 和子群设置均由命令行指定。额外改变实际 Decoder query 数的 K=640/512/384/256 比较必须真实重跑。
 
 直接入口：[设计与公式](article/methods/M-003_sgqs_v2/README.md)、[实验协议 EXP-TRAIN-008](article/experiments/EXP-TRAIN-008_sgqs-v2-coverage-allocation/README.md)、[配置](configs/sgqs_v2/README.md)、[服务器命令](configs/sgqs_v2/SERVER_COMMANDS.md)。当前未开展新训练，方法收益与加速均未验证。
 

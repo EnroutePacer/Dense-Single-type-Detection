@@ -87,7 +87,9 @@ class TinyTrainer(SGQSV2Trainer):
 def config(root):
     return SimpleNamespace(output_dir=str(root), resume='', lrsheduler='flatcosine',
         lr_gamma=1., epoches=30, warmup_iter=1, flat_epoch=4000000, no_aug_epoch=0,
-        yaml_cfg={'lrsheduler':'flatcosine'}, clip_max_norm=.1, print_freq=10)
+        yaml_cfg={'lrsheduler':'flatcosine', 'training_policy': {
+            'checkpoint_every':1,'eval_every':1,'eval_initial':True,'eval_budgets':[300,640],
+            'dense_min_gt':301,'small_reference_size':[640,640]}}, clip_max_norm=.1, print_freq=10)
 
 
 class FrameworkTest(unittest.TestCase):

@@ -4,25 +4,27 @@
 
 方法公式见 [M-003](../../article/methods/M-003_sgqs_v2/README.md)，命令见 [SERVER_COMMANDS](../../configs/sgqs_v2/SERVER_COMMANDS.md)。本次完善运行和证据保存能力，不改变已确定的 IoS、接收者、溢出门控和损失公式，没有新的精度结论。
 
-## 范围与启动
+## 通用入口、方法配置与实验配方
 
-注册协议：冻结 epoch27 完整状态，续训 epoch28–34；Linux 单机 8 GPU、每卡 8 图、seed 0、AMP/EMA、640 query。它不是任意拓扑的通用训练产品。入口核对初始化、标注、配置、运行源码的 SHA256；恢复要求同一准备结果、代码和拓扑。图像目录须保持同一版本：当前冻结标注哈希，不逐张锁定训练图像内容。
+通用入口不导入 EXP-TRAIN-008、冻结输入清单或 arm 表，不规定 epoch27、八卡、seed0、640 query、AMP/EMA 或调度器。支持单进程 CPU/CUDA、torchrun 多进程；shell 包装器支持单机任意显式进程数，也可直接使用 torchrun 启动 Python 入口。单类型 DFINE 和可追溯 Encoder query 是当前方法/留档的结构要求。
 
-```bash
-bash tools/table_cells/run_sgqs_v2.sh                 # 默认 v2
-bash tools/table_cells/run_sgqs_v2.sh b0 support v2   # 最小公平比较
-# 恢复同一运行，不重新 prepare；再次中断时递增 ATTEMPT。
-RUN="$PWD/outputs/sgqs_v2/v2_e28_r7_seed0" ATTEMPT=1 \
-  bash tools/table_cells/recover_sgqs_v2.sh
-```
+- `configs/sgqs_v2/method.yml` 只定义训练附加方法；`train.yml` 组合模型/数据变换与方法。
+- `train_sgqs_v2.py` 通过命令行指定运行参数；`run_sgqs_v2.sh` 只转发参数、设置设备并启动进程，不分派实验臂、不填数据路径。
+- 固定 28+7 配方放在 [实验示例](../../configs/sgqs_v2/recipes/EXP-TRAIN-008.md)，它调用同一个通用入口。
 
-Linux 文件锁防止同一目录同时训练，进程退出后自动释放。已有 attempt、checkpoint、分片不覆盖。旧 schema 的运行不直接套用新恢复机制，应保留原结果并新建运行。
+新运行必须显式提供 config、数据路径、总 epochs、global train/val batch、workers、seed、AMP/EMA 开关、输入尺寸、query 数、评价 budgets、保存/验证间隔和初始验证开关。v2 还要求显式给出绝对升温起点、升温长度。优化器与方法细节来自命令行选择的 `-c`，使用 `-u optimizer.lr=...` 等覆盖。最终值和原始 CLI 写入 resolved.yml/run_manifest.json，不静默钳回某个实验设置。完整可复制命令见 [SERVER_COMMANDS](../../configs/sgqs_v2/SERVER_COMMANDS.md)。
+
+四种模式：scratch 创建新训练状态；tuning 只导入匹配权重、重新计时；resume 从任意完整 checkpoint 创建新续训运行；recover 继续同一个中断运行。epochs 是绝对终点，例如完成 epoch4 后传 epochs=9，将训练 epoch5–8。scratch 的骨干预训练选项仍来自明确选择的模型配置。
+
+recover 只接受输出目录、设备、拓扑和新 attempt，沿用已记录配置；如果要改参数、换拓扑或延长已完成训练，使用 resume 和新输出目录。新运行只检查 batch 能被实际 world size 整除，不强制某个卡数。文件锁阻止同目录并发，旧 attempt 不覆盖。
+
+旧固定协议运行不能直接用新 schema recover，但可用其完整 checkpoint 作为新 resume 输入。旧 prepare_sgqs_v2_run.py 仅保留为历史协议工具，不是通用入口的依赖。运行时记录实际源码与标注哈希；图像目录应维持同一数据版本，目前不逐图冻结图像内容。
 
 ## 每步与每轮统计
 
 `attempts/NNNN/epochEEEE.steps.jsonl` 每次 optimizer 尝试记录：绝对 epoch/step/global_step、所有加权 loss 原名、诊断指标、各参数组更新前后 LR、AMP scale/跳步、裁剪前总梯度范数和耗时。DN、DDF、Encoder、Decoder 各辅助层损失不折叠。梯度范数是 rank0 同步参数的总梯度范数；溢出记 null，保留跳步事实。
 
-v2 另外记录未加权 dense/bbox/giou/allocation 与统一升温系数；GT 覆盖缺口、可靠代表、保护/筛选各门、接收者、实际 pair、无 pair 图、overflow 数，以及 score/gap 原始和。保存 owner 过滤前后数量和本地 small 的留存数量。训练内 small 指增强后归一化框映射到 640，不能混称未增强验证 GT。
+v2 另外记录未加权 dense/bbox/giou/allocation 与统一升温系数；GT 覆盖缺口、可靠代表、保护/筛选各门、接收者、实际 pair、无 pair 图、overflow 数，以及 score/gap 原始和。保存 owner 过滤前后数量和本地 small 的留存数量。训练内 small 指增强后归一化框映射到该次运行声明的输入尺寸，不能混称未增强验证 GT。
 
 每个 rank 的 `epochEEEE.rankRR.samples.jsonl` 记录主样本 image_id。mosaic 可能额外取图，主 image_id 不是完整增强配方。
 
@@ -41,15 +43,19 @@ JSONL 每行 flush，主逐步记录每 50 步及轮末 fsync；突然断电不�
 
 ## checkpoint 与恢复
 
-先保存本地 `checkpoint0027.pth`，此后保存 0028…0034，共八份，全部保留。每份含 raw model、EMA module/updates/before_start、optimizer、AMP scaler、可序列化 scheduler、last_epoch、各 rank 的 Python/NumPy/PyTorch/CUDA RNG、每轮步数、下一绝对 global_step、run 身份和轮末统计。flatcosine 按冻结配置与绝对步数重建，optimizer 保存实际 LR；恢复校验 loader 长度。没有指标下降自动重载 best、EMA decay 重设或时钟重置。
+新运行先保存初始化边界：scratch/tuning 为 checkpoint_init.pth，resume 为 checkpointEEEE.pth（实际加载的 epoch）。之后按 --checkpoint-every 保存，验证轮与最后一轮总会保存；不自动删除旧 checkpoint。每份包含 raw、optimizer、scaler（关闭 AMP 时为空状态）、启用时的 EMA、原生 scheduler 状态、last_epoch、各 rank RNG、下一绝对 global_step、run 身份、轮末统计及 attempt 起点。
 
-写入：临时文件 → flush/fsync → 原子 rename → SHA sidecar → latest.json。失败不覆盖上一完整轮；恢复选择最高完整命名的 checkpoint，校验失败不静默退回旧轮。如果 rename 成功而 sidecar 尚未写入，可通过内嵌身份接管完整文件。best_raw.json / best_ema.json 是带 epoch、分数、checkpoint SHA 的指针，分别记录整体、本地 small、高密度本地 small 的 AP@640。
+支持配置的原生 scheduler 或 flatcosine，也可不配置 scheduler。原生状态从 checkpoint 还原，flatcosine 按配置/绝对步数重建。没有“指标下降就重载 best”或重设 EMA decay；数据增强阶段切换继续遵循所选配置。
 
-**恢复单位是 epoch 边界。** 每轮先存训练状态、后验证。验证中断只补未完成验证，不重训该轮；训练中断重做未完成轮，部分日志留在旧 attempt，不能并入新完整轮。worker 缓存、增强和 GPU 算子影响数值复现，不承诺任意环境的逐 bit mid-step 恢复。
+写入：临时文件 → flush/fsync → 原子 rename → SHA sidecar → latest.json。失败不覆盖上一完整轮；恢复选择最高完整命名的 checkpoint，校验失败不静默退回旧轮。如果 rename 成功而 sidecar 尚未写入，可通过内嵌身份接管完整文件。best_raw.json / best_ema.json 是带 epoch、分数、checkpoint SHA 的指针，记录已配置预算下整体、本地 small 及实际启用子群的 AP；EMA 关闭时不生成 EMA 文件。
+
+**恢复单位是 epoch 边界。** 每轮先存训练状态、后验证。验证中断只补未完成验证，不重训该轮；训练中断重做最近 checkpoint 之后的轮，重做范围由保存间隔决定。旧 attempt 的未提交/重做日志不能重复计入新运行统计，checkpoint 中的 attempt 与 attempt_start_epoch 用于追溯实际提交区间。worker 缓存、增强和 GPU 算子影响数值复现，不承诺任意环境的逐 bit mid-step 恢复。
 
 ## 完整验证及预测留档
 
-epoch27 初始状态和 epoch28–34，均验证完整 val 的 raw/EMA，共 16 状态/臂。每次给出 @640 主结果、@300 附加结果，COCO 各尺度及本地 hybrid-small 的严格一对一 AP/AR、AP75/AP95；另报告固定标注中非 crowd GT≥301 的高密度子群，空子群为 null。本地 small：640 下 area<32² OR short side<16。
+--eval-initial 决定是否验证起点；--eval-every N 决定周期，非零时最后一轮也验证，0 表示不做后续周期验证。每次保存 raw；--ema 开启时再验证 EMA。--eval-budgets 决定全部评价预算，不预过滤分数。COCO 各尺度、本地 small 均为严格一对一 AP/AR，并给出 AP75/AP95。
+
+本地 small 的面积/短边阈值仍为 32² / 16，映射坐标系来自该次显式输入尺寸；COCO-small 独立报告。只有显式 --dense-min-gt N 才生成对应高密度子群，空子群为 null，不再默认绑定 301。
 
 `validation/epochEEEE/{raw,ema}/` 中，每 128 图保存压缩 NPZ。临时 hook 从同次前向捕获真实 Encoder TopK，校验 source index、anchor 和初始回归框一致，不额外执行 bbox head，不改变推理输出。rank0 checkpoint 的 BN/EMA buffers 临时广播到各 rank，验证后恢复各 rank 原缓冲，避免一个指标混用不同状态；训练 RNG 同样隔离并恢复。
 
@@ -64,14 +70,14 @@ epoch27 初始状态和 epoch28–34，均验证完整 val 的 raw/EMA，共 16 
 
 正式验证按 rank 对图像不补齐分片，避免重复图和近似同分排序差异；合并器仍防御性检查重复预测一致和完整 val 覆盖。分片附 SHA；所有分片及 AP 成功后才写 complete.json，绑定 checkpoint SHA、run 身份、指标和分片。恢复仅复用校验成功的 complete；部分分片留在旧 attempt，新 attempt 重做该状态验证。completed.json 表示训练和配套验证完成。
 
-现有留档支持离线定位/排名、同 GT 堆叠、Encoder→Decoder 去向、阈值过滤、300/640 差异和图像子群 AP 分析。**不包含未入选候选的回归框、Decoder 中间激活、逐 loss 参数梯度**，不能用 loss 数值证明梯度争夺。实际减少 Decoder K、反事实训练机制仍需专门实验，不能以截断 640 输出代替。
+现有留档支持离线定位/排名、同 GT 堆叠、Encoder→Decoder 去向、阈值过滤、所选预算间的差异和图像子群 AP 分析。**不包含未入选候选的回归框、Decoder 中间激活、逐 loss 参数梯度**，不能用 loss 数值证明梯度争夺。实际减少 Decoder K、反事实训练机制仍需专门实验，不能以截断原有输出代替。
 
 ## 布局与成本
 
 ```text
 run/
   resolved.yml, run_manifest.json
-  checkpoint0027.pth … checkpoint0034.pth
+  checkpoint_init.pth, checkpointEEEE.pth
   checkpointEEEE.json, latest.json
   best_raw.json, best_ema.json, completed.json
   attempts/0000/start.json
@@ -83,8 +89,8 @@ run/
   validation/epochEEEE/ema/…
 ```
 
-磁盘需八份完整 checkpoint 加十六份全量验证留档。640 输入常有 8400 dense source；每图每状态数组约 100 KB 未压缩，1000 图×16 状态约 1.6 GB，再加 checkpoint。压缩比例依赖数据。每轮 raw/EMA 全量验证增加时间，这是用当轮留档减少后续重跑，不宣称零记录开销。输出目录需支持文件锁、原子 rename。
+磁盘需求由保存轮数、验证间隔、EMA 开关、图像数和 query 数决定。例如 640 输入/640 query 时每图每状态数组约 100 KB 未压缩。配置更多验证状态会增加时间和空间；压缩比例依赖数据。输出目录需支持文件锁、原子 rename。
 
 ## 验证范围
 
-测试覆盖原子写失败、RNG 还原、群体分母、预测覆盖/去重/校验、hook 不改变真实 D-FINE 输出、保存后验证前中断恢复，以及真实小型 D-FINE/SGQS v2 后续训练的 raw/EMA 一致性；另运行双进程 Gloo 分配测试。当前机器未执行正式八卡 NCCL 和真实数据完整训练，测试不代表精度、吞吐或云端验收。
+测试覆盖原子写失败、RNG 还原、群体分母、预测覆盖/去重/校验、hook 不改变真实 D-FINE 输出、保存后验证前中断恢复，以及真实小型 D-FINE/SGQS v2 后续训练的 raw/EMA 一致性；另运行双进程 Gloo 分配测试，并测试真正通用入口从 epoch0 启动、关闭 AMP/EMA、原生调度器、不同预算/保存间隔和中断恢复。当前机器未执行正式八卡 NCCL 和真实数据完整训练，测试不代表精度、吞吐或云端验收。

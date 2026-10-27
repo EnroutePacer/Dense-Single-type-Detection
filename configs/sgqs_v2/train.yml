@@ -1,0 +1,2 @@
+# Default architecture/data-transform recipe; launch choices are explicit CLI flags.
+__include__: ['../table_cells/dfine_hgnetv2_m_table_cell_fixed640.yml', 'method.yml']

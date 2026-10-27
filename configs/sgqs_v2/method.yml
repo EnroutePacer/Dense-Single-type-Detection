@@ -1,0 +1,34 @@
+# Training-only SGQS v2 method. Runtime choices belong to the CLI.
+criterion: SGQSV2Criterion
+DFINETransformer:
+  sgqs_supervisor:
+    type: SGQSV2Supervisor
+    scale_priors: [32.0, 64.0, 128.0]
+    initial_radius: 1
+    max_radius: 4
+    ignore_radius: 1
+
+SGQSV2Criterion:
+  base_criterion: DEIMCriterion
+  weight_dict:
+    loss_sgqs_dense: 1.0
+    loss_sgqs_bbox: 2.5
+    loss_sgqs_giou: 1.0
+  q_min: 0.25
+  dense_alpha: 0.75
+  dense_gamma: 2.0
+  negative_weight: 1.0
+  start_epoch: 0.0
+  ramp_epochs: 1.0
+  allocation_weight: 0.25
+  iou_threshold: 0.5
+  ambiguity_gap: 0.05
+  teacher_score: 0.5
+  background_score: 0.1
+  margin: 0.2
+  iou_chunk_size: 512
+  # Native grid centers + Decoder intersection / smaller-area for redundancy.
+  redundancy_ios_threshold: 0.8
+  # Used only on images without any executable cross-GT transfer.
+  overflow_tolerance: 10
+  overflow_score_threshold: 0.8

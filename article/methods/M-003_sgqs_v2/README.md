@@ -1,6 +1,6 @@
 # M-003 — SGQS v2：实例覆盖驱动的候选分配
 
-训练生命周期已独立：逐步结构化记录、每轮完整 checkpoint、raw/EMA 全量验证与预测留档，以及 epoch 边界恢复，见 [训练框架 README](../../../engine/sgqs_v2/README.md)。
+训练生命周期已独立，且与固定实验解耦：命令行指定运行参数、保存/验证频率；逐步记录、完整 checkpoint 和预测留档，见 [训练框架 README](../../../engine/sgqs_v2/README.md)。
 
 初版设计：2026-10-24；当前修订：2026-10-27（center_ios_overflow）；依据仓库 119bfe2、EXP-DIAG-006/007 与 baseline_test 的现有导出。状态：implemented / cpu_checked / unvalidated。完整方案先于训练实现写入，随后完成代码与CPU检查；本轮没有运行真实训练。
 
@@ -86,7 +86,7 @@ L_{\mathrm{v2}}=L_{\mathrm{base}}+r(t)\left[
 L_{\mathrm{dense}}+2.5L_{\mathrm{owner-L1}}+L_{\mathrm{owner-GIoU}}+0.25L_{\mathrm{allocate}}\right].
 $$
 
-r(t)=clip((t-28)/1,0,1)，t=epoch+step/epoch_step，绝对epoch，恢复训练不重置时钟。所有新增分支统一升温，处理已观察到的 resume shock；几何/分类/排序都参与该升温。新方案不包含 EFGL 或旧 Decoder Top300 admission 项。
+r(t)=clip((t-t_start)/T,0,1)，t=epoch+step/epoch_step；T=0时采用起点指示函数。t_start和T由命令行显式设置，EXP-TRAIN-008配方选择28和1。使用绝对epoch，恢复训练不重置时钟。所有新增分支统一升温，处理已观察到的 resume shock；几何/分类/排序都参与该升温。新方案不包含 EFGL 或旧 Decoder Top300 admission 项。
 
 support 控制组采用完全相同的 v2 几何、dense、guard与升温，仅 allocation_weight=0且不应用allocation mask。它用于识别新分配项的净作用。
 
@@ -106,7 +106,7 @@ GT>=K时全部query可能被Hungarian标正，从而没有安全donor；不为�
 
 活跃 arms：b0（base）、support（v2无allocation）、v2（完整）；sgqs（原v1）为可选参照。默认只运行v2，最小科学比较为 b0/support/v2。全部同一冻结epoch27 checkpoint（model、EMA、optimizer、scaler）、8x8 global64、epoch28..34。七轮单seed仅筛选，不作为最终论文稳定结论。可选原sgqs保留原来无dense/owner升温的语义，不能称公平隔离新allocation。
 
-训练主预算640。专用框架自动执行每臂×7epoch×raw/EMA完整val，并保存epoch27起点；输出严格一对一COCO各尺度及本地small：输入640后area<32^2 OR shortside<16，@640为主，@300为附加排名诊断。同次前向的候选与最终预测留档，离线矩阵工具用于旧运行或独立复核。旧实验默认300保持。
+本节描述EXP-TRAIN-008配方：训练主预算640，显式选择每臂×7epoch×raw/EMA完整val及epoch27起点；通用框架的周期/预算/EMA开关来自命令行。该配方输出严格一对一COCO各尺度及本地small：输入640后area<32^2 OR shortside<16，@640为主，@300为附加排名诊断。同次前向的候选与最终预测留档，离线矩阵工具用于旧运行或独立复核。旧实验默认300保持。
 
 预注册困难场景：GT数>=301的高密度图片及其中local-small；分别报告全体/该子群AP、AP75/AP95和recall，不把所有small或高密度样本一概宣称困难。按固定annotation决定群组，与模型预测无关。真正“困难实例”泛化结论还需独立固定难例集，当前不把它作为已建立事实。
 

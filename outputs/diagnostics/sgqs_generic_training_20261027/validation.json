@@ -1,0 +1,21 @@
+{
+  "date": "2026-10-27",
+  "scope": "Generic SGQS training entry, explicit CLI runtime settings, experiment recipe separation",
+  "regression": {"command": "python -m unittest discover -s tests -p 'test_*.py' -q", "passed": 164},
+  "final_focused": {"modules": ["test_sgqs_generic_launch", "test_sgqs_v2_launch", "test_sgqs_v2_training"], "passed": 22},
+  "distributed_smoke": {
+    "command": "python tests/sgqs_generic_ddp_smoke.py",
+    "result": "passed",
+    "device": "cpu",
+    "processes": 2,
+    "features": ["generic entry", "epoch zero", "EMA", "native scheduler", "three-image unpadded full validation", "runtime source consistency"]
+  },
+  "shell": {
+    "syntax": "passed",
+    "argument_forwarding": "passed",
+    "checked": ["explicit topology", "configuration overrides", "paths containing spaces", "missing topology rejected"]
+  },
+  "documentation_local_links_checked": 64,
+  "historical_runtime_manifest_entries": 104,
+  "limitations": ["No production GPU/NCCL training executed", "No full real-dataset training or accuracy/throughput claim", "The historical offline matrix evaluator remains experiment-specific"]
+}

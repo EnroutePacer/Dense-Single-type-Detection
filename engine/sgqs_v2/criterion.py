@@ -136,8 +136,9 @@ class SGQSV2Criterion(SGQSCriterion):
             total, small = 0, 0
             for target, ids in zip(targets, data['target_indices']):
                 boxes = target['boxes'][ids].detach()
-                # Declared local definition, normalized geometry mapped to 640.
-                w, h = boxes[:, 2] * 640, boxes[:, 3] * 640
+                # Logging definition; the reference size belongs to the run policy.
+                height, width = metadata.get('small_reference_size', (640, 640))
+                w, h = boxes[:, 2] * width, boxes[:, 3] * height
                 total += len(ids)
                 small += int(((w * h < 32**2) | (torch.minimum(w, h) < 16)).sum())
             return total, small

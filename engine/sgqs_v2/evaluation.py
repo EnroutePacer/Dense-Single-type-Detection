@@ -83,11 +83,12 @@ def verified_result(root, checkpoint_sha):
 @torch.no_grad()
 def validate(solver, checkpoint, kind):
     from tools.table_cells.local_small_eval import evaluate_predictions, dense_image_ids
-    root = solver.output_dir / 'validation' / f'epoch{solver.last_epoch:04d}' / kind
+    boundary = 'initial' if solver.last_epoch == -1 else f'epoch{solver.last_epoch:04d}'
+    root = solver.output_dir / 'validation' / boundary / kind
     cached = main_call(lambda: verified_result(root, checkpoint['sha256']))
     if cached is not None:
         return cached
-    rng = capture_rng()
+    rng = capture_rng(solver.device)
     saved_buffers = []
     try:
         model = dist_utils.de_parallel(solver.model) if kind == 'raw' else solver.ema.module
@@ -148,8 +149,13 @@ def validate(solver, checkpoint, kind):
             predictions = read_predictions(root, shards_all, coco.imgs)
             result = {'epoch': solver.last_epoch, 'state': kind, 'run_id': solver.run_id,
                       'checkpoint_sha256': checkpoint['sha256'], 'shards': shards_all,
-                      'full': evaluate_predictions(coco, predictions),
-                      'dense_ge301': evaluate_predictions(coco, predictions, image_ids=dense_image_ids(coco))}
+                      'full': evaluate_predictions(coco, predictions,
+                          budgets=solver.policy['eval_budgets'], input_size=solver.policy['small_reference_size'])}
+            minimum = solver.policy['dense_min_gt']
+            if minimum is not None:
+                result[f'dense_ge{minimum}'] = evaluate_predictions(coco, predictions,
+                    image_ids=dense_image_ids(coco, minimum), budgets=solver.policy['eval_budgets'],
+                    input_size=solver.policy['small_reference_size'])
             atomic_json(root / 'complete.json', result, replace=False)
             return result
         return main_call(finish)
