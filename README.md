@@ -6,6 +6,8 @@
 
 SGQS v2 的 [训练框架](engine/sgqs_v2/README.md) 已与具体实验配方解耦。启动参数通过 [命令行](configs/sgqs_v2/SERVER_COMMANDS.md) 显式指定，不强制八卡、640 query、epoch27 或 28+7；支持 scratch / tuning / resume / recover，模型与损失配置由 -c 和 -u 选择。原固定实验命令单独保留在 [配方示例](configs/sgqs_v2/recipes/EXP-TRAIN-008.md)。
 
+2026-10-28 修订：source coverage/receiver 使用同一候选的唯一 native 中心与 Encoder IoS≥.8，并保护每GT一个合格来源；bbox训练支持缺少COCO扩展包的固定服务器环境。人工审计、原始报错、兼容路径和验证范围见 [修订诊断](outputs/diagnostics/sgqs_v2_source_coverage_20261028/README.md)。
+
 ## 当前研究方向
 
 2026-10-24：活跃方案已转为 **SGQS v2：实例覆盖驱动的候选分配**。先完成 [完整设计 M-003](article/methods/M-003_sgqs_v2/README.md)，再覆盖原 `engine/sgqs_v2`、`configs/sgqs_v2` 和对应运行入口。

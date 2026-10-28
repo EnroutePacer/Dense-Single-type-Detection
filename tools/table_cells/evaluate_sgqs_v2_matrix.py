@@ -19,8 +19,7 @@ import numpy as np
 import torch
 from PIL import Image
 from torchvision.transforms import v2
-import faster_coco_eval
-from faster_coco_eval import COCO
+from engine.data.dataset.coco_backend import COCO, backend_info
 from engine.core import YAMLConfig
 from engine import sgqs_v2  # noqa: F401
 from tools.table_cells.prepare_probe_subset import sha256
@@ -179,9 +178,10 @@ def main():
                         json.dumps(dense_ids).encode()).hexdigest()}
     args.output.mkdir(parents=True, exist_ok=True)
     protocol_files = ['tools/table_cells/local_small_eval.py',
-                      'tools/table_cells/evaluate_sgqs_v2_matrix.py', 'engine/sgqs_v2/admission.py']
+                      'tools/table_cells/evaluate_sgqs_v2_matrix.py', 'engine/sgqs_v2/admission.py',
+                      'engine/data/dataset/coco_backend.py']
     protocol_hash = hashlib.sha256(''.join(sha256(ROOT/f) for f in protocol_files).encode()).hexdigest()
-    environment = {'torch': torch.__version__, 'coco_eval': faster_coco_eval.__version__,
+    environment = {'torch': torch.__version__, 'coco_eval': backend_info(),
                    'numpy': np.__version__, 'pillow': importlib.metadata.version('pillow'),
                    'torchvision': importlib.metadata.version('torchvision'),
                    'platform': platform.platform(), 'device': args.device,

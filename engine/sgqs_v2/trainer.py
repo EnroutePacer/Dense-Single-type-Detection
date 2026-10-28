@@ -15,6 +15,17 @@ from .runtime import (StepRecorder, atomic_json, digest, main_call, save_checkpo
 from .evaluation import validate
 
 
+def make_grad_scaler(device_type, enabled, **options):
+    """Support the existing CUDA AMP API on PyTorch before torch.amp.GradScaler."""
+    modern = getattr(torch.amp, 'GradScaler', None)
+    if modern is not None:
+        return modern(device_type, enabled=enabled, **options)
+    if device_type != 'cuda' and enabled:
+        raise ValueError('This PyTorch build supports gradient scaling only on CUDA; '
+                         'CPU runs must explicitly use --no-amp')
+    return torch.cuda.amp.GradScaler(enabled=enabled, **options)
+
+
 class SGQSV2Trainer(BaseSolver):
     def __init__(self, cfg, run_id, attempt=0, recovery=False):
         super().__init__(cfg)
@@ -39,7 +50,7 @@ class SGQSV2Trainer(BaseSolver):
         self.ema = self.to(cfg.ema, self.device)
         options = {k: v for k, v in cfg.yaml_cfg.get('scaler', {}).items()
                    if k not in ('type', 'enabled', 'device')}
-        self.scaler = torch.amp.GradScaler(self.device.type, enabled=cfg.use_amp, **options)
+        self.scaler = make_grad_scaler(self.device.type, enabled=cfg.use_amp, **options)
         self.last_epoch = cfg.last_epoch
         self.output_dir = Path(cfg.output_dir)
         self.writer = None  # Structured per-step artifacts are the durable interface.

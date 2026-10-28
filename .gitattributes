@@ -126,3 +126,7 @@ baseline_test/**/*.txt text eol=lf
 # Repository documentation uses LF in the index on Windows and Linux.
 README.md text eol=lf
 .gitattributes text eol=lf
+engine/data/dataset/_coco_reference/*.txt text eol=lf
+engine/data/dataset/_coco_reference/*.md text eol=lf
+# Immutable user-supplied server traceback.
+outputs/diagnostics/sgqs_v2_source_coverage_20261028/server_console.log -text -diff

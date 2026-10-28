@@ -3,7 +3,7 @@ import unittest
 
 import numpy as np
 import torch
-from faster_coco_eval import COCO
+from engine.data.dataset.coco_backend import COCO
 
 from tools.table_cells.local_small_eval import evaluate_predictions, is_local_small, fixed_box_exchange, dense_image_ids
 from tools.table_cells.evaluate_sgqs_v2_matrix import jobs

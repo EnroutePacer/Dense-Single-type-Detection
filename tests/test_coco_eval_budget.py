@@ -1,7 +1,7 @@
 import unittest
 import torch
 
-from faster_coco_eval import COCO
+from engine.data.dataset.coco_backend import COCO
 from engine.data.dataset.coco_eval import CocoEvaluator
 
 

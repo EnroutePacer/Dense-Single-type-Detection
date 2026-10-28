@@ -43,11 +43,13 @@ allowed_runtime_delta:
 
 compatible_runtime_deltas:
   engine/data/dataset/coco_eval.py:
-    runtime_sha256: 0255f2a61371779199a4712671e52bdb7964f3861a7eac8b484ca78a64d1057c
-    purpose: configurable_evaluation_budget_for_M003_with_legacy_default_300
+    runtime_sha256: c542832883707efe64776517684c424b676f7fb9db4c7fad95a79c58b31efa97
+    purpose: configurable_budget_and_coco_backend_fallback_with_legacy_default_300
     constraints:
       - default constructor and cleanup retain maxDets [1, 10, 300]
-      - only new SGQS v2 configs explicitly set max_dets 640
+      - explicit max_dets remains authoritative across backend selection and cleanup
+      - optional standard or bundled bbox COCO backend; no server package installation
+      - distributed image deduplication preserves category/area/image axes
       - no training matching or loss equation changes
 
 resume_screen:

@@ -2,7 +2,9 @@
 
 本目录提供训练时的几何支持、候选分配，以及独立训练生命周期。它复用 DEIM 模型、数据、原始损失和 optimizer，拥有自己的启动校验、训练循环、验证、统计与恢复逻辑；不修改推理结构，不接入旧监督探针包装器。B0、support、完整 v2、可选旧 SGQS 使用同一记录和验证策略。
 
-方法公式见 [M-003](../../article/methods/M-003_sgqs_v2/README.md)，命令见 [SERVER_COMMANDS](../../configs/sgqs_v2/SERVER_COMMANDS.md)。本次完善运行和证据保存能力，不改变已确定的 IoS、接收者、溢出门控和损失公式，没有新的精度结论。
+方法公式见 [M-003](../../article/methods/M-003_sgqs_v2/README.md)，命令见 [SERVER_COMMANDS](../../configs/sgqs_v2/SERVER_COMMANDS.md)。2026-10-28 修订将 source coverage 和外部接收者统一为“同一候选的 native anchor 中心唯一落入 GT，且未裁剪 Encoder 框 IoS≥0.8”，并固定保护每个已覆盖 GT 的一个合格来源。此前的 Decoder IoS 冗余、无接收者 overflow 与总损失权重保留；没有新的精度结论。
+
+`coverage_ios_threshold` 独立于 Decoder 的 `redundancy_ios_threshold`。IoS 为交集面积除以两框面积的较小值；面积比和跨 GT Encoder IoS 仅记录，不新增硬门槛。完全无中心、有中心但全歧义、有唯一中心但 IoS 不足分别统计；只有 Top-K 外存在合格来源才给 rescue 排序监督。现有 owner/base 回归不变，无合格 receiver 时不强行升分，也不把这些 geometry failure 宣称为已有专用回归监督。
 
 ## 通用入口、方法配置与实验配方
 
@@ -24,7 +26,9 @@ recover 只接受输出目录、设备、拓扑和新 attempt，沿用已记录�
 
 `attempts/NNNN/epochEEEE.steps.jsonl` 每次 optimizer 尝试记录：绝对 epoch/step/global_step、所有加权 loss 原名、诊断指标、各参数组更新前后 LR、AMP scale/跳步、裁剪前总梯度范数和耗时。DN、DDF、Encoder、Decoder 各辅助层损失不折叠。梯度范数是 rank0 同步参数的总梯度范数；溢出记 null，保留跳步事实。
 
-v2 另外记录未加权 dense/bbox/giou/allocation 与统一升温系数；GT 覆盖缺口、可靠代表、保护/筛选各门、接收者、实际 pair、无 pair 图、overflow 数，以及 score/gap 原始和。保存 owner 过滤前后数量和本地 small 的留存数量。训练内 small 指增强后归一化框映射到该次运行声明的输入尺寸，不能混称未增强验证 GT。
+v2 另外记录未加权 dense/bbox/giou/allocation 与统一升温系数；GT 来源覆盖缺口、可靠代表、保护/筛选各门、接收者、实际 pair、无 pair 图、overflow 数，以及 score/gap 原始和。保存 owner 过滤前后数量和本地 small 的留存数量。训练内 small 指增强后归一化框映射到该次运行声明的输入尺寸，不能混称未增强验证 GT。
+
+新口径标记 `v2_source_coverage_version=2`。`selected_no_center_gt`、`selected_ambiguous_only_gt`、`selected_low_ios_gt` 三类缺失互斥且合计为 `missing_gt`，并记录本地 small 分组。`no_geometry_gt` 指整个有效 dense 池没有中心+Encoder IoS 合格来源，`dense_no_unique_center_gt` 单列没有唯一来源中心的 GT。旧 IoU coverage 及新旧判据交叉计数只用于对照，不能与旧运行的同名 coverage 混用。另记录入选合格来源和 rescue 接收者的面积比、跨 GT Encoder IoS 原始和及分母，以及固定来源代表保护数量。
 
 每个 rank 的 `epochEEEE.rankRR.samples.jsonl` 记录主样本 image_id。mosaic 可能额外取图，主 image_id 不是完整增强配方。
 

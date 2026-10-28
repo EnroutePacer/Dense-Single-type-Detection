@@ -5,7 +5,7 @@ Real bbox coordinates and IoUs are never changed. Apply maxDets before grouping.
 Unmatched out-of-group detections are ignored, exactly as for COCO area slices.
 """
 import numpy as np
-from faster_coco_eval import COCO, COCOeval_faster
+from engine.data.dataset.coco_backend import make_evaluator, load_results, backend_info
 
 
 def is_local_small(box, image, input_size=(640, 640)):
@@ -52,7 +52,7 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None, 
     annotations = [a for image_id in population for a in coco.imgToAnns[image_id]]
     result = {'protocol': ('hybrid640_coco_slice_v1' if tuple(input_size) == (640, 640)
                            else 'hybrid_input_coco_slice_v1'), 'input_size': list(input_size),
-              'images': len(population),
+              'images': len(population), 'coco_backend': backend_info(),
               'noncrowd_gt': sum(not a.get('iscrowd', 0) for a in annotations),
               'local_small_gt': sum(is_local_small(a['bbox'], coco.imgs[a['image_id']], input_size)
                                     and not a.get('iscrowd', 0) for a in annotations),
@@ -66,14 +66,8 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None, 
         predictions = (predictions[np.isin(predictions[:, 0], population)]
                        if isinstance(predictions, np.ndarray)
                        else [p for p in predictions if p['image_id'] in selected])
-    if len(predictions):
-        dt = coco.loadRes(predictions)
-    else:
-        dt = COCO()
-        dt.dataset = {'images': list(coco.imgs.values()),
-                      'categories': list(coco.cats.values()), 'annotations': []}
-        dt.createIndex()
-    ev = COCOeval_faster(coco, dt, iouType='bbox', print_function=lambda *a: None)
+    dt = load_results(coco, predictions)
+    ev = make_evaluator(coco, dt, iouType='bbox', print_function=lambda *a: None)
     ev.params.imgIds = population
     ev.params.maxDets = list(budgets)
     ev.params.iouThrs = np.linspace(.5, .95, 10)
@@ -90,7 +84,7 @@ def evaluate_predictions(coco, predictions, budgets=(300, 640), image_ids=None, 
         for members in (annotations, dt.anns.values()):
             for ann in members:
                 ann['area'] = 1. if is_local_small(ann['bbox'], coco.imgs[ann['image_id']], input_size) else 2.
-        local = COCOeval_faster(coco, dt, iouType='bbox', print_function=lambda *a: None)
+        local = make_evaluator(coco, dt, iouType='bbox', print_function=lambda *a: None)
         local.params.imgIds = population
         local.params.maxDets = list(budgets)
         local.params.iouThrs = np.linspace(.5, .95, 10)

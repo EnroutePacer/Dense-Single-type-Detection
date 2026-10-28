@@ -12,7 +12,7 @@ from unittest import mock
 from PIL import Image
 import torch
 from torch import nn
-from faster_coco_eval import COCO
+from engine.data.dataset.coco_backend import COCO
 
 from engine.deim.dfine_decoder import DFINETransformer
 from tools.table_cells.evaluate_sgqs_v2_matrix import main, predict, set_query_budget

@@ -20,14 +20,15 @@ class SGQSV2Criterion(SGQSCriterion):
                  iou_threshold=.5, ambiguity_gap=.05, teacher_score=.5,
                  background_score=.1, margin=.2, iou_chunk_size=512,
                  redundancy_ios_threshold=.8, overflow_tolerance=10,
-                 overflow_score_threshold=.8):
+                 overflow_score_threshold=.8, coverage_ios_threshold=.8):
         required = {'loss_sgqs_dense', 'loss_sgqs_bbox', 'loss_sgqs_giou'}
         if set(weight_dict) != required:
             raise ValueError('v2 requires exactly dense/bbox/giou weights; no owner survival')
         scalars = [*weight_dict.values(), q_min, dense_alpha, dense_gamma,
                    negative_weight, start_epoch, ramp_epochs, allocation_weight,
                    iou_threshold, ambiguity_gap, teacher_score, background_score, margin,
-                   redundancy_ios_threshold, overflow_tolerance, overflow_score_threshold]
+                   redundancy_ios_threshold, overflow_tolerance, overflow_score_threshold,
+                   coverage_ios_threshold]
         if not all(math.isfinite(float(v)) and float(v) >= 0 for v in scalars):
             raise ValueError('SGQS v2 parameters must be finite and non-negative')
         if not 0 < iou_threshold <= 1 or not 0 < ambiguity_gap <= 1:
@@ -36,6 +37,8 @@ class SGQSV2Criterion(SGQSCriterion):
             raise ValueError('Require 0 <= background_score < teacher_score <= 1')
         if not 0 < redundancy_ios_threshold <= 1 or not 0 < overflow_score_threshold < 1:
             raise ValueError('Require IoS in (0, 1] and overflow score in (0, 1)')
+        if not 0 < coverage_ios_threshold <= 1:
+            raise ValueError('Coverage IoS threshold must be in (0, 1]')
         if isinstance(overflow_tolerance, bool) or int(overflow_tolerance) != overflow_tolerance:
             raise ValueError('overflow_tolerance must be a non-negative integer')
         if isinstance(iou_chunk_size, bool) or int(iou_chunk_size) != iou_chunk_size or iou_chunk_size < 1:
@@ -52,6 +55,7 @@ class SGQSV2Criterion(SGQSCriterion):
             background_score=float(background_score), margin=self.margin,
             iou_chunk_size=int(iou_chunk_size),
             redundancy_ios_threshold=float(redundancy_ios_threshold),
+            coverage_ios_threshold=float(coverage_ios_threshold),
             overflow_tolerance=int(overflow_tolerance),
             overflow_score_threshold=self.overflow_score_threshold)
 
@@ -149,6 +153,7 @@ class SGQSV2Criterion(SGQSCriterion):
             device=payload['dense_logits'].device, dtype=torch.float32)
         records = self.base_criterion.get_encoder_supervision()
         pairs, overflow, stats = build_allocation(payload, outputs, targets, captured[0], records[0],
+                                       small_reference_size=metadata.get('small_reference_size', (640, 640)),
                                        enabled=self.allocation_weight > 0, **self.allocation_options)
         payload = dict(payload)
         payload['classification_skip'] = torch.zeros_like(payload['valid_mask'], dtype=torch.bool)
@@ -186,11 +191,17 @@ class SGQSV2Criterion(SGQSCriterion):
         # Global sums give interpretable denominators, not per-rank mean-of-means.
         metrics = {f'v2_{name}': value for name, value in values.items()}
         metrics.update(v2_ramp=torch.tensor(ramp, device=device),
+            v2_source_coverage_version=torch.tensor(2., device=device),
             v2_pair_count=pair_count, v2_pairs_per_image=pair_count / images,
             v2_allocation_count=pair_count + values['overflow_penalized'],
             v2_overflow_score=values['overflow_score_sum'] / values['overflow_penalized'].clamp_min(1.),
             v2_donor_utilization=pair_count / values['donor_available'].clamp_min(1.),
             v2_selected_gt_coverage=values['selected_covered_gt'] / values['gt'].clamp_min(1.),
+            v2_small_selected_gt_coverage=values['small_selected_covered_gt'] / values['small_gt'].clamp_min(1.),
+            v2_selected_source_area_ratio=values['selected_source_area_ratio_sum'] / values['selected_source_qualified'].clamp_min(1.),
+            v2_selected_source_cross_ios=values['selected_source_cross_ios_sum'] / values['selected_source_qualified'].clamp_min(1.),
+            v2_rescue_area_ratio=values['rescue_area_ratio_sum'] / values['rescue_pairs'].clamp_min(1.),
+            v2_rescue_cross_ios=values['rescue_cross_ios_sum'] / values['rescue_pairs'].clamp_min(1.),
             v2_pair_logit_gap=values['pair_gap_sum'] / pair_count.clamp_min(1.),
             v2_donor_score=values['donor_score_sum'] / pair_count.clamp_min(1.),
             v2_rescue_score=values['rescue_score_sum'] / values['rescue_pairs'].clamp_min(1.),

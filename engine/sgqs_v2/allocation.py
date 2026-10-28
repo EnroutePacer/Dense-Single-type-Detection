@@ -9,6 +9,14 @@ from ..misc.box_ops import elementwise_box_iou
 
 STAT_NAMES = (
     'images', 'gt', 'selected_queries', 'selected_covered_gt', 'missing_gt',
+    'selected_no_center_gt', 'selected_ambiguous_only_gt', 'selected_low_ios_gt',
+    'dense_no_unique_center_gt', 'legacy_iou_covered_gt', 'iou_only_covered_gt',
+    'source_only_covered_gt', 'source_qualified', 'source_center_ambiguous',
+    'selected_source_qualified', 'selected_source_area_ratio_sum',
+    'selected_source_cross_ios_sum', 'selected_source_cross_ios_ge_threshold',
+    'source_representatives', 'donor_source_protected',
+    'small_gt', 'small_selected_covered_gt', 'small_missing_no_center_gt',
+    'small_missing_ambiguous_gt', 'small_missing_low_ios_gt',
     'rescue_available_gt', 'no_geometry_gt', 'reliable_representatives',
     'stage_disagreement', 'donor_geometric', 'donor_cross_gt_overlap',
     'donor_final_protected', 'donor_encoder_protected', 'donor_owner_protected',
@@ -18,6 +26,7 @@ STAT_NAMES = (
     'overflow_penalized', 'overflow_score_sum',
     'rescue_pairs', 'prefix_pairs', 'pair_gap_sum',
     'donor_score_sum', 'rescue_score_sum', 'prefix_score_sum', 'keeper_score_sum',
+    'rescue_area_ratio_sum', 'rescue_cross_ios_sum',
 )
 
 
@@ -80,6 +89,65 @@ def center_assignment(centers, gt, valid, chunk_size=512):
     return owner, ambiguous
 
 
+@torch.no_grad()
+def source_coverage(centers, boxes, gt, valid, selected, ios_threshold=.8,
+                    chunk_size=512):
+    """Native-center ownership AND Encoder IoS, on the same source candidate.
+
+    IoS is intersection / min(area(E), area(G)); boxes are not clipped.
+    Center ambiguity abstains. Other-GT IoS and area ratio are diagnostics,
+    not extra acceptance gates. In particular no best-IoS assignment is used.
+    """
+    centers, boxes, gt = (x.detach().float() for x in (centers, boxes, gt))
+    valid = valid.bool()
+    n, g = len(boxes), len(gt)
+    if centers.shape != (n, 2) or boxes.shape != (n, 4) or gt.shape != (g, 4):
+        raise ValueError('Source coverage expects native Nx2 centers and cxcywh boxes')
+    if valid.shape != (n,) or not 0 < ios_threshold <= 1 or chunk_size < 1:
+        raise ValueError('Invalid source coverage mask, IoS threshold or chunk size')
+    center_gt, ambiguous = center_assignment(centers, gt, valid, chunk_size)
+    ios, ratio, cross_ios = (boxes.new_zeros(n) for _ in range(3))
+    raw_selected = torch.zeros(g, dtype=torch.bool, device=boxes.device)
+    in_selected = torch.zeros(n, dtype=torch.bool, device=boxes.device)
+    in_selected[selected] = True
+    if g:
+        xy, truth = box_cxcywh_to_xyxy(boxes), box_cxcywh_to_xyxy(gt)
+        gt_area = (truth[:, 2:] - truth[:, :2]).clamp_min(0).prod(-1)
+        for start in range(0, n, chunk_size):
+            end = min(start + chunk_size, n)
+            points = centers[start:end, None]
+            inside = ((points >= truth[None, :, :2]) & (points <= truth[None, :, 2:])).all(-1)
+            raw_selected |= (inside & (valid[start:end] & in_selected[start:end])[:, None]).any(0)
+            local = xy[start:end]
+            area = (local[:, 2:] - local[:, :2]).clamp_min(0).prod(-1)
+            wh = (torch.minimum(local[:, None, 2:], truth[None, :, 2:])
+                  - torch.maximum(local[:, None, :2], truth[None, :, :2])).clamp_min(0)
+            overlap = wh.prod(-1) / torch.minimum(area[:, None], gt_area).clamp_min(1e-12)
+            own = center_gt[start:end]
+            rows = torch.arange(end - start, device=boxes.device)
+            assigned = own >= 0
+            own_ios = overlap[rows, own.clamp_min(0)]
+            ios[start:end] = torch.where(assigned, own_ios, 0.)
+            ratio[start:end] = torch.where(assigned, area / gt_area[own.clamp_min(0)].clamp_min(1e-12), 0.)
+            overlap[rows, own.clamp_min(0)] = 0.
+            cross_ios[start:end] = torch.where(assigned, overlap.amax(-1), 0.)
+    qualified = torch.where((center_gt >= 0) & (ios >= ios_threshold), center_gt, -1)
+
+    def covered(owners, subset):
+        result = torch.zeros(g, dtype=torch.bool, device=boxes.device)
+        indices = owners[subset]
+        result[indices[indices >= 0]] = True
+        return result
+
+    return dict(center_gt=center_gt, ambiguous=ambiguous, qualified_gt=qualified,
+                ios=ios, area_ratio=ratio, cross_gt_ios=cross_ios,
+                selected_covered=covered(qualified, selected),
+                dense_covered=covered(qualified, valid),
+                selected_center_covered=covered(center_gt, selected),
+                dense_center_covered=covered(center_gt, valid),
+                selected_raw_center_covered=raw_selected)
+
+
 def _target_map(indices, count, device):
     result = torch.full((count,), -1, dtype=torch.long, device=device)
     src, dst = indices
@@ -93,6 +161,7 @@ def build_allocation(payload, outputs, targets, final_indices, encoder_record,
                      background_score=.1, margin=.2, iou_chunk_size=512,
                      redundancy_ios_threshold=.8, overflow_tolerance=10,
                      overflow_score_threshold=.8,
+                     coverage_ios_threshold=.8, small_reference_size=(640, 640),
                      enabled=True):
     """Return transfer pairs, receiver-free overflow sources, and metric sums.
 
@@ -137,16 +206,19 @@ def build_allocation(payload, outputs, targets, final_indices, encoder_record,
         stats['images'] += 1
         stats['gt'] += g
         stats['selected_queries'] += k
-        enc_owner, enc_best, enc_second, dense_covered = geometry_assignment(
+        enc_owner, enc_best, enc_second, _ = geometry_assignment(
             boxes[batch], gt, valid[batch], iou_threshold, ambiguity_gap, iou_chunk_size)
-        _, _, _, selected_covered = geometry_assignment(
+        _, _, _, legacy_covered = geometry_assignment(
             boxes[batch, ids], gt, torch.ones(k, dtype=torch.bool, device=ids.device),
             iou_threshold, ambiguity_gap, iou_chunk_size)
         dec_owner, dec_best, dec_second, _ = geometry_assignment(
             dec_boxes[batch], gt, torch.ones(k, dtype=torch.bool, device=ids.device),
             iou_threshold, ambiguity_gap, iou_chunk_size)
-        center_gt, ambiguous_center = center_assignment(
-            centers[batch, ids], gt, valid[batch, ids], iou_chunk_size)
+        source = source_coverage(centers[batch], boxes[batch], gt, valid[batch], ids,
+                                 coverage_ios_threshold, iou_chunk_size)
+        selected_covered = source['selected_covered']
+        source_gt = source['qualified_gt']
+        center_gt, ambiguous_center = source['center_gt'][ids], source['ambiguous'][ids]
         ios_owner, _, ios_second, _ = geometry_assignment(
             dec_boxes[batch], gt, valid[batch, ids], redundancy_ios_threshold,
             ambiguity_gap, iou_chunk_size, metric='ios')
@@ -161,9 +233,52 @@ def build_allocation(payload, outputs, targets, final_indices, encoder_record,
                     & (dec_scores[batch] >= teacher_score))
         represented = torch.zeros(g, dtype=torch.bool, device=ids.device)
         represented[final_gt[reliable]] = True
+        # Fix a source representative BEFORE transfer/overflow selection. A
+        # reliable Decoder keeper with IoU >= .5 need not itself have IoS >= .8.
+        # Prefer that keeper when qualified, otherwise preserve the best-score
+        # qualified selected source. Never demote every valid source together.
+        source_protected = torch.zeros(k, dtype=torch.bool, device=ids.device)
+        qualified_queries = torch.nonzero(source_gt[ids] >= 0, as_tuple=True)[0]
+        ordered = qualified_queries[scores[ids[qualified_queries]].argsort(descending=True, stable=True)]
+        preferred = ordered[reliable[ordered]]
+        remaining = ordered[~reliable[ordered]]
+        source_seen, protected_queries = set(), []
+        source_gt_cpu = source_gt[ids].tolist()
+        for query in torch.cat([preferred, remaining]).tolist():
+            gj = source_gt_cpu[query]
+            if gj not in source_seen:
+                protected_queries.append(query)
+                source_seen.add(gj)
+        source_protected[torch.tensor(protected_queries, dtype=torch.long, device=ids.device)] = True
+        stats['source_representatives'] += source_protected.sum()
         stats['selected_covered_gt'] += selected_covered.sum()
         stats['missing_gt'] += (~selected_covered).sum()
-        stats['no_geometry_gt'] += (~dense_covered).sum()
+        no_center = ~source['selected_raw_center_covered']
+        ambiguous_only = source['selected_raw_center_covered'] & ~source['selected_center_covered']
+        low_ios = source['selected_center_covered'] & ~selected_covered
+        stats['selected_no_center_gt'] += no_center.sum()
+        stats['selected_ambiguous_only_gt'] += ambiguous_only.sum()
+        stats['selected_low_ios_gt'] += low_ios.sum()
+        stats['dense_no_unique_center_gt'] += (~source['dense_center_covered']).sum()
+        stats['no_geometry_gt'] += (~source['dense_covered']).sum()
+        stats['legacy_iou_covered_gt'] += legacy_covered.sum()
+        stats['iou_only_covered_gt'] += (legacy_covered & ~selected_covered).sum()
+        stats['source_only_covered_gt'] += (selected_covered & ~legacy_covered).sum()
+        stats['source_qualified'] += (source_gt >= 0).sum()
+        stats['source_center_ambiguous'] += source['ambiguous'].sum()
+        qualified_ids = ids[source_gt[ids] >= 0]
+        stats['selected_source_qualified'] += len(qualified_ids)
+        stats['selected_source_area_ratio_sum'] += source['area_ratio'][qualified_ids].sum()
+        stats['selected_source_cross_ios_sum'] += source['cross_gt_ios'][qualified_ids].sum()
+        stats['selected_source_cross_ios_ge_threshold'] += (source['cross_gt_ios'][qualified_ids] >= coverage_ios_threshold).sum()
+        height, width = small_reference_size
+        gw, gh = gt[:, 2] * width, gt[:, 3] * height
+        small = (gw * gh < 32**2) | (torch.minimum(gw, gh) < 16)
+        stats['small_gt'] += small.sum()
+        stats['small_selected_covered_gt'] += (small & selected_covered).sum()
+        stats['small_missing_no_center_gt'] += (small & no_center).sum()
+        stats['small_missing_ambiguous_gt'] += (small & ambiguous_only).sum()
+        stats['small_missing_low_ios_gt'] += (small & low_ios).sum()
         stats['reliable_representatives'] += reliable.sum()
         stats['keeper_score_sum'] += dec_scores[batch, reliable].sum()
         stats['stage_disagreement'] += ((center_gt >= 0) & (ios_owner >= 0)
@@ -184,6 +299,7 @@ def build_allocation(payload, outputs, targets, final_indices, encoder_record,
             ('donor_final_protected', final_gt >= 0),
             ('donor_encoder_protected', cls_gt >= 0),
             ('donor_owner_protected', owner_gt[ids] >= 0),
+            ('donor_source_protected', source_protected),
             ('donor_go_conflict', (go_gt >= 0) & (go_gt != center_gt)),
         )
         for name, blocked in gates:
@@ -196,12 +312,12 @@ def build_allocation(payload, outputs, targets, final_indices, encoder_record,
         inside[ids] = True
         missing = torch.zeros(n, dtype=torch.bool, device=ids.device)
         if g:
-            missing = (enc_owner >= 0) & ~selected_covered[enc_owner.clamp_min(0)]
+            missing = (source_gt >= 0) & ~selected_covered[source_gt.clamp_min(0)]
         rescue_candidates = torch.nonzero(valid[batch] & ~inside & missing, as_tuple=True)[0]
         rescue_candidates = rescue_candidates[scores[rescue_candidates].argsort(descending=True, stable=True)]
         # A few bulk transfers avoid thousands of CUDA scalar synchronizations
         # in the deterministic, non-differentiable routing loop.
-        cpu_scores, cpu_owner = scores.tolist(), enc_owner.tolist()
+        cpu_scores, cpu_owner = scores.tolist(), source_gt.tolist()
         cpu_ids, cpu_final = ids.tolist(), final_gt.tolist()
         cpu_center = center_gt.tolist()
         receivers, receiver_gt, rescue_flags, seen = [], [], [], set()
@@ -280,6 +396,8 @@ def build_allocation(payload, outputs, targets, final_indices, encoder_record,
         stats['pair_gap_sum'] += (scores[i] - scores[j]).sum()
         stats['donor_score_sum'] += scores[i].sigmoid().sum()
         stats['rescue_score_sum'] += scores[j[rescue]].sigmoid().sum()
+        stats['rescue_area_ratio_sum'] += source['area_ratio'][j[rescue]].sum()
+        stats['rescue_cross_ios_sum'] += source['cross_gt_ios'][j[rescue]].sum()
         stats['prefix_score_sum'] += scores[j[~rescue]].sigmoid().sum()
     return pairs, overflow, stats
 

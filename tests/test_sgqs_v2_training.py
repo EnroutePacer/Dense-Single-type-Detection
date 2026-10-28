@@ -9,7 +9,7 @@ from unittest import mock
 
 import numpy as np
 import torch
-from faster_coco_eval import COCO
+from engine.data.dataset.coco_backend import COCO
 
 from engine.sgqs_v2.runtime import (atomic_write, atomic_json, capture_rng, restore_rng,
     StepRecorder, latest_checkpoint, validate_recovery, digest, require_finite)

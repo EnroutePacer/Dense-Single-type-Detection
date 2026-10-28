@@ -195,6 +195,11 @@ class StepRecorder:
             return self.counts.get(numerator, 0.) / d if d else None
         rates = {
             'selected_gt_coverage': ratio('v2_selected_covered_gt', 'v2_gt'),
+            'small_selected_gt_coverage': ratio('v2_small_selected_covered_gt', 'v2_small_gt'),
+            'selected_source_area_ratio': ratio('v2_selected_source_area_ratio_sum', 'v2_selected_source_qualified'),
+            'selected_source_cross_ios': ratio('v2_selected_source_cross_ios_sum', 'v2_selected_source_qualified'),
+            'rescue_area_ratio': ratio('v2_rescue_area_ratio_sum', 'v2_rescue_pairs'),
+            'rescue_cross_ios': ratio('v2_rescue_cross_ios_sum', 'v2_rescue_pairs'),
             'owner_iou': ratio('v2_owner_iou_sum', 'v2_owners'),
             'rescue_score': ratio('v2_rescue_score_sum', 'v2_rescue_pairs'),
             'prefix_score': ratio('v2_prefix_score_sum', 'v2_prefix_pairs'),

@@ -1,0 +1,62 @@
+{
+  "date": "2026-10-28",
+  "base_commit": "ee21f2f",
+  "scope": "source_coverage_and_fixed_environment_code_checks",
+  "environment": {
+    "python": "3.13.12",
+    "torch": "2.13.0+cpu",
+    "platform": "Windows-11-10.0.26200-SP0",
+    "cuda_available": false
+  },
+  "unittest": {
+    "passed": 190,
+    "failed": 0,
+    "skipped": 0,
+    "command": "python -m unittest discover -s tests -p 'test_*.py' -q",
+    "duration_seconds": 51.51
+  },
+  "source_coverage": {
+    "new_tests": 19,
+    "original_allocation_redundancy_tests": 34,
+    "definition": "unique_native_center_and_same_encoder_IoS_ge_0.8",
+    "preserves_source_representative": true
+  },
+  "coco_backends": {
+    "tested": [
+      "faster_coco_eval",
+      "pycocotools",
+      "bundled_coco_bbox"
+    ],
+    "missing_packages_simulated_by": "subprocess import blocking, including spawned DDP ranks",
+    "numeric_parity": "summary AP/AR and local-small metrics within 1e-12 on deterministic fixtures",
+    "cases": [
+      "301 GT at maxDets300/640",
+      "crowd, score ties, duplicates, empty predictions",
+      "dataset image and annotations loading",
+      "native training + raw/EMA validation + interruption/recovery",
+      "real generic entry with legacy GradScaler API shape"
+    ]
+  },
+  "ddp": {
+    "ranks": 2,
+    "backend": "gloo",
+    "results": [
+      "sparse transfer / overflow / mixed / empty gradients and SGD match pooled",
+      "generic training + EMA + unpadded 3-image full validation",
+      "generic training + raw/EMA validation with both COCO packages blocked"
+    ]
+  },
+  "launchers_bash_syntax": "passed",
+  "runtime_manifest": {
+    "path": "configs/sgqs_v2/runtime_files.sha256",
+    "files": 111,
+    "sha256": "fedc1c3df1eb09e135010bbff3e39358b62151fe56f9e08dca4db3611f02bd35"
+  },
+  "python_3_10_syntax": "all manifest Python files parsed with feature_version=(3,10)",
+  "not_validated": [
+    "actual training-server CUDA/AMP run",
+    "new method production-data accuracy or convergence",
+    "GPU throughput or dynamic-budget benefit"
+  ],
+  "manual_audit_provenance": "user-reviewed data accepted; not a locally rerun experiment"
+}

@@ -2,7 +2,7 @@
 
 训练生命周期已独立，且与固定实验解耦：命令行指定运行参数、保存/验证频率；逐步记录、完整 checkpoint 和预测留档，见 [训练框架 README](../../../engine/sgqs_v2/README.md)。
 
-初版设计：2026-10-24；当前修订：2026-10-27（center_ios_overflow）；依据仓库 119bfe2、EXP-DIAG-006/007 与 baseline_test 的现有导出。状态：implemented / cpu_checked / unvalidated。完整方案先于训练实现写入，随后完成代码与CPU检查；本轮没有运行真实训练。
+初版设计：2026-10-24；当前修订：2026-10-28（source_coverage_v2）；依据仓库 119bfe2、EXP-DIAG-006/007、baseline_test 导出及用户确认的 final_100_hd_v2 人工审计。状态：implemented / cpu_checked / unvalidated；没有真实训练收益结论。2026-10-27 的中心/Decoder IoS 冗余与无接收者溢出机制保留，本次修正 source coverage 和 rescue 接收者判据。
 
 ## 目标与证据边界
 
@@ -11,6 +11,8 @@
 完整 val 的 SGQS EMA AP-small@640 在 e30→34 从 .935651 增至 .952699，而 @300 从 .701179 降到 .677757；这定位输出排名而不证明训练 loss 的主导权反转。baseline_test 的 13 张无 GT 图上，Encoder 均分 .1921→.3281，但 Top256 对原 Decoder 高分候选的静态保留率 99.52%→96.34%。高分/低分跨阶段重叠候选 39→768 是研究动机，不是已确认假阳性或可安全删除标签。原“双方重叠都约 .6%”尚无一致口径复现。
 
 因此不将升分、规则排列、独立 IoU coverage 或静态截断称作 AP 改善或计算节省。局部 owner 诊断不是训练 owner，119bfe2 的条件化替代救援率也不证明真实删 query 无损。
+
+用户确认的 final_100_hd_v2 审计包含同100张图、14,540个GT（small 6,575个）。按下述新source判据，B0覆盖13,661/14,540（small 5,702/6,575），SGQS覆盖14,405/14,540（small 6,440/6,575）；旧IoU判覆盖但新判据缺失的B0 GT有871个，其中865个是small。这些数值来自用户提供并认可的人工审计，本次没有在本机重新复算；它们支持修正source判据，不等于新训练方法的效果。
 
 ## 1. 保留几何辅助，解除唯一 owner 生存要求
 
@@ -34,7 +36,7 @@ $$
 
 来源归属 C(i)=g 要求 c_i 位于且仅位于一个 GT 的闭矩形内；落在多个 GT 内（含共享边界）则弃权。只在训练时传递 detached 中心，不改变推理。
 
-可靠代表和 rescue 接收者仍沿用 IoU 质量检查：最佳 IoU>=.5 且与次佳相差>=.05。可靠代表 k_g 必须是现有 final Hungarian 对 g 的正匹配，Decoder score>=.5，Encoder/Decoder 的 IoU 归属均为 g，且 C(k_g)=g。因此 IoS 不会把小碎框升级为可靠代表。
+可靠Decoder代表继续使用IoU质量检查：最佳IoU>=.5且与次佳相差>=.05。代表k_g必须是现有final Hungarian对g的正匹配，Decoder score>=.5，Encoder/Decoder的IoU归属均为g，且C(k_g)=g。此规则只用于可靠代表；source coverage及rescue使用第3节的中心与Encoder IoS条件，不能混为一种质量门槛。
 
 对待判冗余的 Decoder 框改用：
 
@@ -46,11 +48,32 @@ $$
 
 安全 donor i 还须：i属于S；Decoder score<.1；该GT已有可靠代表；不是任何 final Hungarian 正样本、Encoder 分类正样本或 guard 后有效owner；GO回归目标不存在或与C(i)一致。保留原跨GT IoU保护，且另一个GT的Decoder IoS>=.8也排除；模糊的跨GT IoU归属保守排除。一个大框包住多个GT时不会因为IoS高而获得冗余资格。
 
+另外先固定每个已source-covered GT的一个合格来源代表：优先保留满足第3节R条件的可靠Decoder代表，否则保留R条件下Encoder分数最高的入选候选。该来源代表不进入donor或overflow。它与Decoder代表可能不是同一个query，因为IoU>=.5不蕴含IoS>=.8。先固定保护再筛选，防止多个候选分别判为可降分后，一起破坏该GT的既有source覆盖；这是新增分配项的直接梯度保护，不保证共享参数更新后分数不变。
+
 这些门槛只控制新增监督。原背景分类、有效owner回归及可能适用的dense背景监督仍然存在，不能把旧版专项门控遗漏说成“完全无监督”。仅凭低分和包含关系不能证明删query后Decoder其他输出不变。
 
 ## 3. 两种接收者，共用一个排序项
 
-优先处理 coverage rescue：某 GT 在当前 S 中不存在任何 Encoder IoU>=rho 的候选。对其 Top-K 外有效 dense 候选，取明确归属该 GT 且分数最高的一项 j。每GT至多一个，不要求所有GT都能塞进K，GT>K不跳过整图。该类改善的是入口几何覆盖的潜力，不预先宣称最终 Decoder 会成功。
+coverage rescue按同一个候选的原始中心及未裁剪Encoder框定义：
+
+$$
+R_{ig}=\mathbf1[C(i)=g]\mathbf1\!\left[
+\frac{|E_i\cap b_g|}{\min(|E_i|,|b_g|)}\ge\rho_c\right],
+\quad \rho_c=0.8,
+\qquad Covered_g=\mathbf1[\exists i\in S:R_{ig}=1].
+$$
+
+`coverage_ios_threshold`配置rho_c，与Decoder冗余使用的`redundancy_ios_threshold`独立。中心必须是回归前native anchor中心，IoS必须使用同一来源的Encoder框；不裁剪到图像边界。不采用IoU覆盖、最佳IoS归属或次佳差值作为额外coverage门槛。记录面积比|E_i|/|b_g|及其他GT的最大Encoder IoS，首版不增加硬面积或跨GT IoS门槛。
+
+对Missing_g=not Covered_g，外部接收者为
+
+$$
+j_g=\arg\max_{i\notin S,\ R_{ig}=1}z_i.
+$$
+
+每个缺失GT至多一个，候选必须有效；空集合不造receiver。GT>K不跳过整图。没有选中来源中心且外部存在R可通过排序救援；选中来源有唯一中心但IoS不足、外部存在R时，也可换入已有合格来源。若全dense都没有R，记为`no_geometry_gt`；其中全dense没有唯一中心的情况另记`dense_no_unique_center_gt`。现有受保护owner/base框回归保持，不新增低质量receiver的升分或专用回归损失，也不声称所有geometry failure已获定向回归监督。
+
+选中候选的缺失互斥分为：`selected_no_center_gt`（完全无native中心落入）、`selected_ambiguous_only_gt`（有中心但全部多GT歧义）、`selected_low_ios_gt`（有唯一中心但没有同一候选Encoder IoS达标）。三者之和等于`missing_gt`。该覆盖只衡量来源支持，不预先宣称最终Decoder会成功。
 
 再处理 prefix allocation：从已有可靠 final 代表中选择当前 Encoder 排名较弱的其他GT代表 j，要求它是同GT的 Encoder 分类正匹配，且已有 GO box/owner 目标没有跨GT冲突。这一类已经在640内，只改善较小候选前缀的分配，不记为新增Top640覆盖。
 
@@ -96,7 +119,7 @@ engine/sgqs_v2 下只增加训练 supervisor、候选配对函数及新criterion
 
 固定次数全局归约：空GT、空pair、某rank无pair都不能改变DDP collective顺序。所有辅助loss的分母遵从全局总计数；指标提供全局总计数/图均值和比率所需分子分母。只记录已存在的分数/几何与门控统计，不继续运行旧GO/DDF逐项梯度探针。
 
-必报：GT/selected几何覆盖、missing-GT、rescue可用GT、无几何候选GT、可靠代表、双阶段不一致、受保护donor、可用donor、rescue/prefix pair数量、有效pair比例、pair logit gap、donor/receiver/keeper分数、owner冲突与辅助ramp。记录未加权和加权损失可区分升温与学习。
+必报：`v2_source_coverage_version=2`、GT/source覆盖和上述三类缺失（含本地small分组）、rescue可用GT、全dense无R及无唯一中心GT、来源代表与受保护donor、可靠Decoder代表、双阶段不一致、可用donor、rescue/prefix pair与overflow数量、pair logit gap、donor/receiver/keeper分数、owner冲突与辅助ramp。保留旧IoU覆盖及新旧判据交叉计数用于解释变更，不能把旧日志的同名coverage直接当作新口径比较。面积比/跨GT Encoder IoS记录入选合格来源及实际rescue接收者的原始和与分母；未加权和加权损失用于区分升温与学习。
 
 GT>=K时全部query可能被Hungarian标正，从而没有安全donor；不为产生配对绕过正标签保护。无pair且无overflow/长期coverage rescue为0是可解释失败反馈，不能自动放松门控。teacher高低分阈值是保守首轮设置，不代表验证过最优。
 
@@ -116,7 +139,7 @@ GT>=K时全部query可能被Hungarian标正，从而没有安全donor；不为�
 
 ## 7. 必需实现检查
 
-配对梯度方向与teacher detach；prefix receiver零新梯度；rescue分类mask保留回归；跨GT漂移/共享覆盖/现有正标签保护；空GT、没有候选、GT>K、tie、无pair、嵌套框IoS、原始中心与回归中心不同、跨GT包含、10/11备用边界及无接收者溢出；不均匀DDP计数与pooled梯度一致；真实微型DFINE训练前后向含DN；同权重同K eval逐元素一致；实际改变K在Decoder前生效；严格local-small边界与一对一重复惩罚；CocoEvaluator cleanup保持640；入口预检、resume时钟、runtime manifest、全val矩阵K缓存。
+配对梯度方向与teacher detach；prefix receiver零新梯度；rescue分类mask保留回归；跨GT漂移/共享覆盖/现有正标签保护；同一来源同时满足native中心和Encoder IoS、边界歧义与三类缺失、IoU高但source缺失及IoU低但IoS合格、唯一合格来源和批量donor/overflow保护；空GT、没有候选、GT>K、tie、无pair、嵌套框IoS、原始中心与回归中心不同、跨GT包含、10/11备用边界及无接收者溢出；不均匀DDP计数与pooled梯度一致；真实微型DFINE训练前后向含DN；同权重同K eval逐元素一致；实际改变K在Decoder前生效；严格local-small边界与一对一重复惩罚；CocoEvaluator cleanup保持640；入口预检、resume时钟、runtime manifest、全val矩阵K缓存。
 
 ## 8. 相关工作与贡献边界
 
@@ -135,3 +158,5 @@ DDQ（CVPR2023，https://arxiv.org/abs/2303.12776）已研究dense/distinct quer
 2026-10-24初版检查完成：137项仓库测试、两进程CPU/Gloo的稀疏/全空配对梯度与SGD一致性、Bash语法、运行文件校验、Markdown链接。检查记录保留环境与范围，不代表模型AP或加速收益。排序margin在代码评审中明确为配对条件m+z_i>z_j，避免只改变loss数值但不起实际作用；其余模型目标按上述冻结设计实现。
 
 2026-10-27修订检查与旧门控覆盖分析见 [修订记录](../../../outputs/diagnostics/sgqs_v2_ios_overflow_20261027/README.md)。
+
+2026-10-28用户已审核的100图证据、source coverage变更和服务器无COCO扩展包兼容检查见 [诊断记录](../../../outputs/diagnostics/sgqs_v2_source_coverage_20261028/README.md)。

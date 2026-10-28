@@ -11,14 +11,12 @@ import torch.utils.data
 import torchvision
 
 from PIL import Image
-import faster_coco_eval
-import faster_coco_eval.core.mask as coco_mask
+from .coco_backend import COCO, mask_util as coco_mask
 from ._dataset import DetDataset
 from .._misc import convert_to_tv_tensor
 from ...core import register
 
 torchvision.disable_beta_transforms_warning()
-faster_coco_eval.init_as_pycocotools()
 Image.MAX_IMAGE_PIXELS = None
 
 __all__ = ['CocoDetection']
@@ -30,7 +28,12 @@ class CocoDetection(torchvision.datasets.CocoDetection, DetDataset):
     __share__ = ['remap_mscoco_category']
 
     def __init__(self, img_folder, ann_file, transforms, return_masks=False, remap_mscoco_category=False):
-        super(CocoDetection, self).__init__(img_folder, ann_file)
+        # torchvision's constructor imports pycocotools unconditionally. Build
+        # the same dataset state with our selected backend instead of globally
+        # aliasing one package to another in sys.modules.
+        torchvision.datasets.VisionDataset.__init__(self, img_folder)
+        self.coco = COCO(ann_file)
+        self.ids = list(sorted(self.coco.imgs.keys()))
         self._transforms = transforms
         self.prepare = ConvertCocoPolysToMask(return_masks)
         self.img_folder = img_folder

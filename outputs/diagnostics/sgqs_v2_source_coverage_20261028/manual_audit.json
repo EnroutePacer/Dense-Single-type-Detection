@@ -1,0 +1,44 @@
+{
+  "date": "2026-10-28",
+  "provenance": "user_reviewed_manual_audit_final_100_hd_v2",
+  "user_reviewed": true,
+  "independent_rerun": false,
+  "images": 100,
+  "gt": 14540,
+  "local_small_gt": 6575,
+  "encoder_boxes": "unclipped_cxcywh",
+  "ios_definition": "intersection/min(encoder_area,gt_area)",
+  "gate": "same_source_unique_native_center_and_encoder_ios_ge_0.8",
+  "models": {
+    "b0": {
+      "iou_covered_all": 14530,
+      "source_covered_all": 13661,
+      "iou_only_all": 871,
+      "iou_covered_small": 6566,
+      "source_covered_small": 5702,
+      "iou_only_small": 865,
+      "missing_all": 879,
+      "reported_no_center": 803,
+      "reported_low_ios": 76
+    },
+    "sgqs": {
+      "iou_covered_all": 14451,
+      "source_covered_all": 14405,
+      "iou_only_all": 50,
+      "iou_covered_small": 6486,
+      "source_covered_small": 6440,
+      "iou_only_small": 50,
+      "missing_all": 135,
+      "reported_no_center": 89,
+      "reported_low_ios": 46
+    }
+  },
+  "server_log": {
+    "path": "server_console.log",
+    "sha256": "c22011854f572c61a29a984b19c452add0d9caa27987cbee484900fdbfa4626b",
+    "bytes": 27238,
+    "fatal_exception": "ModuleNotFoundError: No module named faster_coco_eval",
+    "python_from_traceback": "3.10",
+    "cuda_pytorch_versions": "not_present_in_attachment"
+  }
+}
