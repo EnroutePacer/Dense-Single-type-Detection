@@ -1,0 +1,7 @@
+{
+  "path": "checkpoint0028.pth",
+  "epoch": 28,
+  "sha256": "90bd10ef31f28b09ee7ad8b21f3071830425d3daa9f357cf231a28c668f12644",
+  "run_id": "3e7ff0305388398173c5d766977a0f1409666c8774b7b0509ca3834a7e21eaea",
+  "schema": "sgqs_v2_training_v2"
+}

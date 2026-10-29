@@ -15,6 +15,8 @@ from __future__ import annotations
 import argparse
 import copy
 import gc
+import hashlib
+import io
 import json
 import os
 from pathlib import Path
@@ -29,9 +31,14 @@ import numpy as np
 import torch
 from PIL import Image
 from torchvision.transforms import v2
-from faster_coco_eval import COCO, COCOeval_faster
 
 from engine.core import YAMLConfig
+from engine import sgqs_v2  # noqa: F401 - register SGQSV2Supervisor/criterion
+from engine.data.dataset.coco_backend import (
+    COCO,
+    EVAL_IMAGE_ATTRIBUTE,
+    make_evaluator,
+)
 from tools.table_cells import supervision_probe  # noqa: F401 - register config wrappers
 from tools.table_cells.prepare_probe_subset import sha256
 from tools.table_cells.supervision_probe import overlap
@@ -68,6 +75,72 @@ INDEX_FIELDS = (
     "best_iou_candidate_index",
     *(f"first_candidate_index_iou{suffix}" for suffix in THRESHOLD_SUFFIXES),
 )
+
+
+def _canonical_value_hash(value, digest: "hashlib._Hash") -> None:
+    """Hash checkpoint values independently of pickle byte layout.
+
+    A micro-probe checkpoint embeds its provenance inside the checkpoint.  A
+    hash of the whole pickle would therefore be circular (adding the hash
+    changes the pickle).  This typed traversal hashes the state payload while
+    excluding that provenance field, and is shared with replay-side
+    verification below.
+    """
+
+    if isinstance(value, torch.Tensor):
+        tensor = value.detach().cpu().contiguous()
+        digest.update(b"tensor\0")
+        digest.update(str(tensor.dtype).encode("utf-8"))
+        digest.update(b"\0")
+        digest.update(json.dumps(list(tensor.shape), separators=(",", ":")).encode("ascii"))
+        digest.update(b"\0")
+        digest.update(tensor.numpy().tobytes(order="C"))
+        return
+    if isinstance(value, dict):
+        digest.update(b"dict\0")
+        for key in sorted(value, key=lambda item: str(item)):
+            _canonical_value_hash(str(key), digest)
+            _canonical_value_hash(value[key], digest)
+        digest.update(b"/dict\0")
+        return
+    if isinstance(value, (list, tuple)):
+        digest.update(b"seq\0")
+        for item in value:
+            _canonical_value_hash(item, digest)
+        digest.update(b"/seq\0")
+        return
+    if value is None or isinstance(value, (bool, int, float, str)):
+        digest.update(b"scalar\0")
+        digest.update(json.dumps(value, ensure_ascii=False, sort_keys=True, allow_nan=False).encode("utf-8"))
+        digest.update(b"\0")
+        return
+    if isinstance(value, np.generic):
+        _canonical_value_hash(value.item(), digest)
+        return
+    raise TypeError(f"unsupported checkpoint value in provenance hash: {type(value)!r}")
+
+
+def checkpoint_payload_sha256(checkpoint: dict) -> str:
+    """Hash a checkpoint after removing its self-referential identity field."""
+
+    payload = dict(checkpoint)
+    payload.pop("micro_probe_identity", None)
+    digest = hashlib.sha256()
+    _canonical_value_hash(payload, digest)
+    return digest.hexdigest()
+
+
+def resolved_config_sha256(config: YAMLConfig) -> str:
+    """Hash the include-expanded source config before replay overrides."""
+
+    payload = json.dumps(
+        config.yaml_cfg,
+        ensure_ascii=False,
+        sort_keys=True,
+        separators=(",", ":"),
+        default=str,
+    ).encode("utf-8")
+    return hashlib.sha256(payload).hexdigest()
 
 
 def selection_scores(decoder, logits: torch.Tensor) -> torch.Tensor:
@@ -649,7 +722,25 @@ def compress_staging(
 
 def summary_at_budget(evaluator, budget: int) -> list[float]:
     """Return the legacy 12-element COCO stats vector for one maxDets value."""
-    summarize = evaluator._summarize
+    precision = np.asarray(evaluator.eval["precision"])
+    recall = np.asarray(evaluator.eval["recall"])
+    params = evaluator.params
+
+    def summarize(ap: int, iouThr=None, areaRng="all", maxDets=100) -> float:
+        area_index = params.areaRngLbl.index(areaRng)
+        budget_index = params.maxDets.index(maxDets)
+        if ap:
+            values = precision[:, :, :, area_index, budget_index]
+        else:
+            values = recall[:, :, area_index, budget_index]
+        if iouThr is not None:
+            threshold = np.flatnonzero(np.isclose(params.iouThrs, iouThr))
+            if not len(threshold):
+                return -1.0
+            values = values[threshold]
+        valid = values[values > -1]
+        return float(valid.mean()) if valid.size else -1.0
+
     return [
         float(summarize(1, maxDets=budget)),
         float(summarize(1, iouThr=0.5, maxDets=budget)),
@@ -711,7 +802,7 @@ def compact_coco_metrics(
         if not np.array_equal(image_ids, np.asarray(sorted(coco.getImgIds()))):
             raise ValueError("prediction image IDs do not match evaluator image IDs")
 
-        evaluator = COCOeval_faster(
+        evaluator = make_evaluator(
             coco,
             iouType="bbox",
             print_function=lambda *args: None,
@@ -732,17 +823,28 @@ def compact_coco_metrics(
             evaluator.cocoDt = coco.loadRes(detections)
             evaluator.params.imgIds = batch_ids.tolist()
             evaluator.evaluate()
+            batch_results = getattr(evaluator, EVAL_IMAGE_ATTRIBUTE)
             chunks.append(
-                np.asarray(evaluator._evalImgs_cpp, dtype=object).reshape(
+                np.asarray(batch_results, dtype=object).reshape(
                     len(evaluator.params.catIds),
                     len(evaluator.params.areaRng),
                     len(batch_ids),
                 )
             )
+            if len(chunks) == 1 or len(chunks) % 25 == 0 or batch_range.stop == len(image_ids):
+                print(
+                    f"COCO matching images={batch_range.stop}/{len(image_ids)} "
+                    f"backend={type(evaluator).__name__}",
+                    flush=True,
+                )
 
         evaluator.params.imgIds = image_ids.tolist()
         evaluator._paramsEval = copy.deepcopy(evaluator.params)
-        evaluator._evalImgs_cpp = np.concatenate(chunks, axis=2).ravel().tolist()
+        setattr(
+            evaluator,
+            EVAL_IMAGE_ATTRIBUTE,
+            np.concatenate(chunks, axis=2).ravel().tolist(),
+        )
         evaluator.accumulate()
         result: dict[int | str, object] = {
             budget: summary_at_budget(evaluator, budget) for budget in (300, 640)
@@ -1046,6 +1148,88 @@ def checkpoint_states(checkpoint: dict, names: list[str]) -> dict:
     return result
 
 
+def _verify_embedded_probe_identity(
+    checkpoint: dict,
+    *,
+    config: Path,
+    source_identity: dict,
+) -> dict | None:
+    """Verify and compactly expose identity embedded by a micro probe.
+
+    ``single_gpu_micro_probe`` stores its final identity in ``probe.pth``.
+    Replaying that artifact with a different config or fixed manifest is an
+    easy way to invalidate a paired comparison while still obtaining plausible
+    predictions.  Ordinary training checkpoints do not carry this field and
+    remain fully compatible; when it is present, the two immutable hashes are
+    checked before inference starts.
+    """
+
+    embedded = checkpoint.get("micro_probe_identity")
+    if embedded is None:
+        return None
+    if not isinstance(embedded, dict):
+        raise ValueError("checkpoint micro_probe_identity must be a JSON object")
+
+    expected_config = embedded.get("config_sha256")
+    actual_config = sha256(config)
+    if expected_config is not None and str(expected_config).lower() != actual_config.lower():
+        raise ValueError(
+            "micro-probe checkpoint config hash differs from replay config: "
+            f"expected {expected_config}, got {actual_config}"
+        )
+
+    expected_payload = embedded.get("probe_payload_sha256")
+    if expected_payload is not None:
+        actual_payload = checkpoint_payload_sha256(checkpoint)
+        if str(expected_payload).lower() != actual_payload.lower():
+            raise ValueError(
+                "micro-probe checkpoint payload hash differs from embedded identity: "
+                f"expected {expected_payload}, got {actual_payload}"
+            )
+
+    expected_base_config = embedded.get("base_resolved_config_sha256")
+    if expected_base_config is not None:
+        # The caller supplies the source YAML path; construct a clean config
+        # before replay-specific overrides so this verifies the same
+        # include-expanded source configuration used by the micro probe.
+        source_config = YAMLConfig(str(config))
+        actual_base_config = resolved_config_sha256(source_config)
+        if str(expected_base_config).lower() != actual_base_config.lower():
+            raise ValueError(
+                "micro-probe checkpoint base resolved-config hash differs from replay config: "
+                f"expected {expected_base_config}, got {actual_base_config}"
+            )
+
+    expected_manifest = embedded.get("manifest_sha256")
+    actual_manifest = source_identity.get("manifest_sha256")
+    if expected_manifest is not None and actual_manifest is not None:
+        if str(expected_manifest).lower() != str(actual_manifest).lower():
+            raise ValueError(
+                "micro-probe checkpoint manifest hash differs from replay manifest: "
+                f"expected {expected_manifest}, got {actual_manifest}"
+            )
+
+    # Keep the summary compact and JSON-only; the full checkpoint remains the
+    # authoritative artifact, while these fields make a report self-auditing.
+    keys = (
+        "schema", "arm", "config", "config_sha256", "base_resolved_config_sha256",
+        "resolved_config_sha256", "probe_payload_sha256",
+        "checkpoint", "checkpoint_sha256", "manifest", "manifest_sha256",
+        "seed", "steps", "batch_size", "accumulation", "device",
+        "target_strata_coverage_status", "probe_checkpoint_sha256",
+    )
+    result = {key: embedded[key] for key in keys if key in embedded}
+    result["verified_config_sha256"] = actual_config
+    if expected_base_config is not None:
+        result["verified_base_resolved_config_sha256"] = actual_base_config
+    if expected_payload is not None:
+        result["verified_probe_payload_sha256"] = actual_payload
+    if actual_manifest is not None:
+        result["verified_manifest_sha256"] = str(actual_manifest)
+    result["verified_against_replay_inputs"] = True
+    return result
+
+
 def main() -> None:
     parser = argparse.ArgumentParser()
     parser.add_argument("--config", type=Path, required=True)
@@ -1118,6 +1302,11 @@ def main() -> None:
     if model.decoder.num_queries != 640 or model.decoder.num_classes != 1:
         raise ValueError("full replay requires a single-class 640-query model")
     checkpoint = torch.load(args.checkpoint, map_location="cpu", weights_only=False)
+    embedded_probe_identity = _verify_embedded_probe_identity(
+        checkpoint,
+        config=args.config,
+        source_identity=source_identity,
+    )
     weights = checkpoint_states(checkpoint, list(args.states))
     summary = {
         **run_identity,
@@ -1126,6 +1315,8 @@ def main() -> None:
         "eval_batch_size": args.eval_batch_size,
         "results": {},
     }
+    if embedded_probe_identity is not None:
+        summary["checkpoint_micro_probe_identity"] = embedded_probe_identity
 
     for source_item in sources:
         coco = COCO(str(source_item["annotation"]))

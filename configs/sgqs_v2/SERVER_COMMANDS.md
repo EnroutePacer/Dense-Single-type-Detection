@@ -4,6 +4,8 @@
 
 CUDA AMP 同时兼容旧版 `torch.cuda.amp.GradScaler` API。日志中 TensorFlow 的重复 factory 注册提示不是此次启动退出的根因；已确认的根因是缺失 `faster_coco_eval`。本次更新同时改变 source coverage 训练语义，已有成功运行若要切换新代码，应按下文 `resume + 新目录` 建新运行；不绕过原运行的源码一致性检查。
 
+新运行的 `--output-dir` 可以不存在，也可以是调度器预建的空目录。为了支持 `mkdir -p "$RUN_DIR"` 加 `tee "$RUN_DIR/console.log"`，目录中仅有 `console.log` 也视为全新。任何其他文件（尤其是 `resolved.yml`、manifest 或 checkpoint）都会继续 fail-closed，必须使用 `recover` 或换新目录，不会覆盖旧实验。
+
 入口不再自动选择实验臂、GPU 数、数据路径、checkpoint、训练轮数或 seed。运行参数必须通过命令行显式给出；模型、增强和损失细节由 `-c` 指定，`-u key=value` 覆盖。启动后会保存原始命令参数、最终配置、输入/代码哈希。下面的数值是示例，可直接修改，不是入口的限制。
 
 ## 从零创建训练状态

@@ -1,15 +1,15 @@
 experiment_id: EXP-TRAIN-008
 slug: sgqs_v2_coverage_allocation
 type: train
-status: planned
-validity: not_run
+status: training_complete_evaluation_pending
+validity: evaluation_pending
 title: SGQS v2 实例覆盖驱动的候选预算分配
 method_ids:
 - M-003
 control_experiment_id: EXP-TRAIN-006
-updated_at: '2026-10-27'
+updated_at: '2026-10-30'
 method_revision: center_ios_overflow_20261027
-implementation_status: implemented_cpu_checked
+implementation_status: implemented_and_trained
 arms:
 - b0
 - support
@@ -51,6 +51,18 @@ query_budget_sweep:
 - 256
 full_val_states: 42
 full_val_budget_rows: 84
-completed_training_arms: []
+completed_training_arms:
+- support
+- v2
+completed_training_epochs:
+- 28
+- 29
+- 30
+- 31
+- 32
+- 33
+- 34
+training_evaluation_policy: disabled_during_training_offline_replay_pending
+training_evidence_root: outputs/sgqs_v2
 claim_scope: single_seed_continuation_screen_not_validated_method
 secondary_efficiency_endpoint: minimum_actual_K_preserving_overall_and_dense_scene_local_AP_within_0.001_of_own_K640

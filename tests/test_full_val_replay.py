@@ -1,6 +1,7 @@
 """Compact full-validation replay schema, math, and resume tests."""
 
 import gc
+import hashlib
 import json
 from pathlib import Path
 import tempfile
@@ -23,11 +24,55 @@ from tools.table_cells.full_val_replay import (
     ranked_gt_diagnostics,
     replay_state,
     stage_specs,
+    _verify_embedded_probe_identity,
 )
 from tools.table_cells.replay_probe import coco_metrics
 
 
 class FullValReplayTest(unittest.TestCase):
+    def test_embedded_micro_probe_identity_is_verified_and_compacted(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            config = root / "config.yml"
+            config.write_text("criterion: DEIMCriterion\n", encoding="utf-8")
+            config_hash = hashlib.sha256(config.read_bytes()).hexdigest()
+            manifest_hash = "a" * 64
+            checkpoint = {
+                "micro_probe_identity": {
+                    "schema": "sgqs_single_gpu_micro_probe_v1",
+                    "arm": "r5",
+                    "config_sha256": config_hash,
+                    "resolved_config_sha256": "b" * 64,
+                    "manifest_sha256": manifest_hash,
+                    "target_strata_coverage_status": "pass",
+                }
+            }
+            result = _verify_embedded_probe_identity(
+                checkpoint,
+                config=config,
+                source_identity={"manifest_sha256": manifest_hash},
+            )
+            self.assertTrue(result["verified_against_replay_inputs"])
+            self.assertEqual(result["verified_config_sha256"], config_hash)
+            self.assertEqual(result["verified_manifest_sha256"], manifest_hash)
+
+    def test_embedded_micro_probe_identity_rejects_wrong_manifest(self):
+        with tempfile.TemporaryDirectory() as temp:
+            config = Path(temp) / "config.yml"
+            config.write_text("criterion: DEIMCriterion\n", encoding="utf-8")
+            config_hash = hashlib.sha256(config.read_bytes()).hexdigest()
+            with self.assertRaisesRegex(ValueError, "manifest hash"):
+                _verify_embedded_probe_identity(
+                    {
+                        "micro_probe_identity": {
+                            "config_sha256": config_hash,
+                            "manifest_sha256": "a" * 64,
+                        }
+                    },
+                    config=config,
+                    source_identity={"manifest_sha256": "b" * 64},
+                )
+
     def test_capture_preserves_forward_and_records_real_membership(self):
         model, _, _ = fixture()
         model.eval()

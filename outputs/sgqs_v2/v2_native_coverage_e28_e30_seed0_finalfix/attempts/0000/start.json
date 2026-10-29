@@ -1,0 +1,11 @@
+{
+  "run_id": "3e7ff0305388398173c5d766977a0f1409666c8774b7b0509ca3834a7e21eaea",
+  "recover": false,
+  "attempt": 0,
+  "world_size": 8,
+  "torch": "2.1.2+cu121",
+  "python": "3.10.13 | packaged by conda-forge | (main, Oct 26 2023, 18:07:37) [GCC 12.3.0]",
+  "cuda": "12.1",
+  "cudnn": 8902,
+  "device": "NVIDIA H20"
+}

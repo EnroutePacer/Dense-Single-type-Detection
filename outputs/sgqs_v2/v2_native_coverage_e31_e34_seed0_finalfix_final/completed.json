@@ -1,0 +1,12 @@
+{
+  "run_id": "75312e43bbd1c7b6d97ec6b2b4a3717e733139b6818969f451bd783724129946",
+  "last_epoch": 34,
+  "checkpoint": {
+    "path": "checkpoint0034.pth",
+    "epoch": 34,
+    "sha256": "68a544abcf8f3b927b614d6f3139aceea276999a23f48a530d326e18cdf0975e",
+    "run_id": "75312e43bbd1c7b6d97ec6b2b4a3717e733139b6818969f451bd783724129946",
+    "schema": "sgqs_v2_training_v2"
+  },
+  "attempt": 0
+}

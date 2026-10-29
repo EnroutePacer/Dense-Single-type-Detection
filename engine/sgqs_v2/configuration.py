@@ -150,8 +150,23 @@ def resolved_config(args, world_size):
 
 def prepare_run(args, world_size):
     run = args.output_dir.resolve()
+    # Schedulers and shell pipelines commonly create the destination before the
+    # Python process starts (for example, ``mkdir -p "$RUN_DIR"`` followed by
+    # ``tee "$RUN_DIR/console.log"``). Treat that as a fresh run only when the
+    # directory is empty or contains the console stream alone. Any scientific
+    # artifact still makes the directory non-fresh, so a previous run can never
+    # be overwritten accidentally.
     if run.exists():
-        raise FileExistsError('New runs need a new output directory; use --mode recover for interruption recovery')
+        if not run.is_dir():
+            raise FileExistsError('New run output path exists and is not a directory')
+        unexpected = sorted(p.name for p in run.iterdir() if p.name != 'console.log')
+        if unexpected:
+            preview = ', '.join(unexpected[:5])
+            if len(unexpected) > 5:
+                preview += ', ...'
+            raise FileExistsError(
+                'New runs need a fresh output directory (empty or console.log only); '
+                f'found: {preview}. Use --mode recover for interruption recovery')
     cfg, inputs = resolved_config(args, world_size)
     data = yaml.safe_dump(cfg, sort_keys=False).encode('utf-8')
     try:
@@ -163,7 +178,7 @@ def prepare_run(args, world_size):
         'device_type': args.device, 'inputs': inputs, 'runtime_files': runtime_identity(),
         'source_revision': revision,
         'cli': {k: str(v) if isinstance(v, Path) else v for k, v in vars(args).items()}}
-    run.mkdir(parents=True, exist_ok=False)
+    run.mkdir(parents=True, exist_ok=True)
     atomic_write(run / 'resolved.yml', lambda f: f.write(data), replace=False)
     manifest['resolved_config_sha256'] = digest(run / 'resolved.yml')
     atomic_json(run / 'run_manifest.json', manifest, replace=False)

@@ -112,6 +112,7 @@ configs/**/*.yaml text eol=lf
 train.py text eol=lf
 outputs/sgqs_v2/**/*.jsonl filter=lfs diff=lfs merge=lfs -text
 outputs/sgqs_v2/**/probe_steps.csv filter=lfs diff=lfs merge=lfs -text
+outputs/sgqs_v2/**/console.log -text -diff
 outputs/provenance/retired_article_entities_20261014/** -text -diff
 
 # baseline_test is a reproducible chain-restoration bundle. Diagnostic CSV and

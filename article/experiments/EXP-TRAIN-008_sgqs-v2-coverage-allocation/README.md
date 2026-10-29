@@ -1,6 +1,6 @@
 # EXP-TRAIN-008：SGQS v2 实例覆盖与候选预算分配
 
-状态：已实现并通过CPU检查；真实训练未运行、方法收益未验证。初版设计于2026-10-24，2026-10-27按中心/IoS与无接收者溢出规则修订，完整算法见 [M-003](../../methods/M-003_sgqs_v2/README.md)。本实验替代已暂停的 [EXP-TRAIN-007](../EXP-TRAIN-007_sgqs-v2-single-factor/README.md)，不继续旧六臂根因探针。
+状态：Support 与 SGQS v2 的 epoch28--34 单 seed 续训已完成；独立完整验证待运行，方法收益仍未判定。初版设计于2026-10-24，2026-10-27按中心/IoS与无接收者溢出规则修订，完整算法见 [M-003](../../methods/M-003_sgqs_v2/README.md)。本实验替代已暂停的 [EXP-TRAIN-007](../EXP-TRAIN-007_sgqs-v2-single-factor/README.md)，不继续旧六臂根因探针。
 
 ## 目标与对照
 
@@ -52,6 +52,20 @@ local-small必须按输入640后 `area<32² OR short_side<16` 采用严格一对
 成功需要v2对support产生同预算性能或预算曲线改善，同时不违反整体AP约束；改善必须伴随一致的机制变化。七轮单seed只能筛选，正式结论还需多seed/完整训练与固定独立难例集。
 
 ## 运行
+
+### 2026-10-30 实际训练状态
+
+实际完成了两条连续训练链：Support epoch28--30 + epoch31--34，以及完整
+SGQS v2 epoch28--30 + epoch31--34。两条链的第二段都从本方法第一段的
+epoch30 checkpoint 恢复；manifest 中的初始 SHA 与前段 epoch30 文件 SHA
+一致。14 个 epoch 均有 5631 step 的结构化记录和 epoch summary，四个运行
+均有 `completed.json`。实体证据及目录映射见
+[outputs/sgqs_v2](../../../outputs/sgqs_v2/README.md)。
+
+训练为避免 8218240 条预测在单进程 COCO 后处理期间占用训练 GPU，显式关闭
+了训练内初始/周期验证。因此当前只确认训练链完整，不报告 AP，也不以训练
+coverage 直接宣称方法有效。预注册的 epoch28--34 EMA、maxDets=300/640、
+local-hybrid-small 与 GT>=301 子群指标将由独立回放补齐。
 
 训练生命周期和证据留档见 [框架 README](../../../engine/sgqs_v2/README.md)。通用入口不强制本实验参数；使用 [固定配方示例](../../../configs/sgqs_v2/recipes/EXP-TRAIN-008.md) 显式指定 epoch27 起点、每轮 raw/EMA 验证和 300/640 双预算。逐步统计与 checkpoint 保留，恢复使用新 attempt。新运行 schema 为 sgqs_training_run_v1；方法和本实验预注册终点不变。
 

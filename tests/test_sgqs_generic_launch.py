@@ -134,6 +134,28 @@ class GenericLaunchTest(unittest.TestCase):
                 (root/'val.json').write_text('changed',encoding='utf-8')
                 with self.assertRaisesRegex(ValueError,'Input changed'): verify_recovery(recover,1)
 
+    def test_prepare_accepts_scheduler_or_tee_precreated_fresh_directory_only(self):
+        for console in (False, True):
+            with self.subTest(console=console), tempfile.TemporaryDirectory() as tmp:
+                root=Path(tmp); self.setup_inputs(root)
+                run=root/'run'; run.mkdir()
+                if console:
+                    (run/'console.log').write_text('launcher output\n',encoding='utf-8')
+                args=parse_args(command(root))
+                with mock.patch('engine.sgqs_v2.configuration.runtime_identity',return_value={}):
+                    prepare_run(args,1)
+                self.assertTrue((run/'run_manifest.json').is_file())
+                self.assertTrue((run/'resolved.yml').is_file())
+                if console:
+                    self.assertEqual((run/'console.log').read_text(encoding='utf-8'),'launcher output\n')
+
+        with tempfile.TemporaryDirectory() as tmp:
+            root=Path(tmp); self.setup_inputs(root)
+            run=root/'run'; run.mkdir(); (run/'stale.txt').write_text('old run',encoding='utf-8')
+            args=parse_args(command(root))
+            with self.assertRaisesRegex(FileExistsError,'stale.txt'):
+                prepare_run(args,1)
+
     def test_missing_choices_and_implicit_recovery_overrides_are_rejected(self):
         with mock.patch('sys.stderr',new_callable=io.StringIO):
             with self.assertRaises(SystemExit): parse_args(['--mode','scratch','--output-dir','x','--device','cpu'])

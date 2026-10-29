@@ -1,0 +1,338 @@
+WARNING:__main__:
+*****************************************
+Setting OMP_NUM_THREADS environment variable for each process to be 1 in default, to avoid your system being overloaded, please further tune the variable for optimal performance in your application as needed. 
+*****************************************
+2026-10-29 00:25:31.574840: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.574840: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.574840: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.574840: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.575046: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.575222: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.575222: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.575222: I tensorflow/core/util/port.cc:113] oneDNN custom operations are on. You may see slightly different numerical results due to floating-point round-off errors from different computation orders. To turn them off, set the environment variable `TF_ENABLE_ONEDNN_OPTS=0`.
+2026-10-29 00:25:31.608252: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608261: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608261: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608261: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608266: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608267: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608269: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608270: E external/local_xla/xla/stream_executor/cuda/cuda_dnn.cc:9261] Unable to register cuDNN factory: Attempting to register factory for plugin cuDNN when one has already been registered
+2026-10-29 00:25:31.608282: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608282: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608285: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608286: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608286: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608286: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608288: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.608290: E external/local_xla/xla/stream_executor/cuda/cuda_fft.cc:607] Unable to register cuFFT factory: Attempting to register factory for plugin cuFFT when one has already been registered
+2026-10-29 00:25:31.609545: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609561: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609569: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609570: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609574: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609574: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609576: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.609577: E external/local_xla/xla/stream_executor/cuda/cuda_blas.cc:1515] Unable to register cuBLAS factory: Attempting to register factory for plugin cuBLAS when one has already been registered
+2026-10-29 00:25:31.615594: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615594: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615594: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615596: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615603: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615627: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615627: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:31.615628: I tensorflow/core/platform/cpu_feature_guard.cc:182] This TensorFlow binary is optimized to use available CPU instructions in performance-critical operations.
+To enable the following instructions: AVX2 AVX512F AVX512_VNNI AVX512_BF16 AVX_VNNI AMX_TILE AMX_INT8 AMX_BF16 FMA, in other operations, rebuild TensorFlow with the appropriate compiler flags.
+2026-10-29 00:25:32.301854: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.301854: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.301854: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.301854: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.301989: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.302008: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.302108: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+2026-10-29 00:25:32.330810: W tensorflow/compiler/tf2tensorrt/utils/py_utils.cc:38] TF-TRT Warning: Could not find TensorRT
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+/aicamera-mlp/zhuyouwei/code/DEIM/engine/data/dataset/coco_dataset.py:14: RuntimeWarning: faster_coco_eval is unavailable; using pycocotools for COCO matching and evaluation (slower; no environment changes).
+  from .coco_backend import COCO, mask_util as coco_mask
+Resolved training configuration: /aicamera-mlp/zhuyouwei/code/DEIM/outputs/sgqs_v2/support_native_coverage_e31_e34_seed0_finalfix/resolved.yml
+mode=resume, world=8, seed=0, epochs=35, global_batch=64, AMP=True, EMA=True, policy={'checkpoint_every': 1, 'eval_every': 0, 'eval_initial': False, 'eval_budgets': [300, 640], 'dense_min_gt': 301, 'small_reference_size': [640, 640]}
+Initial lr: [1.25e-05, 0.00025, 0.00025]
+building train_dataloader with batch_size=8...
+     ### Transform @RandomPhotometricDistort ###    
+     ### Transform @RandomHorizontalFlip ###    
+     ### Transform @Resize ###    
+     ### Transform @SanitizeBoundingBoxes ###    
+     ### Transform @ConvertPILImage ###    
+     ### Transform @ConvertBoxes ###    
+     ### ImgTransforms Epochs: 0 ### 
+     ### Policy_ops@[] ###
+loading annotations into memory...
+Done (t=151.82s)
+creating index...
+index created!
+building val_dataloader with batch_size=8...
+     ### Transform @Resize ###    
+     ### Transform @ConvertPILImage ###    
+loading annotations into memory...
+Done (t=4.80s)
+creating index...
+index created!
+Resume checkpoint from /aicamera-mlp/zhuyouwei/code/DEIM/outputs/sgqs_v2/support_native_coverage_e28_e30_seed0_finalfix/checkpoint0030.pth
+Load last_epoch
+Load model.state_dict
+Load criterion.state_dict
+Not load postprocessor.state_dict
+Load ema.state_dict
+Load scaler.state_dict
+Load optimizer.state_dict
+Not load lr_scheduler.state_dict
+Load lr_warmup_scheduler.state_dict
+[1.25e-05, 0.00025, 0.00025] [1.25e-05, 0.00025, 0.00025] 197085 500 22524000000 0
+Epoch 31 step 0/5631 loss=9.35326 skipped=False
+Epoch 31 step 100/5631 loss=10.04120 skipped=False
+Epoch 31 step 200/5631 loss=10.98694 skipped=False
+Epoch 31 step 300/5631 loss=8.88504 skipped=False
+Epoch 31 step 400/5631 loss=10.66178 skipped=False
+Epoch 31 step 500/5631 loss=8.50334 skipped=False
+Epoch 31 step 600/5631 loss=9.08478 skipped=False
+Epoch 31 step 700/5631 loss=10.40919 skipped=False
+Epoch 31 step 800/5631 loss=8.77968 skipped=False
+Epoch 31 step 900/5631 loss=8.76010 skipped=False
+Epoch 31 step 1000/5631 loss=9.30235 skipped=False
+Epoch 31 step 1100/5631 loss=8.24664 skipped=False
+Epoch 31 step 1200/5631 loss=8.77180 skipped=False
+Epoch 31 step 1300/5631 loss=8.87487 skipped=False
+Epoch 31 step 1400/5631 loss=9.94245 skipped=False
+Epoch 31 step 1500/5631 loss=10.00182 skipped=False
+Epoch 31 step 1600/5631 loss=11.83434 skipped=False
+Epoch 31 step 1700/5631 loss=7.89479 skipped=False
+Epoch 31 step 1800/5631 loss=9.37840 skipped=False
+Epoch 31 step 1900/5631 loss=7.98286 skipped=False
+Epoch 31 step 2000/5631 loss=9.29083 skipped=False
+Epoch 31 step 2100/5631 loss=7.40230 skipped=False
+Epoch 31 step 2200/5631 loss=9.56544 skipped=False
+Epoch 31 step 2300/5631 loss=8.58930 skipped=False
+Epoch 31 step 2400/5631 loss=8.91126 skipped=False
+Epoch 31 step 2500/5631 loss=9.52233 skipped=False
+Epoch 31 step 2600/5631 loss=11.54467 skipped=False
+Epoch 31 step 2700/5631 loss=10.52283 skipped=False
+Epoch 31 step 2800/5631 loss=9.76868 skipped=False
+Epoch 31 step 2900/5631 loss=10.06736 skipped=False
+Epoch 31 step 3000/5631 loss=7.56336 skipped=False
+Epoch 31 step 3100/5631 loss=9.12680 skipped=False
+Epoch 31 step 3200/5631 loss=9.36388 skipped=False
+Epoch 31 step 3300/5631 loss=9.18958 skipped=False
+Epoch 31 step 3400/5631 loss=9.14943 skipped=False
+Epoch 31 step 3500/5631 loss=9.26061 skipped=False
+Epoch 31 step 3600/5631 loss=10.16351 skipped=False
+Epoch 31 step 3700/5631 loss=8.46814 skipped=False
+Epoch 31 step 3800/5631 loss=11.17841 skipped=False
+Epoch 31 step 3900/5631 loss=10.49347 skipped=False
+Epoch 31 step 4000/5631 loss=9.01207 skipped=False
+Epoch 31 step 4100/5631 loss=9.29118 skipped=False
+Epoch 31 step 4200/5631 loss=9.46357 skipped=False
+Epoch 31 step 4300/5631 loss=9.45499 skipped=False
+Epoch 31 step 4400/5631 loss=8.17446 skipped=False
+Epoch 31 step 4500/5631 loss=9.77662 skipped=False
+Epoch 31 step 4600/5631 loss=9.14925 skipped=False
+Epoch 31 step 4700/5631 loss=9.89473 skipped=False
+Epoch 31 step 4800/5631 loss=8.36287 skipped=False
+Epoch 31 step 4900/5631 loss=8.52833 skipped=False
+Epoch 31 step 5000/5631 loss=9.54798 skipped=False
+Epoch 31 step 5100/5631 loss=8.91532 skipped=False
+Epoch 31 step 5200/5631 loss=10.08707 skipped=False
+Epoch 31 step 5300/5631 loss=9.23338 skipped=False
+Epoch 31 step 5400/5631 loss=10.16110 skipped=False
+Epoch 31 step 5500/5631 loss=8.83808 skipped=False
+Epoch 31 step 5600/5631 loss=8.56223 skipped=False
+Epoch 32 step 0/5631 loss=8.80541 skipped=False
+Epoch 32 step 100/5631 loss=8.49434 skipped=False
+Epoch 32 step 200/5631 loss=9.22999 skipped=False
+Epoch 32 step 300/5631 loss=9.24240 skipped=False
+Epoch 32 step 400/5631 loss=9.45571 skipped=False
+Epoch 32 step 500/5631 loss=8.75485 skipped=False
+Epoch 32 step 600/5631 loss=9.15663 skipped=False
+Epoch 32 step 700/5631 loss=11.48166 skipped=False
+Epoch 32 step 800/5631 loss=9.26431 skipped=False
+Epoch 32 step 900/5631 loss=9.54757 skipped=False
+Epoch 32 step 1000/5631 loss=11.34668 skipped=False
+Epoch 32 step 1100/5631 loss=10.02418 skipped=False
+Epoch 32 step 1200/5631 loss=9.22877 skipped=False
+Epoch 32 step 1300/5631 loss=9.16167 skipped=False
+Epoch 32 step 1400/5631 loss=9.62236 skipped=False
+Epoch 32 step 1500/5631 loss=8.46094 skipped=False
+Epoch 32 step 1600/5631 loss=9.52891 skipped=False
+Epoch 32 step 1700/5631 loss=8.90355 skipped=False
+Epoch 32 step 1800/5631 loss=8.50054 skipped=False
+Epoch 32 step 1900/5631 loss=9.30264 skipped=False
+Epoch 32 step 2000/5631 loss=9.07502 skipped=False
+Epoch 32 step 2100/5631 loss=9.97672 skipped=False
+Epoch 32 step 2200/5631 loss=9.18073 skipped=False
+Epoch 32 step 2300/5631 loss=8.97569 skipped=False
+Epoch 32 step 2400/5631 loss=7.62269 skipped=False
+Epoch 32 step 2500/5631 loss=9.14911 skipped=False
+Epoch 32 step 2600/5631 loss=9.06244 skipped=False
+Epoch 32 step 2700/5631 loss=9.54873 skipped=False
+Epoch 32 step 2800/5631 loss=8.48770 skipped=False
+Epoch 32 step 2900/5631 loss=9.51455 skipped=False
+Epoch 32 step 3000/5631 loss=10.36000 skipped=False
+Epoch 32 step 3100/5631 loss=9.70194 skipped=False
+Epoch 32 step 3200/5631 loss=8.56337 skipped=False
+Epoch 32 step 3300/5631 loss=9.23197 skipped=False
+Epoch 32 step 3400/5631 loss=9.12454 skipped=False
+Epoch 32 step 3500/5631 loss=8.44991 skipped=False
+Epoch 32 step 3600/5631 loss=9.52490 skipped=False
+Epoch 32 step 3700/5631 loss=9.62954 skipped=False
+Epoch 32 step 3800/5631 loss=8.90135 skipped=False
+Epoch 32 step 3900/5631 loss=9.27572 skipped=False
+Epoch 32 step 4000/5631 loss=10.89753 skipped=False
+Epoch 32 step 4100/5631 loss=8.92138 skipped=False
+Epoch 32 step 4200/5631 loss=8.71536 skipped=False
+Epoch 32 step 4300/5631 loss=10.05331 skipped=False
+Epoch 32 step 4400/5631 loss=10.12059 skipped=False
+Epoch 32 step 4500/5631 loss=9.55210 skipped=False
+Epoch 32 step 4600/5631 loss=9.14121 skipped=False
+Epoch 32 step 4700/5631 loss=10.43453 skipped=False
+Epoch 32 step 4800/5631 loss=9.35172 skipped=False
+Epoch 32 step 4900/5631 loss=9.39856 skipped=False
+Epoch 32 step 5000/5631 loss=7.81896 skipped=False
+Epoch 32 step 5100/5631 loss=9.20561 skipped=False
+Epoch 32 step 5200/5631 loss=8.86265 skipped=False
+Epoch 32 step 5300/5631 loss=8.49806 skipped=False
+Epoch 32 step 5400/5631 loss=10.12286 skipped=False
+Epoch 32 step 5500/5631 loss=8.36028 skipped=False
+Epoch 32 step 5600/5631 loss=8.54076 skipped=False
+Epoch 33 step 0/5631 loss=8.05269 skipped=False
+Epoch 33 step 100/5631 loss=9.58246 skipped=False
+Epoch 33 step 200/5631 loss=10.33435 skipped=False
+Epoch 33 step 300/5631 loss=9.25513 skipped=False
+Epoch 33 step 400/5631 loss=8.97241 skipped=False
+Epoch 33 step 500/5631 loss=9.04554 skipped=False
+Epoch 33 step 600/5631 loss=8.73475 skipped=False
+Epoch 33 step 700/5631 loss=9.83636 skipped=False
+Epoch 33 step 800/5631 loss=9.24730 skipped=False
+Epoch 33 step 900/5631 loss=9.00315 skipped=False
+Epoch 33 step 1000/5631 loss=9.17012 skipped=False
+Epoch 33 step 1100/5631 loss=8.37326 skipped=False
+Epoch 33 step 1200/5631 loss=9.92639 skipped=False
+Epoch 33 step 1300/5631 loss=9.65526 skipped=False
+Epoch 33 step 1400/5631 loss=9.30906 skipped=False
+Epoch 33 step 1500/5631 loss=8.84876 skipped=False
+Epoch 33 step 1600/5631 loss=9.66480 skipped=False
+Epoch 33 step 1700/5631 loss=8.62641 skipped=False
+Epoch 33 step 1800/5631 loss=8.29692 skipped=False
+Epoch 33 step 1900/5631 loss=8.41865 skipped=False
+Epoch 33 step 2000/5631 loss=9.38729 skipped=False
+Epoch 33 step 2100/5631 loss=7.90397 skipped=False
+Epoch 33 step 2200/5631 loss=7.92270 skipped=False
+Epoch 33 step 2300/5631 loss=8.63338 skipped=False
+Epoch 33 step 2400/5631 loss=9.45992 skipped=False
+Epoch 33 step 2500/5631 loss=9.42634 skipped=False
+Epoch 33 step 2600/5631 loss=10.39454 skipped=False
+Epoch 33 step 2700/5631 loss=8.88558 skipped=False
+Epoch 33 step 2800/5631 loss=10.26819 skipped=False
+Epoch 33 step 2900/5631 loss=8.62061 skipped=False
+Epoch 33 step 3000/5631 loss=8.18553 skipped=False
+Epoch 33 step 3100/5631 loss=8.75093 skipped=False
+Epoch 33 step 3200/5631 loss=9.64038 skipped=False
+Epoch 33 step 3300/5631 loss=8.70282 skipped=False
+Epoch 33 step 3400/5631 loss=8.50236 skipped=False
+Epoch 33 step 3500/5631 loss=8.29525 skipped=False
+Epoch 33 step 3600/5631 loss=8.51680 skipped=False
+Epoch 33 step 3700/5631 loss=8.31941 skipped=False
+Epoch 33 step 3800/5631 loss=8.54828 skipped=False
+Epoch 33 step 3900/5631 loss=9.39972 skipped=False
+Epoch 33 step 4000/5631 loss=8.07138 skipped=False
+Epoch 33 step 4100/5631 loss=8.34128 skipped=False
+Epoch 33 step 4200/5631 loss=9.62355 skipped=False
+Epoch 33 step 4300/5631 loss=8.90609 skipped=False
+Epoch 33 step 4400/5631 loss=9.86857 skipped=False
+Epoch 33 step 4500/5631 loss=9.50957 skipped=False
+Epoch 33 step 4600/5631 loss=8.17245 skipped=False
+Epoch 33 step 4700/5631 loss=10.70451 skipped=True
+Epoch 33 step 4800/5631 loss=8.92233 skipped=False
+Epoch 33 step 4900/5631 loss=9.31835 skipped=False
+Epoch 33 step 5000/5631 loss=9.79363 skipped=False
+Epoch 33 step 5100/5631 loss=9.07428 skipped=False
+Epoch 33 step 5200/5631 loss=8.76570 skipped=False
+Epoch 33 step 5300/5631 loss=10.46441 skipped=False
+Epoch 33 step 5400/5631 loss=8.77571 skipped=False
+Epoch 33 step 5500/5631 loss=8.93499 skipped=False
+Epoch 33 step 5600/5631 loss=8.87151 skipped=False
+Epoch 34 step 0/5631 loss=8.19360 skipped=False
+Epoch 34 step 100/5631 loss=9.19284 skipped=False
+Epoch 34 step 200/5631 loss=9.81695 skipped=False
+Epoch 34 step 300/5631 loss=8.19624 skipped=False
+Epoch 34 step 400/5631 loss=8.25774 skipped=False
+Epoch 34 step 500/5631 loss=8.04694 skipped=False
+Epoch 34 step 600/5631 loss=10.88750 skipped=False
+Epoch 34 step 700/5631 loss=8.74165 skipped=False
+Epoch 34 step 800/5631 loss=7.93597 skipped=False
+Epoch 34 step 900/5631 loss=8.50876 skipped=False
+Epoch 34 step 1000/5631 loss=9.18665 skipped=False
+Epoch 34 step 1100/5631 loss=9.24016 skipped=False
+Epoch 34 step 1200/5631 loss=8.49007 skipped=False
+Epoch 34 step 1300/5631 loss=8.85255 skipped=False
+Epoch 34 step 1400/5631 loss=8.20659 skipped=False
+Epoch 34 step 1500/5631 loss=8.25061 skipped=False
+Epoch 34 step 1600/5631 loss=9.10124 skipped=False
+Epoch 34 step 1700/5631 loss=8.58967 skipped=False
+Epoch 34 step 1800/5631 loss=8.24021 skipped=False
+Epoch 34 step 1900/5631 loss=8.89052 skipped=False
+Epoch 34 step 2000/5631 loss=8.38063 skipped=False
+Epoch 34 step 2100/5631 loss=8.27250 skipped=False
+Epoch 34 step 2200/5631 loss=9.05551 skipped=False
+Epoch 34 step 2300/5631 loss=9.56144 skipped=False
+Epoch 34 step 2400/5631 loss=8.95765 skipped=False
+Epoch 34 step 2500/5631 loss=8.84628 skipped=False
+Epoch 34 step 2600/5631 loss=8.79475 skipped=False
+Epoch 34 step 2700/5631 loss=8.37640 skipped=False
+Epoch 34 step 2800/5631 loss=8.50428 skipped=False
+Epoch 34 step 2900/5631 loss=9.06392 skipped=False
+Epoch 34 step 3000/5631 loss=8.24971 skipped=False
+Epoch 34 step 3100/5631 loss=8.76516 skipped=False
+Epoch 34 step 3200/5631 loss=8.01733 skipped=False
+Epoch 34 step 3300/5631 loss=9.11942 skipped=False
+Epoch 34 step 3400/5631 loss=8.18821 skipped=False
+Epoch 34 step 3500/5631 loss=8.21224 skipped=False
+Epoch 34 step 3600/5631 loss=8.14456 skipped=False
+Epoch 34 step 3700/5631 loss=8.90103 skipped=False
+Epoch 34 step 3800/5631 loss=8.70795 skipped=False
+Epoch 34 step 3900/5631 loss=10.32403 skipped=False
+Epoch 34 step 4000/5631 loss=9.41904 skipped=False
+Epoch 34 step 4100/5631 loss=9.07953 skipped=False
+Epoch 34 step 4200/5631 loss=8.87421 skipped=False
+Epoch 34 step 4300/5631 loss=10.36454 skipped=False
+Epoch 34 step 4400/5631 loss=8.45973 skipped=False
+Epoch 34 step 4500/5631 loss=8.78249 skipped=False
+Epoch 34 step 4600/5631 loss=9.40086 skipped=False
+Epoch 34 step 4700/5631 loss=9.59844 skipped=False
+Epoch 34 step 4800/5631 loss=8.41450 skipped=False
+Epoch 34 step 4900/5631 loss=8.53719 skipped=False
+Epoch 34 step 5000/5631 loss=8.62946 skipped=False
+Epoch 34 step 5100/5631 loss=8.76631 skipped=False
+Epoch 34 step 5200/5631 loss=8.78618 skipped=False
+Epoch 34 step 5300/5631 loss=8.79003 skipped=False
+Epoch 34 step 5400/5631 loss=9.46726 skipped=False
+Epoch 34 step 5500/5631 loss=10.12477 skipped=False
+Epoch 34 step 5600/5631 loss=8.79492 skipped=False
