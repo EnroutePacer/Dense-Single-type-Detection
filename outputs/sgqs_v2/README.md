@@ -40,6 +40,10 @@ dense 监督，但 `allocation_weight=0`。
 - `epoch*.steps.jsonl`；
 - `epoch*.rank*.samples.jsonl`。
 
+全部 144 个大文件的相对路径、字节数和源文件 SHA-256 见
+[`LARGE_ARTIFACTS.csv`](LARGE_ARTIFACTS.csv)。该清单记录真实内容哈希，
+不是 Git LFS pointer 的哈希。
+
 训练时显式设置了 `--eval-every 0 --no-eval-initial`，所以这些目录只包含训练
 证据，不能从训练日志中虚构验证 AP。完整验证需用 `full_val_replay.py` 对
 epoch28--34 EMA 做独立回放；结果生成后再作为新的评价证据登记。
